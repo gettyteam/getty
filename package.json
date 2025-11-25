@@ -123,6 +123,7 @@
     "vue-tsc": "^3.1.5"
   },
   "overrides": {
+    "body-parser": ">=2.2.1",
     "purgecss": {
       "glob": "11.1.0"
     },
