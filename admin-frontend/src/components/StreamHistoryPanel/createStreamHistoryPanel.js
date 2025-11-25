@@ -677,30 +677,35 @@ export function createStreamHistoryPanel(t) {
     showViewers.value = !showViewers.value;
   }
 
-  function queueChartReflow() {
-    const raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (cb) => setTimeout(cb, 16);
-    const caf = typeof cancelAnimationFrame === 'function' ? cancelAnimationFrame : clearTimeout;
-    try {
-      if (resizeRaf) caf(resizeRaf);
-    } catch {}
-    resizeRaf = raf(() => {
-      resizeRaf = null;
-      try {
-        chartEl.value?.classList.add('reflowing');
-      } catch {}
-      if (resizeTimer) clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => {
-        try {
-          renderCharts(lastSummaryData.value || []);
-        } catch {}
-        try {
-          setTimeout(() => chartEl.value?.classList.remove('reflowing'), 120);
-        } catch {}
-      }, 60);
-    });
+  const LAYOUT_RESIZE_EVENT = 'admin:layout-resized';
+
+function queueChartReflow() {
+  const raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (cb) => setTimeout(cb, 16);
+  const caf = typeof cancelAnimationFrame === 'function' ? cancelAnimationFrame : clearTimeout;
+  try {
+    if (resizeRaf) caf(resizeRaf);
+  } catch {}
+  if (resizeTimer) {
+    clearTimeout(resizeTimer);
+    resizeTimer = null;
   }
+  resizeRaf = raf(() => {
+    resizeRaf = null;
+    try {
+      chartEl.value?.classList.remove('reflowing');
+      setTimeout(() => renderCharts(lastSummaryData.value || []), 200);
+    } catch {}
+  });
+}  const handleLayoutResize = () => {
+    queueChartReflow();
+  };
 
   onMounted(async () => {
+    try {
+      if (typeof window !== 'undefined') {
+        window.addEventListener(LAYOUT_RESIZE_EVENT, handleLayoutResize);
+      }
+    } catch {}
     try {
       const v = localStorage.getItem(OVERLAY_KEY);
       if (v === '1' || v === '0') overlayCollapsed.value = v === '1';
@@ -825,6 +830,11 @@ export function createStreamHistoryPanel(t) {
   }
 
   function dispose() {
+    try {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener(LAYOUT_RESIZE_EVENT, handleLayoutResize);
+      }
+    } catch {}
     try {
       if (pollTimer) {
         clearTimeout(pollTimer);

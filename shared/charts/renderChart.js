@@ -272,8 +272,8 @@ function renderStreamHistoryChart(
 
   const fallbackW = Number(el.dataset.testWidth || 600);
   const fallbackH = Number(el.dataset.testHeight || 260);
-  const w = Math.max(0, (el.clientWidth ? el.clientWidth - 20 : fallbackW - 20));
-  const h = Math.max(0, (el.clientHeight ? el.clientHeight - 16 : fallbackH - 16));
+  const w = Math.max(0, el.clientWidth || fallbackW);
+  const h = Math.max(0, el.clientHeight || fallbackH);
   const goal = Number.isFinite(Number(goalHours)) ? Math.max(0, Number(goalHours)) : 0;
   let peakCandidate = null;
   const updatePeak = (candidate) => {
@@ -558,9 +558,13 @@ function renderStreamHistoryChart(
     const axisLeft = 44;
     const gridConfig = calcGridLayout(h);
     const svg = document.createElementNS(svgNS, 'svg');
-    svg.setAttribute('width', String(w));
-    svg.setAttribute('height', String(h));
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
     svg.style.display = 'block';
+    svg.style.width = '100%';
+    svg.style.height = '100%';
+    svg.style.margin = '0';
+    svg.style.padding = '0';
+    svg.style.verticalAlign = 'top';
     const lineModeLabel = showHoursSeries ? 'line-hours' : 'line-viewers';
     const animateLine = shouldAnimate(el, lineModeLabel, `${animationSignature}|${lineModeLabel}`);
     const gradientPrefix = makeUid('chart-area');
@@ -597,6 +601,7 @@ function renderStreamHistoryChart(
     if (defs.childNodes.length) {
       svg.appendChild(defs);
     }
+    const padX = 12;
     const drawGrid = (withLabels = false) => {
       const bg = document.createElementNS(svgNS, 'rect');
       bg.setAttribute('x', '0');
@@ -615,7 +620,7 @@ function renderStreamHistoryChart(
         const ln = document.createElementNS(svgNS, 'line');
         ln.setAttribute('x1', String(Math.max(0, axisLeft)));
         ln.setAttribute('y1', String(y));
-        ln.setAttribute('x2', String(w));
+        ln.setAttribute('x2', String(w - 12));
         ln.setAttribute('y2', String(y));
         ln.setAttribute('stroke', gridColor);
         ln.setAttribute('stroke-width', '1');
@@ -667,7 +672,7 @@ function renderStreamHistoryChart(
           const goalLine = document.createElementNS(svgNS, 'line');
           goalLine.setAttribute('x1', String(axisLeft));
           goalLine.setAttribute('y1', String(goalY));
-          goalLine.setAttribute('x2', String(w));
+          goalLine.setAttribute('x2', String(w - padX));
           goalLine.setAttribute('y2', String(goalY));
           goalLine.setAttribute('stroke', 'var(--chart-goal-met,#ff184c)');
           goalLine.setAttribute('stroke-width', '2');
@@ -679,7 +684,6 @@ function renderStreamHistoryChart(
       }
     };
     drawGrid(true);
-    const padX = 6;
     const padY = gridConfig.padY;
     const bottomAxis = gridConfig.bottomAxis;
     const innerW = Math.max(1, w - axisLeft - padX * 2);
@@ -917,11 +921,14 @@ function renderStreamHistoryChart(
   const animateBars = shouldAnimate(el, barModeLabel, `${animationSignature}|${barModeLabel}`);
   const gridConfig = calcGridLayout(h);
   const gridSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  gridSvg.setAttribute('width', String(w));
-  gridSvg.setAttribute('height', String(h));
+  gridSvg.setAttribute('viewBox', `0 0 ${w} ${h}`);
   gridSvg.style.position = 'absolute';
   gridSvg.style.left = '0';
   gridSvg.style.top = '0';
+  gridSvg.style.width = '100%';
+  gridSvg.style.height = '100%';
+  gridSvg.style.margin = '0';
+  gridSvg.style.padding = '0';
   gridSvg.style.pointerEvents = 'none';
   gridSvg.style.borderRadius = '12px';
   const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -945,7 +952,7 @@ function renderStreamHistoryChart(
       const ln = document.createElementNS('http://www.w3.org/2000/svg', 'line');
       ln.setAttribute('x1', String(Math.max(0, axisLeft)));
       ln.setAttribute('y1', String(y));
-      ln.setAttribute('x2', String(w));
+      ln.setAttribute('x2', String(w - 12));
       ln.setAttribute('y2', String(y));
       ln.setAttribute('stroke', gridColor);
       ln.setAttribute('stroke-width', '1');
@@ -976,7 +983,7 @@ function renderStreamHistoryChart(
         const goalLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         goalLine.setAttribute('x1', String(axisLeft));
         goalLine.setAttribute('y1', String(goalY));
-        goalLine.setAttribute('x2', String(w));
+        goalLine.setAttribute('x2', String(w - 12));
         goalLine.setAttribute('y2', String(goalY));
         goalLine.setAttribute('stroke', 'var(--chart-goal-met,#ff184c)');
         goalLine.setAttribute('stroke-width', '2');
@@ -1121,11 +1128,14 @@ function renderStreamHistoryChart(
 
   if (chartMode !== 'candle' && showViewers && maxViewers > 0 && series.length > 0) {
     const overlaySvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    overlaySvg.setAttribute('width', String(w));
-    overlaySvg.setAttribute('height', String(h));
+    overlaySvg.setAttribute('viewBox', `0 0 ${w} ${h}`);
     overlaySvg.style.position = 'absolute';
     overlaySvg.style.left = '0';
     overlaySvg.style.top = '0';
+    overlaySvg.style.width = '100%';
+    overlaySvg.style.height = '100%';
+    overlaySvg.style.margin = '0';
+    overlaySvg.style.padding = '0';
     overlaySvg.style.pointerEvents = 'none';
     overlaySvg.style.borderRadius = '8px';
     const toX = (idx) => Math.round(axisLeft + (barW + gap) * idx + barW / 2);
@@ -1244,9 +1254,12 @@ function renderViewersSparkline(
   const uid = makeUid();
 
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('width', String(w));
-  svg.setAttribute('height', String(h));
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
   svg.style.display = 'block';
+  svg.style.width = '100%';
+  svg.style.margin = '0';
+  svg.style.padding = '0';
+  svg.style.verticalAlign = 'top';
 
   const padX = 4;
   const padY = 6;

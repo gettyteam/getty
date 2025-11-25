@@ -95,16 +95,24 @@ const chartOptions = computed<ChartOptions<'bar'>>(() => {
 const container = ref<HTMLElement | null>(null);
 const chartRef = ref<InstanceType<typeof Bar> | null>(null);
 let resizeObserver: ResizeObserver | null = null;
+const LAYOUT_RESIZE_EVENT = 'admin:layout-resized';
 
 function scheduleResize() {
   if (typeof window === 'undefined') return;
-  window.requestAnimationFrame?.(() => {
+  setTimeout(() => {
     const chartInstance = chartRef.value?.chart as Chart | undefined;
     chartInstance?.resize();
-  });
+  }, 200);
 }
 
+const handleLayoutResize = () => {
+  scheduleResize();
+};
+
 onMounted(() => {
+  if (typeof window !== 'undefined') {
+    window.addEventListener(LAYOUT_RESIZE_EVENT, handleLayoutResize);
+  }
   if (typeof ResizeObserver === 'undefined') return;
   const target = container.value;
   if (!target) return;
@@ -116,6 +124,9 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener(LAYOUT_RESIZE_EVENT, handleLayoutResize);
+  }
   if (resizeObserver) {
     try {
       resizeObserver.disconnect();
@@ -139,5 +150,6 @@ const height = computed(() => props.height || 280);
   position: relative;
   width: 100%;
   min-height: 260px;
+  overflow: hidden;
 }
 </style>
