@@ -39,17 +39,14 @@ function validateEnvironment() {
   }
 }
 
-(async () => {
+const secretsLoaded = (async () => {
   await loadSecrets();
   validateEnvironment();
 })();
 const LIVEVIEWS_CONFIG_FILE = path.join(process.cwd(), 'config', 'liveviews-config.json');
 const STREAM_HISTORY_CONFIG_FILE = path.join(process.cwd(), 'config', 'stream-history-config.json');
 
-let loadTenantConfig = null;
-try {
-  ({ loadTenantConfig } = require('./lib/tenant-config'));
-} catch {}
+const { loadTenantConfig } = require('./lib/tenant-config');
 const express = require('express');
 const compression = require('compression');
 const helmet = require('helmet');
@@ -5903,8 +5900,9 @@ function attachUpgradeHandling(server) {
   });
 }
 
-function startHttpServer({ port, host } = {}) {
+async function startHttpServer({ port, host } = {}) {
   if (httpServer) return httpServer;
+  if (secretsLoaded) await secretsLoaded;
   registerProcessHandlers();
   bindTipListener();
 
