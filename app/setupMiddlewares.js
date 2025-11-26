@@ -75,6 +75,7 @@ function setupMiddlewares(
         defaultSrc: [self],
         scriptSrc: [
           self,
+          (req, res) => `'nonce-${res.locals.cspNonce || ''}'`,
           ...(allowInlineScripts ? ["'unsafe-inline'"] : []),
           ...(allowUnsafeHashes ? ["'unsafe-hashes'"] : []),
           ...unsafeEval,

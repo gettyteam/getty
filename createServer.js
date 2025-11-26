@@ -195,6 +195,9 @@ function applyNonceToHtml(html, nonce) {
     output = output.replace(/<style(\s[^>]*)?>/gi, (match) =>
       match.includes('nonce=') ? match : match.replace('<style', `<style nonce="${nonce}"`)
     );
+    output = output.replace(/<script(\s[^>]*)?>/gi, (match) =>
+      match.includes('nonce=') ? match : match.replace('<script', `<script nonce="${nonce}"`)
+    );
   } else {
     output = output.replace(/\snonce="__CSP_NONCE__"/g, '');
   }
