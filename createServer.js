@@ -1,32 +1,48 @@
 const path = require('path');
 
 require('./lib/log-shim');
-try {
-  if (process.env.DONT_LOAD_DOTENV !== '1') {
-    require('dotenv').config();
-  }
-} catch {}
 
-function validateEnvironment() {
-  const isProduction = process.env.NODE_ENV === 'production';
-  
-  const criticalVars = ['GETTY_SESSION_SECRET'];
-  
-  for (const key of criticalVars) {
-    if (isProduction && !process.env[key]) {
-      console.error(`[security] Critical environment variable ${key} is missing in production mode`);
-      process.exit(1);
-    } else if (!process.env[key]) {
-      console.warn(`[security] ${key} not set, using fallback (not recommended for production)`);
+async function loadSecrets() {
+  if (process.env.DONT_LOAD_DOTENV === '1') return;
+
+  try {
+    require('dotenv').config();
+  } catch {}
+
+  try {
+    const { InfisicalSDK } = await import('@infisical/sdk');
+    const client = new InfisicalSDK({
+      siteUrl: process.env.INFISICAL_URL || 'https://app.infisical.com',
+    });
+    await client.auth().universalAuth.login({
+      clientId: process.env.INFISICAL_CLIENT_ID,
+      clientSecret: process.env.INFISICAL_CLIENT_SECRET,
+    });
+    const { secrets } = await client.secrets().listSecrets({
+      environment: process.env.NODE_ENV === 'production' ? 'production' : 'development',
+      projectId: process.env.INFISICAL_PROJECT_ID,
+    });
+    for (const secret of secrets) {
+      process.env[secret.secretKey] = secret.secretValue;
     }
-  }
-  
-  if (isProduction && !process.env.REDIS_URL) {
-    console.warn('[security] REDIS_URL not set in production, using in-memory store');
+  } catch (e) {
+    console.error('Failed to load secrets from Infisical:', e.message);
   }
 }
 
-validateEnvironment();
+function validateEnvironment() {
+  const required = ['GETTY_SESSION_SECRET'];
+  for (const key of required) {
+    if (!process.env[key]) {
+      console.warn(`Warning: ${key} is not set`);
+    }
+  }
+}
+
+(async () => {
+  await loadSecrets();
+  validateEnvironment();
+})();
 const LIVEVIEWS_CONFIG_FILE = path.join(process.cwd(), 'config', 'liveviews-config.json');
 const STREAM_HISTORY_CONFIG_FILE = path.join(process.cwd(), 'config', 'stream-history-config.json');
 

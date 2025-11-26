@@ -6,7 +6,35 @@
 
 const fs = require('fs');
 const path = require('path');
-require('dotenv').config();
+
+async function loadSecrets() {
+  try {
+    require('dotenv').config();
+  } catch {}
+
+  try {
+    const { InfisicalSDK } = await import('@infisical/sdk');
+    const client = new InfisicalSDK({
+      siteUrl: process.env.INFISICAL_URL || 'https://app.infisical.com',
+    });
+    await client.auth().universalAuth.login({
+      clientId: process.env.INFISICAL_CLIENT_ID,
+      clientSecret: process.env.INFISICAL_CLIENT_SECRET,
+    });
+    const { secrets } = await client.secrets().listSecrets({
+      environment: process.env.NODE_ENV === 'production' ? 'production' : 'development',
+      projectId: process.env.INFISICAL_PROJECT_ID,
+    });
+    for (const secret of secrets) {
+      process.env[secret.secretKey] = secret.secretValue;
+    }
+  } catch (e) {
+    console.error('Failed to load secrets from Infisical:', e.message);
+  }
+}
+
+(async () => {
+  await loadSecrets();
 
 const { ensureTenant, replaceTenantHistory } = require('../lib/db/stream-history');
 
@@ -146,3 +174,4 @@ async function main() {
 if (require.main === module) {
   main();
 }
+})();

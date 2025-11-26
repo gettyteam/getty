@@ -25,6 +25,7 @@
     "build:i18n": "node scripts/build-i18n.js",
     "build-dashboard": "esbuild src/index.js --bundle --format=cjs --outfile=public/js/dashboard.js",
     "build": "npm-run-all --sequential copy:primeicons copy:landing build-css minify-css build:i18n build-dashboard admin:build frontend:build sync:frontend minify-js add-sri",
+    "build:secure": "infisical run --env=prod -- npm run build",
     "build:render": "cross-env BUILD_LIGHT=1 npm-run-all --sequential copy:primeicons copy:landing build-css minify-css build:i18n frontend:build sync:frontend minify-js add-sri",
     "add-sri": "node scripts/add-sri.js",
     "copy:primeicons": "node scripts/copy-primeicons.js",
@@ -42,6 +43,7 @@
   },
   "dependencies": {
     "@ardrive/turbo-sdk": "^1.36.0",
+    "@infisical/sdk": "^4.0.6",
     "@primevue/themes": "^4.4.1",
     "@supabase/supabase-js": "^2.84.0",
     "@untitledui/icons": "^0.0.19",
