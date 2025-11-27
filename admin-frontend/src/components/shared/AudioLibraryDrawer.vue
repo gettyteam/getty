@@ -1,79 +1,84 @@
 <template>
-  <transition name="audio-library-fade">
-    <div
-      v-if="open"
-      class="audio-library-overlay"
-      role="dialog"
-      aria-modal="true"
-      :aria-label="t('audioLibraryTitle')"
-      @click.self="emitClose">
-      <div class="audio-library-panel">
-        <header class="audio-library-header">
-          <div class="audio-library-header-text">
-            <h2 class="audio-library-title">{{ t('audioLibraryTitle') }}</h2>
-            <p class="audio-library-subtitle">{{ t('audioLibrarySubtitle') }}</p>
-          </div>
-          <div class="audio-library-header-actions">
-            <button
-              class="btn-secondary btn-compact-secondary"
-              type="button"
-              :disabled="loading"
-              @click="emitRefresh">
-              {{ t('commonRefresh') }}
-            </button>
-            <button class="btn-secondary btn-compact-secondary" type="button" @click="emitClose">
-              {{ t('commonClose') }}
-            </button>
-          </div>
-        </header>
-        <section class="audio-library-body" aria-live="polite">
-          <div v-if="loading" class="audio-library-status">{{ t('commonLoading') }}</div>
-          <div v-else-if="error" class="audio-library-status is-error">
-            <span>{{ error }}</span>
-            <button class="btn-secondary btn-compact-secondary" type="button" @click="emitRefresh">
-              {{ t('commonRefresh') }}
-            </button>
-          </div>
-          <div v-else-if="!items.length" class="audio-library-empty">
-            <p>{{ t('audioLibraryEmpty') }}</p>
-            <p class="audio-library-empty-hint">{{ t('audioLibraryEmptyHint') }}</p>
-          </div>
-          <ul v-else class="audio-library-grid">
-            <li v-for="item in items" :key="item.id" class="audio-library-item">
-              <div class="audio-meta">
-                <div class="audio-meta-primary">
-                  <span class="audio-name">{{ item.originalName || fallbackName(item.id) }}</span>
-                  <span v-if="itemSize(item)" class="audio-size">{{ itemSize(item) }}</span>
+  <Teleport to="body">
+    <transition name="audio-library-fade">
+      <div
+        v-if="open"
+        class="audio-library-overlay"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="t('audioLibraryTitle')"
+        @click.self="emitClose">
+        <div class="audio-library-panel">
+          <header class="audio-library-header">
+            <div class="audio-library-header-text">
+              <h2 class="audio-library-title">{{ t('audioLibraryTitle') }}</h2>
+              <p class="audio-library-subtitle">{{ t('audioLibrarySubtitle') }}</p>
+            </div>
+            <div class="audio-library-header-actions">
+              <button
+                class="btn-secondary btn-compact-secondary"
+                type="button"
+                :disabled="loading"
+                @click="emitRefresh">
+                {{ t('commonRefresh') }}
+              </button>
+              <button class="btn-secondary btn-compact-secondary" type="button" @click="emitClose">
+                {{ t('commonClose') }}
+              </button>
+            </div>
+          </header>
+          <section class="audio-library-body" aria-live="polite">
+            <div v-if="loading" class="audio-library-status">{{ t('commonLoading') }}</div>
+            <div v-else-if="error" class="audio-library-status is-error">
+              <span>{{ error }}</span>
+              <button
+                class="btn-secondary btn-compact-secondary"
+                type="button"
+                @click="emitRefresh">
+                {{ t('commonRefresh') }}
+              </button>
+            </div>
+            <div v-else-if="!items.length" class="audio-library-empty">
+              <p>{{ t('audioLibraryEmpty') }}</p>
+              <p class="audio-library-empty-hint">{{ t('audioLibraryEmptyHint') }}</p>
+            </div>
+            <ul v-else class="audio-library-grid">
+              <li v-for="item in items" :key="item.id" class="audio-library-item">
+                <div class="audio-meta">
+                  <div class="audio-meta-primary">
+                    <span class="audio-name">{{ formatName(item) }}</span>
+                    <span v-if="itemSize(item)" class="audio-size">{{ itemSize(item) }}</span>
+                  </div>
+                  <div class="audio-meta-secondary">
+                    <span v-if="itemUploaded(item)">{{ itemUploaded(item) }}</span>
+                  </div>
                 </div>
-                <div class="audio-meta-secondary">
-                  <span v-if="itemUploaded(item)">{{ itemUploaded(item) }}</span>
+                <audio
+                  v-if="item.url"
+                  class="audio-preview"
+                  :src="item.url"
+                  controls
+                  preload="none"
+                  :aria-label="t('audioLibraryPreviewLabel')"></audio>
+                <div class="audio-actions">
+                  <button class="btn" type="button" @click="emitSelect(item)">
+                    {{ t('audioLibraryUseAudio') }}
+                  </button>
+                  <button
+                    v-if="canDelete(item)"
+                    class="btn-secondary btn-compact-secondary audio-delete-btn"
+                    type="button"
+                    @click="emitDelete(item)">
+                    {{ t('commonDelete') }}
+                  </button>
                 </div>
-              </div>
-              <audio
-                v-if="item.url"
-                class="audio-preview"
-                :src="item.url"
-                controls
-                preload="none"
-                :aria-label="t('audioLibraryPreviewLabel')"></audio>
-              <div class="audio-actions">
-                <button class="btn" type="button" @click="emitSelect(item)">
-                  {{ t('audioLibraryUseAudio') }}
-                </button>
-                <button
-                  v-if="canDelete(item)"
-                  class="btn-secondary btn-compact-secondary audio-delete-btn"
-                  type="button"
-                  @click="emitDelete(item)">
-                  {{ t('commonDelete') }}
-                </button>
-              </div>
-            </li>
-          </ul>
-        </section>
+              </li>
+            </ul>
+          </section>
+        </div>
       </div>
-    </div>
-  </transition>
+    </transition>
+  </Teleport>
 </template>
 
 <script setup>
@@ -161,11 +166,12 @@ function itemUploaded(item) {
 }
 
 /**
- * @param {string | undefined} id
+ * @param {LibraryItem} item
  */
-function fallbackName(id) {
-  if (!id) return t('audioLibraryUnknown');
-  return id.length > 32 ? `${id.slice(0, 32)}…` : id;
+function formatName(item) {
+  const val = item.originalName || item.id;
+  if (!val) return t('audioLibraryUnknown');
+  return val.length > 30 ? `${val.slice(0, 30)}…` : val;
 }
 </script>
 

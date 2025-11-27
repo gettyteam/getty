@@ -32,9 +32,9 @@
             class="btn-secondary test-audio-btn"
             :disabled="!enabled"
             @click="testPlayback"
-            :title="t('achievementsTestNotificationBtn')"
-            aria-label="Test sound">
-            ▶
+            :title="isPlaying ? t('commonPause') : t('achievementsTestNotificationBtn')"
+            :aria-label="isPlaying ? t('commonPause') : 'Test sound'">
+            {{ isPlaying ? '⏸' : '▶' }}
           </button>
         </div>
         <div
@@ -91,20 +91,27 @@
               <select
                 id="legacy-audio-storage-provider"
                 class="input select w-full"
-                v-model="providerSelection"
+                :value="storageSelection"
+                @change="(e) => onProviderChange(e.target.value)"
                 :disabled="storageLoading">
                 <option
                   v-for="opt in storageProviderOptions"
                   :key="opt.id"
                   :value="opt.id"
-                  :disabled="!opt.available && opt.id !== providerSelection">
-                  {{ opt.label }}
+                  :disabled="!opt.available && opt.id !== storageSelection">
+                  {{ opt.label
+                  }}{{ opt.searchOnly ? ' · ' + t('wuzzyProviderSearchOnlyLabel') : '' }}
                 </option>
               </select>
               <div
                 v-if="providerStatus && !providerStatus.available"
                 class="small text-amber-500 mt-1">
                 {{ t('storageProviderUnavailable') }}
+              </div>
+              <div
+                v-else-if="providerStatus && providerStatus.searchOnly"
+                class="small text-emerald-400 mt-1">
+                {{ t('wuzzyProviderSearchOnlyHint') }}
               </div>
             </div>
             <input
@@ -113,9 +120,68 @@
               accept="audio/*"
               class="hidden"
               @change="onAudioChange" />
-            <div class="custom-audio-row">
+            <div class="custom-audio-row" v-if="isWuzzyMode">
+              <div class="upload-col">
+                <button class="btn-secondary w-full" type="button" @click="openWuzzyDrawer(true)">
+                  <i class="pi pi-search-plus mr-2" aria-hidden="true"></i>
+                  {{ t('wuzzyAudioOpenDrawerBtn') }}
+                </button>
+              </div>
+              <div v-if="libraryEnabled" class="library-col">
+                <button
+                  class="btn-secondary w-full"
+                  type="button"
+                  :disabled="savingAudio || libraryLoading"
+                  @click="openLibrary">
+                  <i class="pi pi-address-book mr-2" aria-hidden="true"></i>
+                  {{ libraryLoading ? t('commonLoading') : t('audioLibraryChoose') }}
+                </button>
+              </div>
+              <div class="actions-col">
+                <button class="btn-save" type="button" :disabled="savingAudio" @click="saveAudio">
+                  {{ savingAudio ? t('commonSaving') : t('achievementsSaveAudioBtn') }}
+                </button>
+                <div v-if="hasCustomAudio" class="remove-wrap">
+                  <button
+                    class="remove-audio-btn"
+                    :class="{ armed: deleteArmed }"
+                    type="button"
+                    :aria-label="deleteArmed ? t('confirm') : t('remove')"
+                    :title="deleteArmed ? t('confirm') : t('remove')"
+                    @click="deleteCustomAudio"
+                    :disabled="savingAudio">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true">
+                      <path d="M3 6h18" />
+                      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      <path d="M10 11v6" />
+                      <path d="M14 11v6" />
+                      <path d="M5 6l1 14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-14" />
+                    </svg>
+                  </button>
+                  <transition name="fade-fast">
+                    <div
+                      v-if="deleteArmed"
+                      class="confirm-pop"
+                      role="status"
+                      :aria-label="t('confirm')"
+                      @click="deleteCustomAudio">
+                      {{ t('confirm') }}
+                    </div>
+                  </transition>
+                </div>
+              </div>
+            </div>
+            <div class="custom-audio-row" v-else>
               <div class="upload-col">
                 <button class="btn-secondary w-full" type="button" @click="triggerAudio">
+                  <i class="pi pi-file-arrow-up mr-2" aria-hidden="true"></i>
                   {{ t('customAudioUploadLabel') }}
                 </button>
               </div>
@@ -125,6 +191,7 @@
                   type="button"
                   :disabled="savingAudio || libraryLoading"
                   @click="openLibrary">
+                  <i class="pi pi-address-book mr-2" aria-hidden="true"></i>
                   {{ libraryLoading ? t('commonLoading') : t('audioLibraryChoose') }}
                 </button>
                 <button
@@ -177,7 +244,49 @@
               </div>
             </div>
             <div
-              v-if="selectionSummary && selectionSummary.name"
+              v-if="isWuzzyMode && hasWuzzySelection"
+              class="border border-[var(--card-border)] rounded-os p-3 bg-[var(--bg-card)] flex flex-col gap-2 mt-3"
+              aria-live="polite">
+              <div class="flex flex-col gap-1">
+                <div class="font-semibold text-sm flex items-center gap-1">
+                  <i class="pi pi-user" aria-hidden="true"></i>
+                  <span class="break-all">{{ wuzzySelection.originalName }}</span>
+                </div>
+                <div class="text-xs opacity-80 flex items-center gap-1" v-if="wuzzySelectionMeta">
+                  <i class="pi pi-headphones" aria-hidden="true"></i>
+                  <span>{{ wuzzySelectionMeta }}</span>
+                </div>
+              </div>
+              <div class="wuzzy-selection-actions">
+                <button
+                  class="btn-secondary btn-compact-secondary"
+                  type="button"
+                  @click="openWuzzySelectionUrl">
+                  {{ t('wuzzyAudioSelectionOpen') }}
+                </button>
+                <button
+                  class="btn-secondary btn-compact-secondary"
+                  type="button"
+                  @click="copyWuzzySelectionUrl">
+                  {{ t('wuzzySelectionCopy') }}
+                </button>
+                <button
+                  class="btn-danger btn-compact-secondary"
+                  type="button"
+                  @click="clearWuzzySelection">
+                  {{ t('wuzzySelectionClear') }}
+                </button>
+              </div>
+            </div>
+            <div
+              v-else-if="isWuzzyMode && !hasWuzzySelection"
+              class="small mt-4 text-amber-400 flex items-center gap-2"
+              aria-live="polite">
+              <i class="pi pi-info-circle" aria-hidden="true"></i>
+              {{ t('wuzzyAudioSelectionHint') }}
+            </div>
+            <div
+              v-else-if="selectionSummary && selectionSummary.name"
               class="small mt-4 text-green-700 flex items-center gap-2"
               aria-live="polite">
               <svg width="16" height="16" fill="none" class="shrink-0">
@@ -222,15 +331,22 @@
       @refresh="fetchLibrary(true)"
       @select="onLibrarySelect"
       @delete="onLibraryDelete" />
+    <WuzzyAudioDrawer
+      v-if="audioSource === 'custom'"
+      :open="wuzzyDrawerOpen"
+      @close="closeWuzzyDrawer()"
+      @select="handleWuzzySelect" />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import api from '../../services/api';
 import { confirmDialog } from '../../services/confirm';
 import AudioLibraryDrawer from './AudioLibraryDrawer.vue';
+import WuzzyAudioDrawer from '../Wuzzy/WuzzyAudioDrawer.vue';
+import { formatBytes as formatWuzzyBytes } from '../../services/wuzzySearch';
 
 const props = defineProps({
   enabled: { type: Boolean, required: true },
@@ -268,6 +384,8 @@ const savingAudio = ref(false);
 const fileRef = ref(null);
 const errorMsg = ref('');
 const deleteArmed = ref(false);
+const isPlaying = ref(false);
+const currentAudio = ref(null);
 const libraryDrawerOpen = ref(false);
 const libraryLoading = ref(false);
 const libraryError = ref('');
@@ -276,23 +394,117 @@ const pendingLibraryItem = ref(null);
 const selectedLibraryId = ref('');
 let deleteTimer = null;
 
+const WUZZY_PROVIDER_ID = 'wuzzy';
+
 const volPercent = computed(() =>
   Math.round(Math.max(0, Math.min(1, Number(props.volume) || 0)) * 100)
 );
 
 const storageProviderOptions = computed(() =>
-  Array.isArray(props.storageProviders) ? props.storageProviders : []
+  Array.isArray(props.storageProviders)
+    ? props.storageProviders.map((entry) => ({ ...entry, searchOnly: !!entry.searchOnly }))
+    : []
 );
-const providerSelection = computed({
-  get: () => props.storageProvider || '',
-  set: (val) => emit('update:storageProvider', val),
+
+const storageSelection = ref('');
+const lastRealProvider = ref('');
+const wuzzyDrawerOpen = ref(false);
+const wuzzyDrawerDismissed = ref(false);
+const skipNextWuzzyAutoOpen = ref(false);
+const wuzzyAutoOpenReady = ref(false);
+const wuzzySelection = reactive({
+  id: '',
+  url: '',
+  originalName: '',
+  size: 0,
+  owner: '',
+  mimeType: '',
+  sha256: '',
+  fingerprint: '',
 });
+
+function suppressNextWuzzyAutoOpen() {
+  skipNextWuzzyAutoOpen.value = true;
+  setTimeout(() => {
+    skipNextWuzzyAutoOpen.value = false;
+  }, 0);
+}
+
 const providerStatus = computed(
-  () => storageProviderOptions.value.find((entry) => entry.id === providerSelection.value) || null
+  () => storageProviderOptions.value.find((entry) => entry.id === storageSelection.value) || null
 );
 const hasTurboOption = computed(() =>
   storageProviderOptions.value.some((opt) => opt.id === 'turbo')
 );
+const isWuzzyMode = computed(() => storageSelection.value === WUZZY_PROVIDER_ID);
+const hasWuzzySelection = computed(() => !!(wuzzySelection.id && wuzzySelection.url));
+const wuzzySelectionMeta = computed(() => {
+  if (!hasWuzzySelection.value) return '';
+  const parts = [];
+  if (wuzzySelection.mimeType) parts.push(wuzzySelection.mimeType);
+  if (wuzzySelection.size) parts.push(formatWuzzyBytes(wuzzySelection.size));
+  return parts.join(' · ');
+});
+
+onMounted(() => {
+  setTimeout(() => {
+    wuzzyAutoOpenReady.value = true;
+  }, 0);
+});
+
+watch(
+  () => props.storageProvider,
+  (next) => {
+    const normalized = typeof next === 'string' ? next.trim().toLowerCase() : '';
+    if (normalized && normalized !== WUZZY_PROVIDER_ID) {
+      lastRealProvider.value = normalized;
+    }
+    if (!normalized && storageSelection.value === WUZZY_PROVIDER_ID) {
+      return;
+    }
+    if (normalized && storageSelection.value === normalized) return;
+
+    if (normalized === WUZZY_PROVIDER_ID) {
+      suppressNextWuzzyAutoOpen();
+    }
+    storageSelection.value = normalized;
+  },
+  { immediate: true }
+);
+
+watch(storageSelection, (next, prev) => {
+  const guardActive = skipNextWuzzyAutoOpen.value;
+  const allowAutoOpen =
+    wuzzyAutoOpenReady.value &&
+    !guardActive &&
+    !wuzzyDrawerDismissed.value &&
+    !hasWuzzySelection.value;
+
+  if (next && next !== WUZZY_PROVIDER_ID) {
+    lastRealProvider.value = next;
+  }
+  if (next === WUZZY_PROVIDER_ID) {
+    if (prev !== WUZZY_PROVIDER_ID && allowAutoOpen) {
+      openWuzzyDrawer(true);
+    }
+    if (guardActive) {
+      skipNextWuzzyAutoOpen.value = false;
+    }
+    return;
+  }
+  if (guardActive) {
+    skipNextWuzzyAutoOpen.value = false;
+  }
+  if (prev === WUZZY_PROVIDER_ID) {
+    wuzzyDrawerOpen.value = false;
+    wuzzyDrawerDismissed.value = false;
+    resetWuzzySelection();
+  }
+});
+
+function normalizeProviderId(id) {
+  return typeof id === 'string' ? id.trim().toLowerCase() : '';
+}
 
 function perceptual(vol) {
   const v = Math.max(0, Math.min(1, vol || 0));
@@ -302,6 +514,18 @@ function perceptual(vol) {
 async function testPlayback() {
   try {
     if (!props.enabled) return;
+
+    if (isPlaying.value && currentAudio.value) {
+      currentAudio.value.pause();
+      isPlaying.value = false;
+      return;
+    }
+
+    if (currentAudio.value) {
+      currentAudio.value.pause();
+      currentAudio.value = null;
+    }
+
     const linear = Math.max(0, Math.min(1, Number(props.volume) || 0));
     const eff = perceptual(linear);
     const useCustom = props.audioSource === 'custom' && props.hasCustomAudio;
@@ -321,8 +545,23 @@ async function testPlayback() {
 
     const a = new Audio(url);
     a.volume = eff;
-    a.play().catch(() => {});
-  } catch {}
+    a.addEventListener('ended', () => {
+      isPlaying.value = false;
+      currentAudio.value = null;
+    });
+    a.addEventListener('pause', () => {
+      if (a.ended) return;
+      isPlaying.value = false;
+    });
+
+    currentAudio.value = a;
+    await a.play();
+    isPlaying.value = true;
+  } catch (err) {
+    console.error('Playback failed', err);
+    isPlaying.value = false;
+    currentAudio.value = null;
+  }
 }
 
 function toggleEnabled() {
@@ -338,6 +577,149 @@ function onChangeSource(val) {
 }
 function triggerAudio() {
   audioInput.value?.click();
+}
+
+function onProviderChange(value) {
+  const normalized = normalizeProviderId(value);
+  if (!normalized) {
+    storageSelection.value = '';
+    emit('update:storageProvider', '');
+    return;
+  }
+  storageSelection.value = normalized;
+  emit('update:storageProvider', normalized);
+  if (normalized !== WUZZY_PROVIDER_ID) {
+    lastRealProvider.value = normalized;
+    resetWuzzySelection();
+  }
+}
+
+function openWuzzyDrawer(force = false) {
+  if (!force && !isWuzzyMode.value) return;
+  wuzzyDrawerDismissed.value = false;
+  wuzzyDrawerOpen.value = true;
+}
+
+function closeWuzzyDrawer(persist = true) {
+  wuzzyDrawerOpen.value = false;
+  if (persist) {
+    wuzzyDrawerDismissed.value = true;
+  }
+}
+
+function restoreRealProviderSelection() {
+  const candidates = [
+    lastRealProvider.value,
+    normalizeProviderId(props.storageProvider),
+    storageProviderOptions.value.find((opt) => !opt.searchOnly && opt.available)?.id,
+    storageProviderOptions.value.find((opt) => !opt.searchOnly)?.id,
+  ]
+    .map((entry) => normalizeProviderId(entry))
+    .filter((entry) => entry && entry !== WUZZY_PROVIDER_ID);
+  const fallback = candidates.find((entry) => !!entry) || '';
+  storageSelection.value = fallback;
+  emit('update:storageProvider', fallback);
+}
+
+function resetWuzzySelection() {
+  wuzzySelection.id = '';
+  wuzzySelection.url = '';
+  wuzzySelection.originalName = '';
+  wuzzySelection.size = 0;
+  wuzzySelection.owner = '';
+  wuzzySelection.mimeType = '';
+  wuzzySelection.sha256 = '';
+  wuzzySelection.fingerprint = '';
+}
+
+function clearWuzzySelection() {
+  const wasWuzzy = storageSelection.value === WUZZY_PROVIDER_ID;
+  resetWuzzySelection();
+  if (wasWuzzy) {
+    restoreRealProviderSelection();
+  }
+}
+
+function applyWuzzyAudioEntry(entry = {}) {
+  const nextId =
+    (typeof entry.id === 'string' && entry.id) ||
+    (typeof entry.txId === 'string' && entry.txId) ||
+    '';
+  const nextUrl = typeof entry.url === 'string' ? entry.url : '';
+  if (!nextId || !nextUrl) return false;
+  wuzzySelection.id = nextId;
+  wuzzySelection.url = nextUrl;
+  wuzzySelection.originalName =
+    typeof entry.originalName === 'string' && entry.originalName
+      ? entry.originalName
+      : typeof entry.displayName === 'string' && entry.displayName
+      ? entry.displayName
+      : `${nextId}.mp3`;
+  wuzzySelection.size = Math.max(0, Number(entry.size) || 0);
+  wuzzySelection.owner = typeof entry.owner === 'string' ? entry.owner : '';
+  wuzzySelection.mimeType =
+    typeof entry.contentType === 'string' && entry.contentType
+      ? entry.contentType
+      : typeof entry.mimeType === 'string'
+      ? entry.mimeType
+      : 'audio/mpeg';
+  wuzzySelection.sha256 = typeof entry.sha256 === 'string' ? entry.sha256 : '';
+  wuzzySelection.fingerprint =
+    typeof entry.fingerprint === 'string' && entry.fingerprint ? entry.fingerprint : nextId;
+  storageSelection.value = WUZZY_PROVIDER_ID;
+  suppressNextWuzzyAutoOpen();
+  fileRef.value = null;
+  pendingLibraryItem.value = null;
+  selectedLibraryId.value = '';
+  if (audioInput.value) audioInput.value.value = '';
+  errorMsg.value = '';
+  wuzzyDrawerDismissed.value = true;
+  return true;
+}
+
+function handleWuzzySelect(item) {
+  if (!item) return;
+  const applied = applyWuzzyAudioEntry(item);
+  if (!applied) {
+    errorMsg.value = t('wuzzySelectionError');
+    return;
+  }
+  closeWuzzyDrawer();
+}
+
+function openWuzzySelectionUrl() {
+  if (!wuzzySelection.url) return;
+  try {
+    window.open(wuzzySelection.url, '_blank', 'noopener,noreferrer');
+  } catch (err) {
+    console.warn('[audio] failed to open wuzzy url', err);
+  }
+}
+
+async function copyWuzzySelectionUrl() {
+  if (!wuzzySelection.url || !navigator?.clipboard) {
+    emit('toast', { type: 'error', messageKey: 'wuzzySelectionCopyError' });
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(wuzzySelection.url);
+    emit('toast', { type: 'success', messageKey: 'wuzzySelectionCopySuccess' });
+  } catch (err) {
+    console.warn('[audio] failed to copy wuzzy url', err);
+    emit('toast', { type: 'error', messageKey: 'wuzzySelectionCopyError' });
+  }
+}
+
+function tryHydrateWuzzyFromLibrary(libraryId) {
+  if (!libraryId) return false;
+  const match = libraryItems.value.find(
+    (entry) =>
+      entry && entry.id === libraryId && normalizeProviderId(entry.provider) === WUZZY_PROVIDER_ID
+  );
+  if (match) {
+    return applyWuzzyAudioEntry(match);
+  }
+  return false;
 }
 async function onAudioChange(e) {
   const f = e.target.files?.[0];
@@ -370,11 +752,32 @@ async function saveAudio() {
     fd.append('audioSource', props.audioSource);
     fd.append('enabled', String(props.enabled));
     fd.append('volume', String(props.volume));
-    const selectedProvider = providerSelection.value;
+    const selectedProvider = storageSelection.value || '';
+    const isWuzzySelection = selectedProvider === WUZZY_PROVIDER_ID;
     if (selectedProvider) {
       fd.append('storageProvider', selectedProvider);
     }
-    if (props.audioSource === 'custom' && fileRef.value) {
+    if (props.audioSource === 'custom' && isWuzzySelection) {
+      if (!hasWuzzySelection.value) {
+        errorMsg.value = t('wuzzySelectionRequired');
+        return;
+      }
+      fd.append('wuzzyId', wuzzySelection.id);
+      fd.append('wuzzyUrl', wuzzySelection.url);
+      fd.append('wuzzySize', String(wuzzySelection.size || 0));
+      if (wuzzySelection.originalName) {
+        fd.append('wuzzyOriginalName', wuzzySelection.originalName);
+      }
+      if (wuzzySelection.mimeType) {
+        fd.append('wuzzyMimeType', wuzzySelection.mimeType);
+      }
+      if (wuzzySelection.sha256) {
+        fd.append('wuzzySha256', wuzzySelection.sha256);
+      }
+      if (wuzzySelection.fingerprint) {
+        fd.append('wuzzyFingerprint', wuzzySelection.fingerprint);
+      }
+    } else if (props.audioSource === 'custom' && fileRef.value) {
       fd.append('audioFile', fileRef.value);
     } else if (
       props.libraryEnabled &&
@@ -395,6 +798,9 @@ async function saveAudio() {
         nextLibrary,
         ...libraryItems.value.filter((entry) => entry && entry.id !== nextLibrary.id),
       ].slice(0, 50);
+      if (normalizeProviderId(nextLibrary.provider) === WUZZY_PROVIDER_ID) {
+        applyWuzzyAudioEntry(nextLibrary);
+      }
     }
     fileRef.value = null;
     if (audioInput.value) {
@@ -481,8 +887,13 @@ async function maybeHandleDuplicate(file) {
     });
 
     if (!proceed) {
-      pendingLibraryItem.value = duplicate;
-      selectedLibraryId.value = duplicate.id;
+      const providerId = normalizeProviderId(duplicate.provider);
+      if (providerId === WUZZY_PROVIDER_ID) {
+        applyWuzzyAudioEntry(duplicate);
+      } else {
+        pendingLibraryItem.value = duplicate;
+        selectedLibraryId.value = duplicate.id;
+      }
       fileRef.value = null;
       if (audioInput.value) {
         audioInput.value.value = '';
@@ -506,6 +917,7 @@ async function deleteCustomAudio() {
     await api.delete(props.deleteEndpoint);
     emit('audio-deleted');
     emit('toast', { type: 'success', messageKey: 'toastAudioRemoved' });
+    clearWuzzySelection();
 
     if (props.libraryEnabled) {
       await fetchLibrary(true);
@@ -525,6 +937,13 @@ function fallbackLibraryName(item) {
 }
 
 function selectionDetails() {
+  if (hasWuzzySelection.value) {
+    return {
+      label: t('wuzzyAudioSelectionLabel'),
+      name: wuzzySelection.originalName || wuzzySelection.id,
+      size: wuzzySelection.size ? formatSize(wuzzySelection.size) : '',
+    };
+  }
   if (fileRef.value) {
     return {
       label: t('audioLibraryPendingUpload'),
@@ -563,6 +982,9 @@ const selectionSummary = computed(() => selectionDetails());
 function clearLibrarySelection() {
   pendingLibraryItem.value = null;
   selectedLibraryId.value = '';
+  if (isWuzzyMode.value) {
+    clearWuzzySelection();
+  }
 }
 
 async function fetchLibrary(force = false) {
@@ -573,10 +995,10 @@ async function fetchLibrary(force = false) {
     libraryLoading.value = true;
     libraryError.value = '';
     const { data } = await api.get('/api/audio-settings/library');
-    if (data && Array.isArray(data.items)) {
-      libraryItems.value = data.items;
-    } else {
-      libraryItems.value = [];
+    const items = Array.isArray(data?.items) ? data.items : [];
+    libraryItems.value = items;
+    if (props.audioLibraryId) {
+      tryHydrateWuzzyFromLibrary(props.audioLibraryId);
     }
   } catch (error) {
     console.error('Error loading audio library:', error);
@@ -598,6 +1020,12 @@ function closeLibrary() {
 
 function onLibrarySelect(item) {
   if (!item || !item.id) return;
+  const providerId = normalizeProviderId(item.provider);
+  if (providerId === WUZZY_PROVIDER_ID) {
+    applyWuzzyAudioEntry(item);
+    closeLibrary();
+    return;
+  }
   pendingLibraryItem.value = item;
   selectedLibraryId.value = item.id;
   fileRef.value = null;
@@ -608,8 +1036,11 @@ function onLibrarySelect(item) {
 
 async function onLibraryDelete(item) {
   if (!item || !item.id) return;
-  const normalizedProvider = (item.provider || '').toString().trim().toLowerCase();
-  const deletable = !normalizedProvider || normalizedProvider === 'supabase';
+  const normalizedProvider = normalizeProviderId(item.provider);
+  const deletable =
+    !normalizedProvider ||
+    normalizedProvider === 'supabase' ||
+    normalizedProvider === WUZZY_PROVIDER_ID;
   if (!deletable) {
     emit('toast', { type: 'info', messageKey: 'audioLibraryDeleteNotAllowed' });
     return;
@@ -636,6 +1067,9 @@ async function onLibraryDelete(item) {
     emit('toast', { type: 'success', messageKey: 'toastAudioLibraryDeleted' });
     if (props.audioLibraryId === item.id) {
       emit('audio-deleted', { reason: 'library-deleted', silent: true });
+      if (normalizedProvider === WUZZY_PROVIDER_ID) {
+        clearWuzzySelection();
+      }
     }
   } catch (error) {
     const code = error?.response?.data?.error;
@@ -655,12 +1089,16 @@ watch(
       if (!pendingLibraryItem.value) {
         selectedLibraryId.value = '';
       }
+      if (isWuzzyMode.value) {
+        clearWuzzySelection();
+      }
       return;
     }
     if (pendingLibraryItem.value && pendingLibraryItem.value.id === next) {
       pendingLibraryItem.value = null;
     }
     selectedLibraryId.value = next;
+    tryHydrateWuzzyFromLibrary(next);
   },
   { immediate: true }
 );
@@ -668,6 +1106,9 @@ watch(
 watch(
   () => props.audioFileName,
   () => {
+    if (hasWuzzySelection.value) {
+      return;
+    }
     if (!pendingLibraryItem.value && !fileRef.value) {
       // keep current summary derived from props
       return;
@@ -790,11 +1231,24 @@ watch(
   gap: 16px;
   align-items: stretch;
 }
+.custom-audio-row.wuzzy-mode {
+  align-items: flex-start;
+}
 .upload-col {
   flex: 1 1 200px;
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+.wuzzy-selection-header {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.wuzzy-selection-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 .actions-col {
   flex: 0 0 auto;
@@ -871,8 +1325,11 @@ watch(
   gap: 0.75rem;
 }
 .legacy-audio.compact .btn-secondary {
-  padding: 8px 12px;
-  line-height: 1;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.1;
+  min-height: 30px;
+  padding: 4px 10px;
 }
 .legacy-audio.compact .vol-badge {
   padding: 5px 6px;

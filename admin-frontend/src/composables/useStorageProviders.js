@@ -5,6 +5,7 @@ import { useWalletSession } from './useWalletSession';
 const PROVIDER_LABELS = {
   supabase: 'Supabase',
   turbo: 'Arweave',
+  wuzzy: 'Wuzzy',
 };
 
 const STORAGE_PREF_PREFIX = 'getty.storage-provider';
@@ -38,7 +39,7 @@ function labelFor(id) {
   return id ? id : 'Unknown';
 }
 
-function includeExtraProvider(id) {
+function includeExtraProvider(id, { searchOnly = false } = {}) {
   const normalized = normalizeProviderId(id);
   if (!normalized) return;
   if (!state.extras.has(normalized)) {
@@ -47,6 +48,7 @@ function includeExtraProvider(id) {
       label: labelFor(normalized),
       available: false,
       fromConfig: true,
+      searchOnly: !!searchOnly,
     });
   }
 }
@@ -63,6 +65,7 @@ function mergedProviders() {
       id: normalized,
       label: labelFor(normalized),
       available: !!entry.available,
+      searchOnly: !!entry.searchOnly,
     });
   }
   for (const [normalized, entry] of state.extras.entries()) {
@@ -72,12 +75,14 @@ function mergedProviders() {
       id: normalized,
       label: entry.label,
       available: !!entry.available,
+      searchOnly: !!entry.searchOnly,
     });
   }
   return output;
 }
 
 const providerOptions = computed(() => mergedProviders());
+const realProviderOptions = computed(() => providerOptions.value.filter((opt) => !opt.searchOnly));
 
 function storageAvailable() {
   return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
@@ -105,11 +110,19 @@ function savePreference(hash, value) {
 
 function setSelectedProvider(id) {
   const normalized = normalizeProviderId(id);
+  if (!normalized) {
+    selectedProvider.value = '';
+    return;
+  }
+  const match = providerOptions.value.find((opt) => opt.id === normalized);
+  if (match && match.searchOnly) {
+    return;
+  }
   selectedProvider.value = normalized;
 }
 
 function resolveInitialSelection(preferences = []) {
-  const options = providerOptions.value;
+  const options = realProviderOptions.value;
   if (!options.length) return '';
   const candidates = [
     normalizeProviderId(state.userPreference),
@@ -143,6 +156,7 @@ async function fetchProviders(force = false) {
         id: normalizeProviderId(entry.id),
         label: labelFor(entry.id),
         available: !!entry.available,
+        searchOnly: !!entry.searchOnly,
       }));
       state.activeProvider = normalizeProviderId(data?.activeProvider);
       state.preferredProvider = normalizeProviderId(data?.preferredProvider);
@@ -181,10 +195,13 @@ export function useStorageProviders() {
       }
     },
     ensureSelection(preferences = []) {
-      if (!providerOptions.value.length) return;
+      if (!realProviderOptions.value.length) {
+        selectedProvider.value = '';
+        return;
+      }
       const current = normalizeProviderId(selectedProvider.value);
       if (current) {
-        const currentAvailable = providerOptions.value.some(
+        const currentAvailable = realProviderOptions.value.some(
           (opt) => opt.id === current && opt.available
         );
         if (currentAvailable) {
@@ -198,8 +215,9 @@ export function useStorageProviders() {
     },
     isProviderAvailable(id) {
       const normalized = normalizeProviderId(id);
-      return providerOptions.value.some((p) => p.id === normalized && p.available);
+      return realProviderOptions.value.some((p) => p.id === normalized && p.available);
     },
+    realProviderOptions,
   };
 }
 
@@ -232,7 +250,7 @@ preferenceScope.run(() => {
     () => {
       const current = normalizeProviderId(selectedProvider.value);
       if (current) {
-        const stillAvailable = providerOptions.value.some(
+        const stillAvailable = realProviderOptions.value.some(
           (opt) => opt.id === current && opt.available
         );
         if (stillAvailable) {

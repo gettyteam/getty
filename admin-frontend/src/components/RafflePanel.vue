@@ -86,6 +86,14 @@
             <i class="pi pi-images mr-2" aria-hidden="true"></i>
             {{ t('imageLibraryOpenBtn') }}
           </button>
+          <button
+            type="button"
+            class="btn-secondary btn-compact-secondary"
+            @click="openWuzzyDrawer"
+            :aria-label="t('wuzzyOpenDrawerBtn')">
+            <i class="pi pi-search-plus mr-2" aria-hidden="true"></i>
+            {{ t('wuzzyOpenDrawerBtn') }}
+          </button>
           <div
             v-if="storageOptions.length"
             class="flex items-center gap-2"
@@ -108,18 +116,25 @@
               </option>
             </select>
           </div>
-          <span
-            v-if="selectedPrizeFilename"
-            class="file-name-label"
-            :title="selectedPrizeFilename"
-            >{{ selectedPrizeFilename }}</span
-          >
+          <span v-if="selectedPrizeFilename" class="file-name-label" :title="selectedPrizeFilename">
+            <i class="pi pi-image mr-1"></i>
+            {{
+              selectedPrizeFilename.length > 18
+                ? selectedPrizeFilename.substring(0, 18) + '...'
+                : selectedPrizeFilename
+            }}
+          </span>
           <span
             v-else-if="form.imageOriginalName"
             class="file-name-label"
-            :title="form.imageOriginalName"
-            >{{ form.imageOriginalName }}</span
-          >
+            :title="form.imageOriginalName">
+            <i class="pi pi-image mr-1"></i>
+            {{
+              form.imageOriginalName.length > 18
+                ? form.imageOriginalName.substring(0, 18) + '...'
+                : form.imageOriginalName
+            }}
+          </span>
           <button
             v-if="displayImageUrl"
             type="button"
@@ -134,7 +149,11 @@
           {{ imageLibrary.error }}
         </div>
         <div v-if="displayImageUrl" class="mt-2">
-          <img :src="displayImageUrl" alt="raffle" class="max-h-20 object-contain rounded" />
+          <img
+            :src="displayImageUrl"
+            alt="raffle"
+            class="object-contain rounded"
+            style="max-height: 9rem" />
         </div>
       </div>
       <div class="flex flex-wrap gap-2 form-group mt-4" role="group" aria-label="Raffle actions">
@@ -219,6 +238,10 @@
       @refresh="fetchImageLibrary(true)"
       @select="onLibraryImageSelect"
       @delete="onLibraryImageDelete" />
+    <WuzzyImageDrawer
+      :open="wuzzyDrawerOpen"
+      @close="closeWuzzyDrawer"
+      @select="handleWuzzySelect" />
     <AlertDialog v-model:open="uploadErrorDialog.open">
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -240,6 +263,7 @@ import { pushToast } from '../services/toast';
 import { confirmDialog } from '../services/confirm';
 import CopyField from './shared/CopyField.vue';
 import ImageLibraryDrawer from './shared/ImageLibraryDrawer.vue';
+import WuzzyImageDrawer from './Wuzzy/WuzzyImageDrawer.vue';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -328,6 +352,7 @@ watch(storageOptions, () => {
 
 const imageLibrary = reactive({ items: [], loading: false, error: '', loaded: false, open: false });
 const imageLibraryDeletingId = ref('');
+const wuzzyDrawerOpen = ref(false);
 
 const uploadErrorDialog = reactive({
   open: false,
@@ -415,6 +440,35 @@ async function openImageLibraryDrawer() {
 
 function closeImageLibraryDrawer() {
   imageLibrary.open = false;
+}
+
+function openWuzzyDrawer() {
+  wuzzyDrawerOpen.value = true;
+}
+
+function closeWuzzyDrawer() {
+  wuzzyDrawerOpen.value = false;
+}
+
+async function handleWuzzySelect(item) {
+  if (!item) return;
+  const entry = {
+    id: item.id,
+    url: item.url,
+    provider: 'wuzzy',
+    size: item.size,
+    originalName: item.displayName || item.originalName || item.id,
+    sha256: '',
+    fingerprint: item.id,
+  };
+  try {
+    const applied = await applyLibraryImage(entry, { notifyError: true });
+    if (applied) {
+      closeWuzzyDrawer();
+    }
+  } catch (error) {
+    console.error('[raffle] wuzzy select failed', error);
+  }
 }
 
 function formatLibraryName(entry) {
@@ -575,12 +629,15 @@ async function applyLibraryImage(entry, opts = {}) {
   try {
     const fd = new FormData();
     fd.append('libraryId', entry.id);
+    if (entry.url) fd.append('url', entry.url);
+    if (entry.provider) fd.append('provider', entry.provider);
+    if (entry.originalName) fd.append('originalName', entry.originalName);
+    if (entry.size) fd.append('size', entry.size);
+
     if (selectedStorageProvider.value) {
       fd.append('storageProvider', selectedStorageProvider.value);
     }
-    const res = await api.post('/api/raffle/upload-image', fd, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const res = await api.post('/api/raffle/upload-image', fd);
     const data = res?.data || {};
     if (!data.success) {
       const errorMsg = data.error;
@@ -717,6 +774,14 @@ async function load(forceLibrary = false) {
 async function saveSettings() {
   if (masked.value) {
     pushToast({ type: 'info', message: t('raffleSessionRequiredToast') });
+    return;
+  }
+  if (!form.command || !form.command.trim()) {
+    pushToast({ type: 'error', message: t('raffleValidationCommand') });
+    return;
+  }
+  if (!form.prize || !form.prize.trim()) {
+    pushToast({ type: 'error', message: t('raffleValidationPrize') });
     return;
   }
   savingSettings.value = true;
@@ -857,9 +922,7 @@ async function onImageFileChange(e) {
     if (selectedStorageProvider.value) {
       fd.append('storageProvider', selectedStorageProvider.value);
     }
-    const res = await api.post('/api/raffle/upload-image', fd, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const res = await api.post('/api/raffle/upload-image', fd);
     const data = res?.data || {};
     if (!data.success || !data.imageUrl) {
       const errorMsg = data.error;

@@ -198,7 +198,7 @@
             :audio-file-size="audioState.audioFileSize"
             :audio-library-id="audioState.audioLibraryId"
             :library-enabled="true"
-            :storage-provider="selectedStorageProvider"
+            :storage-provider="audioStorageProvider"
             :storage-providers="storageOptions"
             :storage-loading="storageLoading"
             save-endpoint="/api/goal-audio-settings"
@@ -207,7 +207,7 @@
             @update:enabled="(val) => (audioCfg.enabled = val)"
             @update:volume="(val) => (audioCfg.volume = val)"
             @update:audio-source="(val) => (audio.audioSource = val)"
-            @update:storage-provider="(val) => storage.setSelectedProvider(val)"
+            @update:storage-provider="handleAudioStorageProviderChange"
             @audio-saved="handleAudioSaved"
             @audio-deleted="handleAudioDeleted"
             @toast="handleAudioToast" />
@@ -272,6 +272,7 @@ import LegacyAudioControls from './shared/LegacyAudioControls.vue';
 import HeaderIcon from './shared/HeaderIcon.vue';
 
 const { t } = useI18n();
+const WUZZY_PROVIDER_ID = 'wuzzy';
 
 const form = reactive({
   title: '',
@@ -324,6 +325,15 @@ const selectedStorageProvider = computed({
 });
 const storageOptions = computed(() => storage.providerOptions.value);
 const storageLoading = computed(() => storage.loading.value);
+const audioStorageProvider = computed(
+  () => audioState.storageProvider || selectedStorageProvider.value || ''
+);
+
+watch(selectedStorageProvider, (next) => {
+  if (audioState.storageProvider === WUZZY_PROVIDER_ID) return;
+  const normalized = typeof next === 'string' ? next : '';
+  audioState.storageProvider = normalized;
+});
 
 function resolveStorageSelection(preferred = '') {
   const candidates = [];
@@ -432,7 +442,9 @@ async function loadTipGoal() {
       if (typeof data.audioSource === 'string') audio.audioSource = data.audioSource;
       if (typeof data.storageProvider === 'string') {
         audioState.storageProvider = data.storageProvider;
-        if (data.storageProvider) storage.registerProvider(data.storageProvider);
+        if (data.storageProvider && data.storageProvider !== WUZZY_PROVIDER_ID) {
+          storage.registerProvider(data.storageProvider);
+        }
       }
     }
   } catch (e) {
@@ -462,7 +474,9 @@ async function loadAudioState() {
         audioCfg.volume = Math.min(Math.max(vol, 0), 1);
       }
     }
-    if (audioState.storageProvider) storage.registerProvider(audioState.storageProvider);
+    if (audioState.storageProvider && audioState.storageProvider !== WUZZY_PROVIDER_ID) {
+      storage.registerProvider(audioState.storageProvider);
+    }
   } catch (e) {
     if (!(e?.response?.status === 404)) {
       console.warn('[tip-goal] failed to load audio settings', e);
@@ -545,6 +559,14 @@ function handleAudioToast(payload) {
   const message = t(payload.messageKey);
   if (!message) return;
   pushToast({ type: payload.type || 'info', message });
+}
+
+function handleAudioStorageProviderChange(val) {
+  const normalized = typeof val === 'string' ? val : '';
+  audioState.storageProvider = normalized;
+  if (normalized && normalized !== WUZZY_PROVIDER_ID) {
+    storage.setSelectedProvider(normalized);
+  }
 }
 
 registerDirty(() => originalSnapshot.value !== serializeSnapshot());

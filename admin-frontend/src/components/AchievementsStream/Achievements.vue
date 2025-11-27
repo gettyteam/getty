@@ -131,18 +131,18 @@
                     :save-endpoint="'/api/goal-audio-settings'"
                     :delete-endpoint="'/api/goal-audio-settings'"
                     :custom-audio-endpoint="'/api/goal-custom-audio'"
-                    :storage-provider="selectedStorageProvider"
+                    :storage-provider="audioStorageProvider"
                     :storage-providers="storageOptions"
                     :storage-loading="storageLoading"
                     @update:enabled="(v) => (cfg.sound.enabled = v)"
                     @update:volume="(v) => (cfg.sound.volume = v)"
                     @update:audio-source="(v) => (audio.audioSource = v)"
-                    @update:storage-provider="(val) => storage.setSelectedProvider(val)"
-                    @audio-saved="loadAll"
+                    @update:storage-provider="handleAudioStorageProviderChange"
+                    @audio-saved="refreshAudioState"
                     @audio-deleted="
                       () => {
                         audioState.hasCustomAudio = false;
-                        loadAll();
+                        refreshAudioState();
                       }
                     "
                     @toast="(p) => pushToast(p.type || 'info', p.messageKey)" />
@@ -619,11 +619,15 @@ const audioState = reactive({
 });
 
 const storage = useStorageProviders();
+const WUZZY_PROVIDER_ID = 'wuzzy';
 const storageOptions = computed(() => storage.providerOptions.value);
 const selectedStorageProvider = computed({
   get: () => storage.selectedProvider.value,
   set: (val) => storage.setSelectedProvider(val),
 });
+const audioStorageProvider = computed(
+  () => audioState.storageProvider || selectedStorageProvider.value || ''
+);
 const storageLoading = computed(() => storage.loading.value);
 
 function resolveStorageSelection(preferred = '') {
@@ -632,6 +636,15 @@ function resolveStorageSelection(preferred = '') {
   if (cfg.sound.storageProvider) candidates.push(cfg.sound.storageProvider);
   if (audioState.storageProvider) candidates.push(audioState.storageProvider);
   storage.ensureSelection(candidates);
+}
+
+function handleAudioStorageProviderChange(providerId) {
+  const normalized = typeof providerId === 'string' ? providerId : '';
+  audioState.storageProvider = normalized;
+  cfg.sound.storageProvider = normalized;
+  if (normalized && normalized !== WUZZY_PROVIDER_ID) {
+    storage.setSelectedProvider(normalized);
+  }
 }
 
 const REMOTE_ACH_SOUND_URL =
@@ -669,6 +682,43 @@ const grouped = computed(() => {
     .filter((g) => g.items.length > 0);
 });
 
+async function processAudioData(data) {
+  audio.audioSource = data.audioSource || 'remote';
+  audioState.hasCustomAudio = !!data.hasCustomAudio;
+  audioState.audioFileName = data.audioFileName || '';
+  audioState.audioFileSize = data.audioFileSize || 0;
+  audioState.storageProvider =
+    typeof data.storageProvider === 'string' ? data.storageProvider : audioState.storageProvider;
+  if (audioState.storageProvider) {
+    if (audioState.storageProvider !== WUZZY_PROVIDER_ID) {
+      storage.registerProvider(audioState.storageProvider);
+    }
+    cfg.sound.storageProvider = audioState.storageProvider;
+  }
+
+  if (audio.audioSource === 'custom' && audioState.hasCustomAudio) {
+    try {
+      const response = await api.get('/api/goal-custom-audio');
+      cfg.sound.url = response.data.url;
+    } catch (error) {
+      console.error('Error fetching custom audio URL:', error);
+      cfg.sound.url = REMOTE_ACH_SOUND_URL;
+    }
+  } else {
+    cfg.sound.url = REMOTE_ACH_SOUND_URL;
+  }
+  resolveStorageSelection();
+}
+
+async function refreshAudioState() {
+  try {
+    const { data } = await api.get('/api/goal-audio-settings');
+    await processAudioData(data);
+  } catch (error) {
+    console.error('Error refreshing audio state:', error);
+  }
+}
+
 async function loadAll() {
   loading.value = true;
   try {
@@ -684,7 +734,11 @@ async function loadAll() {
         for (const k of Object.keys(config)) {
           if (k === 'sound' && typeof config.sound === 'object' && config.sound) {
             cfg.sound = { ...cfg.sound, ...config.sound };
-            if (typeof cfg.sound.storageProvider === 'string' && cfg.sound.storageProvider) {
+            if (
+              typeof cfg.sound.storageProvider === 'string' &&
+              cfg.sound.storageProvider &&
+              cfg.sound.storageProvider !== WUZZY_PROVIDER_ID
+            ) {
               storage.registerProvider(cfg.sound.storageProvider);
             }
           } else if (k in cfg) {
@@ -703,32 +757,7 @@ async function loadAll() {
     }
 
     if (rAudio.status === 'fulfilled') {
-      const { data } = rAudio.value;
-      audio.audioSource = data.audioSource || 'remote';
-      audioState.hasCustomAudio = !!data.hasCustomAudio;
-      audioState.audioFileName = data.audioFileName || '';
-      audioState.audioFileSize = data.audioFileSize || 0;
-      audioState.storageProvider =
-        typeof data.storageProvider === 'string'
-          ? data.storageProvider
-          : audioState.storageProvider;
-      if (audioState.storageProvider) {
-        storage.registerProvider(audioState.storageProvider);
-        cfg.sound.storageProvider = audioState.storageProvider;
-      }
-
-      if (audio.audioSource === 'custom' && audioState.hasCustomAudio) {
-        try {
-          const response = await api.get('/api/goal-custom-audio');
-          cfg.sound.url = response.data.url;
-        } catch (error) {
-          console.error('Error fetching custom audio URL:', error);
-          cfg.sound.url = REMOTE_ACH_SOUND_URL;
-        }
-      } else {
-        cfg.sound.url = REMOTE_ACH_SOUND_URL;
-      }
-      resolveStorageSelection();
+      await processAudioData(rAudio.value.data);
     }
 
     try {
@@ -807,7 +836,10 @@ watch(storageOptions, () => {
 });
 
 watch(selectedStorageProvider, (next) => {
-  cfg.sound.storageProvider = next || '';
+  if (audioState.storageProvider === WUZZY_PROVIDER_ID) return;
+  const normalized = typeof next === 'string' ? next : '';
+  audioState.storageProvider = normalized;
+  cfg.sound.storageProvider = normalized;
 });
 
 watch(

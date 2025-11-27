@@ -165,7 +165,84 @@ describe('Tip Notification GIF API', () => {
     }
   });
 
-  test('Library delete rejects non-Supabase providers', async () => {
+  test('Accepts Wuzzy selection payload', async () => {
+    const txId = 'a'.repeat(43);
+    const previousLibrary = fs.existsSync(gifLibraryFile)
+      ? fs.readFileSync(gifLibraryFile, 'utf8')
+      : null;
+    const previousConfig = fs.existsSync(gifConfigFile)
+      ? fs.readFileSync(gifConfigFile, 'utf8')
+      : null;
+    try {
+      const res = await request(appRef)
+        .post('/api/tip-notification-gif')
+        .field('position', 'top')
+        .field('storageProvider', 'wuzzy')
+        .field('wuzzyId', txId)
+        .field('wuzzyUrl', `https://arweave.net/${txId}`)
+        .field('wuzzyWidth', '320')
+        .field('wuzzyHeight', '180')
+        .field('wuzzySize', '12345')
+        .field('wuzzyOriginalName', 'funny.gif');
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.storageProvider).toBe('wuzzy');
+      expect(res.body.libraryId).toBe(txId);
+      const libraryState = JSON.parse(fs.readFileSync(gifLibraryFile, 'utf8'));
+      expect(libraryState[0]).toMatchObject({ id: txId, provider: 'wuzzy' });
+      const cfgState = JSON.parse(fs.readFileSync(gifConfigFile, 'utf8'));
+      expect(cfgState.storageProvider).toBe('wuzzy');
+      expect(cfgState.libraryId).toBe(txId);
+    } finally {
+      if (previousLibrary === null) {
+        try {
+          fs.unlinkSync(gifLibraryFile);
+        } catch {}
+      } else {
+        fs.writeFileSync(gifLibraryFile, previousLibrary);
+      }
+      if (previousConfig === null) {
+        try {
+          fs.unlinkSync(gifConfigFile);
+        } catch {}
+      } else {
+        fs.writeFileSync(gifConfigFile, previousConfig);
+      }
+    }
+  });
+
+  test('Library delete removes Wuzzy entries without remote deletion', async () => {
+    const wuzzyId = 'b'.repeat(43);
+    const entry = {
+      id: wuzzyId,
+      url: `https://arweave.net/${wuzzyId}`,
+      provider: 'wuzzy',
+      uploadedAt: new Date().toISOString(),
+    };
+    const previousLibrary = fs.existsSync(gifLibraryFile)
+      ? fs.readFileSync(gifLibraryFile, 'utf8')
+      : null;
+    try {
+      fs.writeFileSync(gifLibraryFile, JSON.stringify([entry], null, 2));
+      const res = await request(appRef).delete(
+        `/api/tip-notification-gif/library/${wuzzyId}`
+      );
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ success: true });
+      const libraryState = JSON.parse(fs.readFileSync(gifLibraryFile, 'utf8'));
+      expect(libraryState).toHaveLength(0);
+    } finally {
+      if (previousLibrary === null) {
+        try {
+          fs.unlinkSync(gifLibraryFile);
+        } catch {}
+      } else {
+        fs.writeFileSync(gifLibraryFile, previousLibrary);
+      }
+    }
+  });
+
+  test('Library delete rejects Turbo provider entries', async () => {
     const entry = {
       id: 'lib-turbo-1',
       url: 'https://arweave.example/lib.gif',

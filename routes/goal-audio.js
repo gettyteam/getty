@@ -4,6 +4,97 @@ const crypto = require('crypto');
 const WebSocket = require('ws');
 const { getStorage, STORAGE_PROVIDERS } = require('../lib/storage');
 
+const WUZZY_PROVIDER = 'wuzzy';
+
+function isValidArweaveId(value) {
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  return trimmed.length > 0 && trimmed.length < 128 && !/\s/.test(trimmed);
+}
+
+function normalizeWuzzySelection(raw = {}) {
+  const wuzzyId = typeof raw.wuzzyId === 'string' ? raw.wuzzyId.trim() : '';
+  const wuzzyUrlRaw = typeof raw.wuzzyUrl === 'string' ? raw.wuzzyUrl.trim() : '';
+  if (!isValidArweaveId(wuzzyId) || !wuzzyUrlRaw) {
+    return null;
+  }
+  let normalizedUrl = '';
+  try {
+    const parsed = new URL(wuzzyUrlRaw);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return null;
+    }
+    if (parsed.protocol === 'http:') {
+      parsed.protocol = 'https:';
+    }
+    normalizedUrl = parsed.href;
+  } catch {
+    return null;
+  }
+  const sizeRaw = Number(raw.wuzzySize);
+  const size = Number.isFinite(sizeRaw) ? sizeRaw : Number(raw.wuzzySize) || 0;
+  const originalName =
+    typeof raw.wuzzyOriginalName === 'string' ? raw.wuzzyOriginalName.trim() : '';
+  const mimeType = typeof raw.wuzzyMimeType === 'string' ? raw.wuzzyMimeType.trim() : '';
+  const owner = typeof raw.wuzzyOwner === 'string' ? raw.wuzzyOwner.trim() : '';
+  const sha256 = typeof raw.wuzzySha256 === 'string' ? raw.wuzzySha256.trim() : '';
+  const fingerprint =
+    typeof raw.wuzzyFingerprint === 'string' && raw.wuzzyFingerprint.trim()
+      ? raw.wuzzyFingerprint.trim()
+      : `${wuzzyId}::${size || 0}`;
+  return {
+    id: wuzzyId,
+    url: normalizedUrl,
+    size: Math.max(0, size),
+    originalName,
+    mimeType,
+    owner,
+    sha256,
+    fingerprint,
+  };
+}
+
+function clearWuzzyMetadata(target = {}) {
+  target.wuzzyId = '';
+  target.wuzzyUrl = '';
+  target.wuzzySize = 0;
+  target.wuzzyOriginalName = '';
+  target.wuzzyMimeType = '';
+  target.wuzzySha256 = '';
+  target.wuzzyFingerprint = '';
+  return target;
+}
+
+function applyWuzzyMetadata(target = {}, source = {}) {
+  clearWuzzyMetadata(target);
+  target.wuzzyId = source.id || source.wuzzyId || '';
+  target.wuzzyUrl = source.url || source.wuzzyUrl || '';
+  const rawSize = Number(source.size ?? source.wuzzySize);
+  target.wuzzySize = Number.isFinite(rawSize) ? Math.max(0, rawSize) : 0;
+  target.wuzzyOriginalName = source.originalName || source.wuzzyOriginalName || '';
+  target.wuzzyMimeType = source.mimeType || source.wuzzyMimeType || '';
+  target.wuzzySha256 = source.sha256 || source.wuzzySha256 || '';
+  target.wuzzyFingerprint = source.fingerprint || source.wuzzyFingerprint || '';
+  return target;
+}
+
+function buildWuzzyLibraryEntry(selection) {
+  if (!selection || !selection.id || !selection.url) return null;
+  return {
+    id: selection.id,
+    url: selection.url,
+    size: Math.max(0, Number(selection.size) || 0),
+    originalName: selection.originalName || selection.id,
+    path: '',
+    uploadedAt: new Date().toISOString(),
+    mimeType: selection.mimeType || '',
+    sha256: selection.sha256 || '',
+    fingerprint: selection.fingerprint || `${selection.id}::${selection.size || 0}`,
+    owner: selection.owner || '',
+    provider: WUZZY_PROVIDER,
+  };
+}
+
 function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DIR) {
   const multer = require('multer');
   const multerUpload = multer({
@@ -34,6 +125,9 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
     }
     if (lower === STORAGE_PROVIDERS.SUPABASE) {
       return STORAGE_PROVIDERS.SUPABASE;
+    }
+    if (lower === WUZZY_PROVIDER) {
+      return WUZZY_PROVIDER;
     }
     return lower;
   }
@@ -191,7 +285,7 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
       }
       return true;
     })();
-    return {
+    const normalized = {
       audioSource: base.audioSource || 'remote',
       hasCustomAudio: !!base.hasCustomAudio,
       audioFileName:
@@ -209,7 +303,22 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
       storageProvider: normalizeProvider(base.storageProvider),
       enabled,
       volume,
+      wuzzyId: typeof base.wuzzyId === 'string' ? base.wuzzyId : '',
+      wuzzyUrl: typeof base.wuzzyUrl === 'string' ? base.wuzzyUrl : '',
+      wuzzySize: Number.isFinite(base.wuzzySize) ? base.wuzzySize : Number(base.wuzzySize) || 0,
+      wuzzyOriginalName:
+        typeof base.wuzzyOriginalName === 'string' ? base.wuzzyOriginalName : '',
+      wuzzyMimeType: typeof base.wuzzyMimeType === 'string' ? base.wuzzyMimeType : '',
+      wuzzySha256: typeof base.wuzzySha256 === 'string' ? base.wuzzySha256 : '',
+      wuzzyFingerprint:
+        typeof base.wuzzyFingerprint === 'string' ? base.wuzzyFingerprint : '',
     };
+    if (normalized.storageProvider !== WUZZY_PROVIDER) {
+      clearWuzzyMetadata(normalized);
+    } else {
+      normalized.wuzzySize = Math.max(0, Number(normalized.wuzzySize) || 0);
+    }
+    return normalized;
   }
 
   app.get('/api/goal-audio-settings', async (req, res) => {
@@ -281,6 +390,7 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
         const requestedStorageProviderRaw =
           typeof req.body.storageProvider === 'string' ? req.body.storageProvider : '';
         const preferredProvider = normalizeProvider(requestedStorageProviderRaw);
+        const wuzzySelection = normalizeWuzzySelection(req.body);
         if (!audioSource || (audioSource !== 'remote' && audioSource !== 'custom')) {
           return res.status(400).json({ error: 'Invalid audio source' });
         }
@@ -307,6 +417,7 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
           enabled: typeof currentData.enabled === 'boolean' ? currentData.enabled : true,
           volume: Number.isFinite(currentData.volume) ? currentData.volume : 0.8,
         };
+        clearWuzzyMetadata(settings);
         let libraryItem = null;
 
         if (Object.prototype.hasOwnProperty.call(req.body, 'enabled')) {
@@ -326,7 +437,28 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
           }
         }
 
-        if (audioSource === 'custom' && req.file) {
+        const wantsWuzzySelection = audioSource === 'custom' && preferredProvider === WUZZY_PROVIDER;
+
+        if (wantsWuzzySelection) {
+          const normalizedWuzzy = wuzzySelection;
+          if (!normalizedWuzzy) {
+            return res.status(400).json({ error: 'invalid_wuzzy_selection' });
+          }
+          const wuzzyLibraryItem = buildWuzzyLibraryEntry(normalizedWuzzy);
+          if (!wuzzyLibraryItem) {
+            return res.status(400).json({ error: 'invalid_wuzzy_selection' });
+          }
+          await upsertLibraryEntry(ns, wuzzyLibraryItem);
+          libraryItem = wuzzyLibraryItem;
+          settings.hasCustomAudio = true;
+          settings.audioFileName = wuzzyLibraryItem.originalName || wuzzyLibraryItem.id;
+          settings.audioFileSize = Number(wuzzyLibraryItem.size) || 0;
+          settings.audioFileUrl = wuzzyLibraryItem.url || null;
+          settings.audioFilePath = null;
+          settings.audioLibraryId = wuzzyLibraryItem.id;
+          settings.storageProvider = WUZZY_PROVIDER;
+          applyWuzzyMetadata(settings, wuzzyLibraryItem);
+        } else if (audioSource === 'custom' && req.file) {
           const nsSafe = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global';
           const fileName = `goal-audio-${nsSafe}-${Date.now()}.mp3`;
 
@@ -425,6 +557,20 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
             settings.audioFilePath = entry.path || entry.id || null;
             settings.audioLibraryId = entry.id;
             settings.storageProvider = providerId;
+            if (providerId === WUZZY_PROVIDER) {
+              settings.audioFilePath = null;
+              applyWuzzyMetadata(settings, {
+                id: entry.id,
+                url: entry.url,
+                size: entry.size,
+                originalName: entry.originalName,
+                mimeType: entry.mimeType,
+                sha256: entry.sha256,
+                fingerprint: entry.fingerprint,
+              });
+            } else {
+              clearWuzzyMetadata(settings);
+            }
           } catch (lookupError) {
             console.error('[goal-audio][library] lookup error', lookupError.message);
             return res.status(500).json({ error: 'audio_library_lookup_failed' });
@@ -451,6 +597,7 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
           settings.audioFilePath = null;
           settings.audioLibraryId = '';
           settings.storageProvider = '';
+          clearWuzzyMetadata(settings);
         }
 
         const next = normalizeSettings({ ...currentData, ...settings });
@@ -543,6 +690,7 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
             enabled: true,
             volume: 0.8,
           };
+          clearWuzzyMetadata(next);
           const saveRes = await saveTenantAwareConfig(
             req,
             GLOBAL_SETTINGS_PATH,

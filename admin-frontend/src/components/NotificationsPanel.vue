@@ -60,18 +60,23 @@
           <div class="notif-setting-control flex flex-col gap-1">
             <select
               class="input select"
-              v-model="selectedStorageProvider"
+              v-model="gifStorageSelection"
               :disabled="storageLoading || !storageOptions.length">
               <option
                 v-for="opt in storageOptions"
                 :key="opt.id"
                 :value="opt.id"
-                :disabled="!opt.available && opt.id !== selectedStorageProvider">
-                {{ opt.label }}
+                :disabled="!opt.available && opt.id !== gifStorageSelection">
+                {{ opt.label }}{{ opt.searchOnly ? ' · ' + t('wuzzyProviderSearchOnlyLabel') : '' }}
               </option>
             </select>
             <div v-if="providerStatus && !providerStatus.available" class="small text-amber-500">
               {{ t('storageProviderUnavailable') }}
+            </div>
+            <div
+              v-else-if="providerStatus && providerStatus.searchOnly"
+              class="small text-emerald-400">
+              {{ t('wuzzyProviderSearchOnlyHint') }}
             </div>
           </div>
         </div>
@@ -116,12 +121,14 @@
             <button
               class="btn-secondary btn-compact-secondary"
               type="button"
-              @click="triggerGif"
+              @click="handleChooseGifClick"
               :disabled="!sessionActive && hostedSupported"
               :aria-busy="savingGif ? 'true' : 'false'">
-              {{ t('notificationGifChooseBtn') }}
+              <i v-if="isWuzzyMode" class="pi pi-search-plus mr-2" aria-hidden="true"></i>
+              {{ isWuzzyMode ? t('wuzzyOpenDrawerBtn') : t('notificationGifChooseBtn') }}
             </button>
             <button
+              v-if="!isWuzzyMode"
               class="btn-secondary btn-compact-secondary"
               type="button"
               @click="openGifLibrary"
@@ -147,6 +154,40 @@
               :aria-busy="savingGif ? 'true' : 'false'">
               {{ savingGif ? t('commonSaving') : t('saveSettings') }}
             </button>
+          </div>
+          <div
+            v-if="isWuzzyMode && hasWuzzySelection"
+            class="border border-[var(--card-border)] rounded-os p-3 bg-[var(--bg-card)] flex flex-col gap-2 mt-3">
+            <div class="flex flex-col gap-1">
+              <div class="font-semibold text-sm flex items-center gap-1">
+                <i class="pi pi-user" aria-hidden="true"></i>
+                <span class="break-all">{{ wuzzySelection.originalName }}</span>
+              </div>
+              <div class="text-xs opacity-80 flex items-center gap-1" v-if="wuzzySelectionMeta">
+                <i class="pi pi-image" aria-hidden="true"></i>
+                <span>{{ wuzzySelectionMeta }}</span>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button
+                class="btn-secondary btn-compact-secondary"
+                type="button"
+                @click="openWuzzySelectionUrl">
+                {{ t('wuzzySelectionOpen') }}
+              </button>
+              <button
+                class="btn-secondary btn-compact-secondary"
+                type="button"
+                @click="copyWuzzySelectionUrl">
+                {{ t('wuzzySelectionCopy') }}
+              </button>
+              <button
+                class="btn-danger btn-compact-secondary"
+                type="button"
+                @click="clearWuzzySelection">
+                {{ t('wuzzySelectionClear') }}
+              </button>
+            </div>
           </div>
           <div
             v-if="gif.fileName && !gif.gifPath"
@@ -267,7 +308,7 @@
             :audio-file-size="audioState.audioFileSize"
             :audio-library-id="audioState.audioLibraryId"
             :library-enabled="true"
-            :storage-provider="selectedStorageProvider"
+            :storage-provider="audioStorageProvider"
             :storage-providers="storageOptions"
             :storage-loading="storageLoading"
             force-stack
@@ -277,7 +318,7 @@
             @update:audio-source="(v) => (audio.audioSource = v)"
             @audio-saved="onAudioSaved"
             @audio-deleted="onAudioDeleted"
-            @update:storage-provider="(v) => storage.setSelectedProvider(v)"
+            @update:storage-provider="handleAudioStorageProviderChange"
             @toast="handleAudioToast" />
           <div class="notif-actions-row mt-3">
             <button
@@ -417,6 +458,10 @@
       @refresh="fetchGifLibrary(true)"
       @select="onLibrarySelect"
       @delete="onLibraryDelete" />
+    <WuzzyGifDrawer
+      :open="wuzzyDrawerOpen"
+      @close="closeWuzzyDrawer()"
+      @select="handleWuzzySelect" />
     <AlertDialog v-model:open="uploadErrorDialog.open">
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -424,7 +469,20 @@
           <AlertDialogDescription>{{ uploadErrorDialog.message }}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel @click="uploadErrorDialog.open = false">OK</AlertDialogCancel>
+          <AlertDialogCancel @click="uploadErrorDialog.open = false"> OK </AlertDialogCancel>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    <AlertDialog v-model:open="gifProviderWarning.open">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{{ gifProviderWarning.title }}</AlertDialogTitle>
+          <AlertDialogDescription>{{ gifProviderWarning.message }}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel @click="gifProviderWarning.open = false">
+            {{ t('commonClose') }}
+          </AlertDialogCancel>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
@@ -446,7 +504,9 @@ import HeaderIcon from './shared/HeaderIcon.vue';
 import ColorInput from './shared/ColorInput.vue';
 import TipWidgetThemePreview from './NotificationsPanel/TipWidgetThemePreview.vue';
 import TipGifLibraryDrawer from './NotificationsPanel/TipGifLibraryDrawer.vue';
+import WuzzyGifDrawer from './NotificationsPanel/WuzzyGifDrawer.vue';
 import { useStorageProviders } from '../composables/useStorageProviders';
+import { formatBytes as formatWuzzyBytes } from '../services/wuzzySearch';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -471,6 +531,8 @@ const gif = reactive({
   original: '',
 });
 
+const WUZZY_PROVIDER_ID = 'wuzzy';
+
 const gifLibrary = reactive({
   open: false,
   loading: false,
@@ -479,6 +541,26 @@ const gifLibrary = reactive({
   /** @type {Array<{id: string, url: string, width?: number, height?: number, size?: number, originalName?: string, uploadedAt?: string, provider?: string, path?: string, sha256?: string, fingerprint?: string}>} */
   items: [],
 });
+
+const wuzzySelection = reactive({
+  id: '',
+  url: '',
+  width: 0,
+  height: 0,
+  size: 0,
+  originalName: '',
+  owner: '',
+  sha256: '',
+  fingerprint: '',
+});
+const wuzzySelectionLoading = ref(false);
+const gifStorageSelection = ref('');
+const lastRealStorageProvider = ref('');
+const wuzzyDrawerOpen = ref(false);
+const wuzzyDrawerDismissed = ref(false);
+const skipNextWuzzyAutoOpen = ref(false);
+const wuzzyAutoOpenReady = ref(false);
+const gifProviderWarning = reactive({ open: false, title: '', message: '' });
 
 const widgetThemeOptions = [
   { value: 'classic', labelKey: 'tipWidgetThemeClassic' },
@@ -557,17 +639,105 @@ const previewColors = reactive({
 });
 
 const storage = useStorageProviders();
-const providerStatus = computed(() => {
-  const selected = storage.selectedProvider.value;
-  return storage.providerOptions.value.find((opt) => opt.id === selected) || null;
-});
+const storageOptions = computed(() => storage.providerOptions.value);
+const realStorageOptions = computed(() => storage.realProviderOptions.value || []);
+const storageLoading = computed(() => storage.loading.value);
 const selectedStorageProvider = computed({
   get: () => storage.selectedProvider.value,
   set: (val) => storage.setSelectedProvider(val),
 });
-const storageOptions = computed(() => storage.providerOptions.value);
-const hasTurboOption = computed(() => storageOptions.value.some((opt) => opt.id === 'turbo'));
-const storageLoading = computed(() => storage.loading.value);
+const audioStorageProvider = computed(
+  () => audioState.storageProvider || selectedStorageProvider.value || ''
+);
+watch(
+  () => storage.selectedProvider.value,
+  (val) => {
+    if (!val) return;
+    if (val !== WUZZY_PROVIDER_ID) {
+      lastRealStorageProvider.value = val;
+      if (gifStorageSelection.value !== WUZZY_PROVIDER_ID) {
+        gifStorageSelection.value = val;
+      }
+    }
+  },
+  { immediate: true }
+);
+
+watch(selectedStorageProvider, (next) => {
+  if (audioState.storageProvider === WUZZY_PROVIDER_ID) return;
+  const normalized = typeof next === 'string' ? next : '';
+  audioState.storageProvider = normalized;
+});
+
+function suppressNextWuzzyAutoOpen() {
+  skipNextWuzzyAutoOpen.value = true;
+  setTimeout(() => {
+    skipNextWuzzyAutoOpen.value = false;
+  }, 0);
+}
+
+watch(gifStorageSelection, (val, prev) => {
+  const guardActive = skipNextWuzzyAutoOpen.value;
+  const allowAutoOpen = wuzzyAutoOpenReady.value && !guardActive && !wuzzyDrawerDismissed.value;
+  if (val === WUZZY_PROVIDER_ID) {
+    if (prev !== WUZZY_PROVIDER_ID && allowAutoOpen) {
+      wuzzyDrawerOpen.value = true;
+    }
+    if (guardActive) {
+      skipNextWuzzyAutoOpen.value = false;
+    }
+    return;
+  }
+  if (guardActive) {
+    skipNextWuzzyAutoOpen.value = false;
+  }
+  if (prev === WUZZY_PROVIDER_ID) {
+    wuzzyDrawerOpen.value = false;
+    wuzzyDrawerDismissed.value = false;
+    resetWuzzySelection();
+    if (gif.storageProvider === WUZZY_PROVIDER_ID) {
+      gif.storageProvider = val || '';
+    }
+    gif.selectedId = '';
+    if (!gif.file) {
+      gif.gifPath = '';
+    }
+    gif.fileName = '';
+  }
+  if (!val) {
+    const fallback =
+      storage.selectedProvider.value ||
+      lastRealStorageProvider.value ||
+      realStorageOptions.value.find((opt) => opt.available)?.id ||
+      realStorageOptions.value[0]?.id ||
+      '';
+    if (fallback && gifStorageSelection.value !== fallback) {
+      gifStorageSelection.value = fallback;
+    }
+    return;
+  }
+  if (storage.selectedProvider.value !== val) {
+    storage.setSelectedProvider(val);
+  }
+});
+const providerStatus = computed(() => {
+  const selected = gifStorageSelection.value || storage.selectedProvider.value;
+  return storageOptions.value.find((opt) => opt.id === selected) || null;
+});
+const hasTurboOption = computed(() => realStorageOptions.value.some((opt) => opt.id === 'turbo'));
+const isWuzzyMode = computed(() => gifStorageSelection.value === WUZZY_PROVIDER_ID);
+const hasWuzzySelection = computed(() => !!(wuzzySelection.id && wuzzySelection.url));
+const wuzzySelectionMeta = computed(() => {
+  if (!hasWuzzySelection.value) return '';
+  const parts = [];
+  if (wuzzySelection.width && wuzzySelection.height) {
+    parts.push(`${wuzzySelection.width}×${wuzzySelection.height}`);
+  }
+  if (wuzzySelection.size) {
+    parts.push(formatWuzzyBytes(wuzzySelection.size));
+  }
+  return parts.join(' · ');
+});
 
 const uploadErrorDialog = reactive({
   open: false,
@@ -579,6 +749,14 @@ function showUploadErrorDialog(title, message) {
   uploadErrorDialog.title = title;
   uploadErrorDialog.message = message;
   uploadErrorDialog.open = true;
+}
+
+function showGifProviderWarning(providerLabel = '') {
+  gifProviderWarning.title = t('gifUploadMissingTitle');
+  gifProviderWarning.message = t('gifUploadMissingBody', {
+    provider: providerLabel || t('storageProviderLabel'),
+  });
+  gifProviderWarning.open = true;
 }
 
 function resolveStorageSelection(preferred = '') {
@@ -606,10 +784,181 @@ function triggerGif() {
   gifInput.value.click();
 }
 
+function handleChooseGifClick() {
+  if (isWuzzyMode.value) {
+    openWuzzyDrawer(true);
+    return;
+  }
+  triggerGif();
+}
+
 function openGifLibrary() {
   gifLibrary.open = true;
   if (!gifLibrary.items.length) {
     fetchGifLibrary();
+  }
+}
+
+function resetWuzzySelection() {
+  wuzzySelection.id = '';
+  wuzzySelection.url = '';
+  wuzzySelection.width = 0;
+  wuzzySelection.height = 0;
+  wuzzySelection.size = 0;
+  wuzzySelection.originalName = '';
+  wuzzySelection.owner = '';
+  wuzzySelection.sha256 = '';
+  wuzzySelection.fingerprint = '';
+}
+
+function toPositiveInt(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) return 0;
+  return Math.round(num);
+}
+
+function applyWuzzyEntry(entry = {}, overrides = {}) {
+  const merged = { ...entry, ...overrides };
+  const nextId =
+    (typeof merged.id === 'string' && merged.id) ||
+    (typeof merged.txId === 'string' && merged.txId) ||
+    '';
+  const nextUrl =
+    (typeof merged.url === 'string' && merged.url) ||
+    (typeof overrides.url === 'string' && overrides.url) ||
+    '';
+  if (!nextId || !nextUrl) return false;
+  wuzzySelection.id = nextId;
+  wuzzySelection.url = nextUrl;
+  wuzzySelection.width = toPositiveInt(merged.width);
+  wuzzySelection.height = toPositiveInt(merged.height);
+  wuzzySelection.size = Math.max(0, Number(merged.size) || 0);
+  wuzzySelection.originalName =
+    typeof merged.originalName === 'string' && merged.originalName
+      ? merged.originalName
+      : `${nextId}.gif`;
+  wuzzySelection.owner = typeof merged.owner === 'string' ? merged.owner : '';
+  wuzzySelection.sha256 = typeof merged.sha256 === 'string' ? merged.sha256 : '';
+  wuzzySelection.fingerprint =
+    typeof merged.fingerprint === 'string' && merged.fingerprint ? merged.fingerprint : nextId;
+  gif.gifPath = nextUrl;
+  gif.file = null;
+  gif.fileName = '';
+  gif.selectedId = nextId;
+  gif.storageProvider = WUZZY_PROVIDER_ID;
+  suppressNextWuzzyAutoOpen();
+  gifStorageSelection.value = WUZZY_PROVIDER_ID;
+  errors.gif = '';
+  return true;
+}
+
+function clearWuzzySelection() {
+  resetWuzzySelection();
+  gif.selectedId = '';
+  if (gif.storageProvider === WUZZY_PROVIDER_ID) {
+    gif.storageProvider = '';
+  }
+  gif.gifPath = '';
+  gif.file = null;
+  gif.fileName = '';
+  ensureRealStorageSelection();
+}
+
+function openWuzzyDrawer(force = false) {
+  if (!isWuzzyMode.value && !force) return;
+  wuzzyDrawerDismissed.value = false;
+  wuzzyDrawerOpen.value = true;
+}
+
+function closeWuzzyDrawer(persistDismiss = true) {
+  wuzzyDrawerOpen.value = false;
+  if (persistDismiss) {
+    wuzzyDrawerDismissed.value = true;
+  }
+}
+
+function ensureRealStorageSelection() {
+  if (gifStorageSelection.value !== WUZZY_PROVIDER_ID) return;
+  const fallback =
+    lastRealStorageProvider.value ||
+    storage.selectedProvider.value ||
+    realStorageOptions.value.find((opt) => opt.available)?.id ||
+    realStorageOptions.value[0]?.id ||
+    '';
+  if (fallback) {
+    gifStorageSelection.value = fallback;
+  }
+}
+
+function readImageDimensions(url) {
+  return new Promise((resolve) => {
+    if (!url) {
+      resolve({ width: 0, height: 0 });
+      return;
+    }
+    if (typeof Image === 'undefined') {
+      resolve({ width: 0, height: 0 });
+      return;
+    }
+    const img = new Image();
+    img.onload = () => resolve({ width: img.naturalWidth || 0, height: img.naturalHeight || 0 });
+    img.onerror = () => resolve({ width: 0, height: 0 });
+    img.src = url;
+  });
+}
+
+async function handleWuzzySelect(entry) {
+  if (!entry || !entry.id || !entry.url) return;
+  wuzzySelectionLoading.value = true;
+  try {
+    const dims = await readImageDimensions(entry.url);
+    const applied = applyWuzzyEntry(entry, {
+      width: entry.width || dims.width || 0,
+      height: entry.height || dims.height || 0,
+      size: entry.size || 0,
+      originalName: entry.displayName || entry.originalName || `${entry.id}.gif`,
+      owner: entry.owner || '',
+    });
+    if (!applied) {
+      errors.gif = t('wuzzySelectionError');
+    } else {
+      closeWuzzyDrawer();
+    }
+  } catch (err) {
+    console.warn('[notif] failed to hydrate wuzzy selection', err);
+    errors.gif = t('wuzzySelectionError');
+  } finally {
+    wuzzySelectionLoading.value = false;
+  }
+}
+
+function openWuzzySelectionUrl() {
+  if (!wuzzySelection.url) return;
+  try {
+    if (typeof window !== 'undefined') {
+      window.open(wuzzySelection.url, '_blank', 'noopener,noreferrer');
+    }
+  } catch (err) {
+    console.warn('[notif] failed to open wuzzy url', err);
+  }
+}
+
+async function copyWuzzySelectionUrl() {
+  if (
+    !wuzzySelection.url ||
+    typeof navigator === 'undefined' ||
+    !navigator.clipboard ||
+    typeof navigator.clipboard.writeText !== 'function'
+  ) {
+    pushToast({ type: 'error', message: t('wuzzySelectionCopyError') });
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(wuzzySelection.url);
+    pushToast({ type: 'success', message: t('wuzzySelectionCopySuccess') });
+  } catch (err) {
+    console.warn('[notif] failed to copy wuzzy url', err);
+    pushToast({ type: 'error', message: t('wuzzySelectionCopyError') });
   }
 }
 
@@ -626,6 +975,12 @@ async function fetchGifLibrary(force = false) {
     const config = force ? { params: { ts: Date.now() } } : undefined;
     const { data } = await api.get('/api/tip-notification-gif/library', config);
     gifLibrary.items = Array.isArray(data?.items) ? data.items : [];
+    if (isWuzzyMode.value && wuzzySelection.id) {
+      const match = gifLibrary.items.find((entry) => entry && entry.id === wuzzySelection.id);
+      if (match) {
+        applyWuzzyEntry({ ...match, url: match.url || wuzzySelection.url || gif.gifPath });
+      }
+    }
   } catch (error) {
     gifLibrary.error = t('gifLibraryLoadFailed');
     console.error('[notif] gif library load failed', error);
@@ -711,9 +1066,15 @@ async function maybeHandleGifDuplicate(file) {
       gif.selectedId = duplicate.id;
       gif.gifPath = duplicate.url || gif.gifPath;
       if (typeof duplicate.provider === 'string' && duplicate.provider) {
-        gif.storageProvider = duplicate.provider;
-        storage.registerProvider(duplicate.provider);
-        resolveStorageSelection(duplicate.provider);
+        const providerId = duplicate.provider.toLowerCase();
+        gif.storageProvider = providerId;
+        storage.registerProvider(providerId);
+        resolveStorageSelection(providerId);
+        if (providerId === WUZZY_PROVIDER_ID) {
+          applyWuzzyEntry(duplicate);
+        } else {
+          gifStorageSelection.value = providerId;
+        }
       }
       if (gifInput.value) {
         gifInput.value.value = '';
@@ -732,14 +1093,22 @@ async function maybeHandleGifDuplicate(file) {
  */
 function onLibrarySelect(item) {
   if (!item || !item.url) return;
+  const providerId = typeof item.provider === 'string' ? item.provider.toLowerCase() : '';
+  if (providerId === WUZZY_PROVIDER_ID) {
+    applyWuzzyEntry(item);
+    gifLibrary.open = false;
+    return;
+  }
+  resetWuzzySelection();
   gif.gifPath = item.url;
   gif.file = null;
   gif.fileName = item.originalName || t('gifLibraryUnknown');
   gif.selectedId = item.id || '';
-  if (typeof item.provider === 'string' && item.provider) {
-    gif.storageProvider = item.provider;
-    storage.registerProvider(item.provider);
-    resolveStorageSelection(item.provider);
+  if (providerId) {
+    gif.storageProvider = providerId;
+    storage.registerProvider(providerId);
+    resolveStorageSelection(providerId);
+    gifStorageSelection.value = providerId;
   }
   gifLibrary.open = false;
 }
@@ -768,6 +1137,8 @@ async function onLibraryDelete(item) {
       gif.fileName = '';
       gif.selectedId = '';
       gif.storageProvider = '';
+      resetWuzzySelection();
+      ensureRealStorageSelection();
       if (gifInput.value) {
         gifInput.value.value = '';
       }
@@ -805,6 +1176,10 @@ async function onGifChange(e) {
   gif.file = null;
   gif.fileName = '';
   gif.selectedId = '';
+  if (gifStorageSelection.value === WUZZY_PROVIDER_ID) {
+    ensureRealStorageSelection();
+  }
+  resetWuzzySelection();
   const usedExisting = await maybeHandleGifDuplicate(f);
   if (usedExisting) {
     return;
@@ -812,6 +1187,7 @@ async function onGifChange(e) {
   gif.file = f;
   gif.fileName = f.name;
   gif.selectedId = '';
+  gif.storageProvider = gifStorageSelection.value || storage.selectedProvider.value || '';
 }
 
 async function loadGif() {
@@ -827,6 +1203,19 @@ async function loadGif() {
     }
     if (gif.storageProvider) {
       storage.registerProvider(gif.storageProvider);
+    }
+    if (gif.storageProvider === WUZZY_PROVIDER_ID && gif.gifPath) {
+      applyWuzzyEntry(
+        {
+          id: gif.selectedId || data.libraryId || '',
+          url: gif.gifPath,
+          width: data.width,
+          height: data.height,
+          size: data.size || 0,
+          originalName: data.originalName || '',
+        },
+        { width: data.width, height: data.height }
+      );
     }
     resolveStorageSelection();
   } catch {}
@@ -919,12 +1308,40 @@ async function saveGif() {
     }
     const fd = new FormData();
     fd.append('position', gif.position);
-    if (storage.selectedProvider.value) {
-      fd.append('storageProvider', storage.selectedProvider.value);
+    const providerSelection = gifStorageSelection.value || storage.selectedProvider.value || '';
+    const isWuzzySelection = providerSelection === WUZZY_PROVIDER_ID;
+    if (providerSelection) {
+      fd.append('storageProvider', providerSelection);
     }
-    if (gif.file) fd.append('gifFile', gif.file);
-    if (gif.selectedId && !gif.file) {
-      fd.append('selectedGifId', gif.selectedId);
+    if (isWuzzySelection) {
+      if (!wuzzySelection.id || !wuzzySelection.url) {
+        errors.gif = t('wuzzySelectionRequired');
+        return;
+      }
+      fd.append('wuzzyId', wuzzySelection.id);
+      fd.append('wuzzyUrl', wuzzySelection.url);
+      fd.append('wuzzyWidth', String(wuzzySelection.width || 0));
+      fd.append('wuzzyHeight', String(wuzzySelection.height || 0));
+      fd.append('wuzzySize', String(wuzzySelection.size || 0));
+      if (wuzzySelection.originalName) {
+        fd.append('wuzzyOriginalName', wuzzySelection.originalName);
+      }
+      if (wuzzySelection.sha256) {
+        fd.append('wuzzySha256', wuzzySelection.sha256);
+      }
+      if (wuzzySelection.fingerprint) {
+        fd.append('wuzzyFingerprint', wuzzySelection.fingerprint);
+      }
+    } else {
+      const hasUploadCandidate = !!gif.file || !!gif.selectedId;
+      if (!hasUploadCandidate) {
+        showGifProviderWarning(providerStatus.value?.label || '');
+        return;
+      }
+      if (gif.file) fd.append('gifFile', gif.file);
+      if (gif.selectedId && !gif.file) {
+        fd.append('selectedGifId', gif.selectedId);
+      }
     }
     const { data } = await api.post('/api/tip-notification-gif', fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -950,6 +1367,14 @@ async function saveGif() {
     if (gif.storageProvider) {
       storage.registerProvider(gif.storageProvider);
     }
+    if (gif.storageProvider === WUZZY_PROVIDER_ID) {
+      gifStorageSelection.value = WUZZY_PROVIDER_ID;
+      if (libraryItem) {
+        applyWuzzyEntry(libraryItem);
+      }
+    } else if (gifStorageSelection.value === WUZZY_PROVIDER_ID) {
+      ensureRealStorageSelection();
+    }
     pushToast({ type: 'success', message: t('savedNotifications') });
   } catch (error) {
     const errorMsg = error?.response?.data?.error;
@@ -970,10 +1395,7 @@ async function removeGif() {
       return;
     }
     await api.delete('/api/tip-notification-gif');
-    gif.gifPath = '';
-    gif.file = null;
-    gif.fileName = '';
-    gif.selectedId = '';
+    clearWuzzySelection();
     gif.original = JSON.stringify({ p: gif.position, path: '', sid: '' });
 
     await fetchGifLibrary(true);
@@ -1031,7 +1453,7 @@ async function loadAudio() {
       volume: audioCfg.volume,
       audioSource: audio.audioSource,
     };
-    if (audioState.storageProvider) {
+    if (audioState.storageProvider && audioState.storageProvider !== WUZZY_PROVIDER_ID) {
       storage.registerProvider(audioState.storageProvider);
     }
     resolveStorageSelection();
@@ -1053,6 +1475,14 @@ function handleAudioToast(payload) {
   const message = t(payload.messageKey);
   if (!message) return;
   pushToast({ type: payload.type || 'info', message });
+}
+
+function handleAudioStorageProviderChange(providerId) {
+  const normalized = typeof providerId === 'string' ? providerId : '';
+  audioState.storageProvider = normalized;
+  if (normalized && normalized !== WUZZY_PROVIDER_ID) {
+    storage.setSelectedProvider(normalized);
+  }
 }
 
 async function persistAudioCfg(silent = false) {
@@ -1124,6 +1554,10 @@ onMounted(async () => {
   loadAudio();
   loadColors();
   resolveStorageSelection();
+
+  setTimeout(() => {
+    wuzzyAutoOpenReady.value = true;
+  }, 0);
 });
 
 watch(

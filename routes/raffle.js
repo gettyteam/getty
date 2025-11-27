@@ -522,7 +522,25 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
       })();
 
       if (requestedLibraryId && !req.file) {
-        const entry = await findLibraryEntry(adminNs, requestedLibraryId);
+        let entry = await findLibraryEntry(adminNs, requestedLibraryId);
+
+        if (!entry && req.body.provider === 'wuzzy' && req.body.url) {
+          entry = normalizeLibraryEntry({
+            id: requestedLibraryId,
+            url: req.body.url,
+            provider: 'wuzzy',
+            originalName: req.body.originalName,
+            size: req.body.size,
+            uploadedAt: new Date().toISOString(),
+            path: '',
+            sha256: '',
+            fingerprint: requestedLibraryId,
+          });
+          if (entry) {
+            await upsertLibraryEntry(adminNs, entry);
+          }
+        }
+
         if (!entry) {
           return res.status(404).json({ error: 'library_item_not_found' });
         }
