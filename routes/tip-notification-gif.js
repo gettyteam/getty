@@ -7,11 +7,66 @@ const { isTrustedLocalAdmin, shouldMaskSensitive } = require('../lib/trust');
 const { isOpenTestMode } = require('../lib/test-open-mode');
 const { getStorage, STORAGE_PROVIDERS } = require('../lib/storage');
 
+const WUZZY_PROVIDER = 'wuzzy';
+
+function isValidArweaveId(value) {
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  return trimmed.length > 0 && trimmed.length < 128 && !/\s/.test(trimmed);
+}
+
+function toNumber(value, fallback = 0) {
+  const parsed = typeof value === 'number' ? value : parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeWuzzySelection(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const txId = typeof raw.wuzzyId === 'string' ? raw.wuzzyId.trim() : '';
+  const urlRaw = typeof raw.wuzzyUrl === 'string' ? raw.wuzzyUrl.trim() : '';
+  if (!isValidArweaveId(txId) || !urlRaw) {
+    return null;
+  }
+  let normalizedUrl = '';
+  try {
+    const parsedUrl = new URL(urlRaw);
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      return null;
+    }
+    if (parsedUrl.protocol === 'http:') {
+      parsedUrl.protocol = 'https:';
+    }
+    normalizedUrl = parsedUrl.href;
+  } catch {
+    return null;
+  }
+  const width = Math.max(0, Math.round(toNumber(raw.wuzzyWidth, 0)));
+  const height = Math.max(0, Math.round(toNumber(raw.wuzzyHeight, 0)));
+  const size = Math.max(0, Math.round(toNumber(raw.wuzzySize, 0)));
+  const originalName = typeof raw.wuzzyOriginalName === 'string' ? raw.wuzzyOriginalName.trim() : '';
+  const sha256 = typeof raw.wuzzySha256 === 'string' ? raw.wuzzySha256.trim() : '';
+  const fingerprint = typeof raw.wuzzyFingerprint === 'string' && raw.wuzzyFingerprint.trim()
+    ? raw.wuzzyFingerprint.trim()
+    : txId;
+  return {
+    txId,
+    id: txId,
+    url: normalizedUrl,
+    width,
+    height,
+    size,
+    originalName,
+    sha256,
+    fingerprint,
+  };
+}
+
 function normalizeProvider(provider) {
   if (!provider || typeof provider !== 'string') return '';
   const lower = provider.trim().toLowerCase();
   if (lower === STORAGE_PROVIDERS.SUPABASE) return STORAGE_PROVIDERS.SUPABASE;
   if (lower === STORAGE_PROVIDERS.TURBO || lower === 'arweave') return STORAGE_PROVIDERS.TURBO;
+  if (lower === WUZZY_PROVIDER) return WUZZY_PROVIDER;
   return lower;
 }
 
@@ -262,7 +317,8 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
       }
 
       const providerId = normalizeProvider(target.provider);
-      if (providerId && providerId !== STORAGE_PROVIDERS.SUPABASE) {
+      const allowVirtualDelete = providerId === WUZZY_PROVIDER;
+      if (providerId && providerId !== STORAGE_PROVIDERS.SUPABASE && !allowVirtualDelete) {
         return res.status(400).json({ error: 'gif_library_delete_unsupported' });
       }
 
@@ -361,8 +417,35 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
         const ns = req?.ns?.admin || req?.ns?.pub || null;
         let config = ensureConfigShape(loadConfig());
         let libraryEntry = null;
+        const preferredProviderRaw =
+          typeof req.body?.storageProvider === 'string' ? req.body.storageProvider : '';
+        const normalizedPreferredProvider = normalizeProvider(preferredProviderRaw);
 
-        if (req.file) {
+        if (normalizedPreferredProvider === WUZZY_PROVIDER) {
+          const wuzzySelection = normalizeWuzzySelection(req.body);
+          if (!wuzzySelection) {
+            return res.status(400).json({ error: 'invalid_wuzzy_selection' });
+          }
+          config.gifPath = wuzzySelection.url;
+          config.width = wuzzySelection.width;
+          config.height = wuzzySelection.height;
+          config.storageProvider = WUZZY_PROVIDER;
+          libraryEntry = {
+            id: wuzzySelection.id,
+            url: wuzzySelection.url,
+            width: wuzzySelection.width,
+            height: wuzzySelection.height,
+            size: wuzzySelection.size,
+            originalName: wuzzySelection.originalName || `${wuzzySelection.txId}.gif`,
+            uploadedAt: new Date().toISOString(),
+            provider: WUZZY_PROVIDER,
+            path: '',
+            sha256: wuzzySelection.sha256 || '',
+            fingerprint: wuzzySelection.fingerprint || wuzzySelection.id,
+          };
+          config.libraryId = libraryEntry.id;
+          await upsertLibraryEntry(ns, libraryEntry);
+        } else if (req.file) {
           let dims;
           try {
             dims = readGifDimensionsFromBuffer(req.file.buffer);
@@ -370,11 +453,9 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
             return res.status(400).json({ error: 'Invalid GIF file' });
           }
 
-          const preferredProvider =
-            typeof req.body?.storageProvider === 'string' ? req.body.storageProvider : '';
-          const storage = getStorage(preferredProvider);
-
-          if (preferredProvider === STORAGE_PROVIDERS.TURBO || (!preferredProvider && storage?.provider === STORAGE_PROVIDERS.TURBO)) {
+          const storage = getStorage(preferredProviderRaw);
+          const preferredTurbo = normalizedPreferredProvider === STORAGE_PROVIDERS.TURBO;
+          if (preferredTurbo || (!normalizedPreferredProvider && storage?.provider === STORAGE_PROVIDERS.TURBO)) {
             const fileBuffer = req.file.buffer || Buffer.alloc(0);
             const sizeFromRequest = Number(req.file.size);
             const fileSize =

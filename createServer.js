@@ -18,10 +18,18 @@ async function loadSecrets() {
       clientId: process.env.INFISICAL_CLIENT_ID,
       clientSecret: process.env.INFISICAL_CLIENT_SECRET,
     });
+    const envSlug = process.env.INFISICAL_ENVIRONMENT || (process.env.NODE_ENV === 'production' ? 'production' : 'development');
     const { secrets } = await client.secrets().listSecrets({
-      environment: process.env.NODE_ENV === 'production' ? 'production' : 'development',
+      environment: envSlug,
       projectId: process.env.INFISICAL_PROJECT_ID,
     });
+    console.warn(`[Infisical] Loaded ${secrets.length} secrets for environment: ${envSlug}`);
+    const supabaseKey = secrets.find(s => s.secretKey === 'SUPABASE_ANON_KEY');
+    if (supabaseKey) {
+      console.warn('[Infisical] Found SUPABASE_ANON_KEY');
+    } else {
+      console.warn('[Infisical] SUPABASE_ANON_KEY NOT found in secrets');
+    }
     for (const secret of secrets) {
       process.env[secret.secretKey] = secret.secretValue;
     }
@@ -2393,6 +2401,8 @@ if (process.env.NODE_ENV !== 'test') {
   } catch {}
 }
 
+registerTipNotificationGifRoutes(app, strictLimiter, { store });
+registerTipNotificationRoutes(app, strictLimiter, { wss, store });
 registerTtsRoutes(app, wss, limiter, { store });
 registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, { store });
 

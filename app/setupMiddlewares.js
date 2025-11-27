@@ -70,6 +70,14 @@ function setupMiddlewares(
       const allowInlineScripts = process.env.GETTY_CSP_ALLOW_INLINE_SCRIPTS === '1';
       const allowInlineStyles = process.env.GETTY_CSP_ALLOW_INLINE_STYLES === '1';
       const enableGoogleFonts = process.env.GETTY_CSP_ENABLE_GOOGLE_FONTS !== '0';
+      const wuzzyEndpointRaw =
+        process.env.GETTY_WUZZY_GQL_ENDPOINT || process.env.VITE_WUZZY_GQL_ENDPOINT || '';
+      let wuzzyOrigin = '';
+      try {
+        if (wuzzyEndpointRaw) {
+          wuzzyOrigin = new URL(wuzzyEndpointRaw).origin;
+        }
+      } catch {}
 
       const cspDirectives = {
         defaultSrc: [self],
@@ -121,9 +129,20 @@ function setupMiddlewares(
           'https://*.supabase.co',
           ...mediaExtra,
         ],
-        connectSrc: [self, 'ws:', 'wss:', 'https://api.na-backend.odysee.com', ...connectExtra],
+        connectSrc: [
+          self,
+          'ws:',
+          'wss:',
+          'https://api.na-backend.odysee.com',
+          'https://arweave-search.goldsky.com',
+          ...connectExtra,
+        ],
         frameSrc: [self, ...frameExtra],
       };
+
+      if (wuzzyOrigin && !cspDirectives.connectSrc.includes(wuzzyOrigin)) {
+        cspDirectives.connectSrc.push(wuzzyOrigin);
+      }
 
       if (scriptAttr) {
         const parts = scriptAttr

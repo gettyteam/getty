@@ -366,7 +366,11 @@
                       accept="image/png,image/jpeg,image/gif"
                       class="sr-only"
                       @change="onNewImageChange" />
-                    <button type="button" class="upload-btn" @click="openAnnNewImageDialog">
+                    <button
+                      v-if="selectedStorageProvider !== 'wuzzy'"
+                      type="button"
+                      class="upload-btn"
+                      @click="openAnnNewImageDialog">
                       <i class="pi pi-upload mr-2" aria-hidden="true"></i>
                       {{ t('imageChoose') || t('announcementImage') }}
                     </button>
@@ -377,6 +381,15 @@
                       :aria-label="t('imageLibraryOpenBtn')">
                       <i class="pi pi-images mr-2" aria-hidden="true"></i>
                       {{ t('imageLibraryOpenBtn') }}
+                    </button>
+                    <button
+                      v-if="selectedStorageProvider === 'wuzzy'"
+                      type="button"
+                      class="btn-secondary btn-compact-secondary"
+                      @click="openWuzzyDrawer('new')"
+                      :aria-label="t('wuzzyOpenDrawerBtn')">
+                      <i class="pi pi-search-plus mr-2" aria-hidden="true"></i>
+                      {{ t('wuzzyOpenDrawerBtn') }}
                     </button>
                     <span
                       v-if="newSelectedFileName"
@@ -816,7 +829,11 @@
               accept="image/png,image/jpeg,image/gif"
               class="sr-only"
               @change="onEditImageChange" />
-            <button type="button" class="upload-btn" @click="openAnnEditImageDialog">
+            <button
+              v-if="selectedStorageProvider !== 'wuzzy'"
+              type="button"
+              class="upload-btn"
+              @click="openAnnEditImageDialog">
               <i class="pi pi-upload mr-2" aria-hidden="true"></i>
               {{ t('imageChoose') || t('announcementImage') }}
             </button>
@@ -828,6 +845,15 @@
               :aria-label="t('imageLibraryOpenBtn')">
               <i class="pi pi-images mr-2" aria-hidden="true"></i>
               {{ t('imageLibraryOpenBtn') }}
+            </button>
+            <button
+              v-if="selectedStorageProvider === 'wuzzy'"
+              type="button"
+              class="btn-secondary btn-compact-secondary"
+              @click="openWuzzyDrawer('edit')"
+              :aria-label="t('wuzzyOpenDrawerBtn')">
+              <i class="pi pi-search-plus mr-2" aria-hidden="true"></i>
+              {{ t('wuzzyOpenDrawerBtn') }}
             </button>
             <span
               v-if="editSelectedFileName"
@@ -877,6 +903,10 @@
       @refresh="fetchImageLibrary(true)"
       @select="onLibraryImageSelect"
       @delete="onLibraryImageDelete" />
+    <WuzzyImageDrawer
+      :open="wuzzyDrawerOpen"
+      @close="closeWuzzyDrawer"
+      @select="handleWuzzySelect" />
     <AlertDialog v-model:open="uploadErrorDialog.open">
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -896,6 +926,7 @@ import { reactive, ref, watch, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import CopyField from '../shared/CopyField.vue';
 import ImageLibraryDrawer from '../shared/ImageLibraryDrawer.vue';
+import WuzzyImageDrawer from '../Wuzzy/WuzzyImageDrawer.vue';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -944,15 +975,25 @@ const providerStatus = computed(() => {
 });
 const storageOptions = computed(() => storage.providerOptions.value);
 const storageLoading = computed(() => storage.loading.value);
+const localProvider = ref('');
+
 const selectedStorageProvider = computed({
-  get: () => storage.selectedProvider.value,
-  set: (val) => storage.setSelectedProvider(val),
+  get: () => localProvider.value || storage.selectedProvider.value,
+  set: (val) => {
+    localProvider.value = val;
+    if (val !== 'wuzzy') {
+      storage.setSelectedProvider(val);
+    }
+  },
 });
 
 function resolveStorageSelection(preferred = '') {
   const candidates = [];
   if (preferred) candidates.push(preferred);
   storage.ensureSelection(candidates);
+  if (storage.selectedProvider.value) {
+    localProvider.value = storage.selectedProvider.value;
+  }
 }
 
 resolveStorageSelection();
@@ -960,6 +1001,15 @@ resolveStorageSelection();
 watch(storageOptions, () => {
   resolveStorageSelection(selectedStorageProvider.value);
 });
+
+watch(
+  () => storage.selectedProvider.value,
+  (val) => {
+    if (val && val !== localProvider.value) {
+      localProvider.value = val;
+    }
+  }
+);
 
 watch(messages, (list) => {
   if (!Array.isArray(list)) return;
@@ -985,6 +1035,8 @@ const imageLibrary = reactive({
   target: null,
 });
 const imageLibraryDeletingId = ref('');
+const wuzzyDrawerOpen = ref(false);
+const wuzzyTargetType = ref('');
 
 const uploadErrorDialog = reactive({
   open: false,
@@ -1089,6 +1141,39 @@ async function openImageLibraryDrawer(target) {
 function closeImageLibraryDrawer() {
   imageLibrary.open = false;
   imageLibrary.target = null;
+}
+
+function openWuzzyDrawer(type) {
+  wuzzyTargetType.value = type;
+  wuzzyDrawerOpen.value = true;
+}
+
+function closeWuzzyDrawer() {
+  wuzzyDrawerOpen.value = false;
+  wuzzyTargetType.value = '';
+}
+
+async function handleWuzzySelect(item) {
+  if (!item) return;
+  const entry = {
+    id: item.id,
+    url: item.url,
+    provider: 'wuzzy',
+    size: item.size,
+    originalName: item.displayName || item.originalName || item.id,
+    sha256: '',
+    fingerprint: item.id,
+  };
+
+  if (wuzzyTargetType.value === 'new') {
+    applyLibraryToNew(entry);
+    closeWuzzyDrawer();
+  } else if (wuzzyTargetType.value === 'edit') {
+    await applyLibraryToEdit(entry);
+    closeWuzzyDrawer();
+  } else {
+    closeWuzzyDrawer();
+  }
 }
 
 function formatLibraryName(entry) {

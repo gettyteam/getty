@@ -45,9 +45,7 @@
               </div>
               <div class="gif-meta">
                 <div class="gif-meta-primary">
-                  <span class="gif-file-name">{{
-                    item.originalName || fallbackName(item.id)
-                  }}</span>
+                  <span class="gif-file-name">{{ fileName(item) }}</span>
                   <span v-if="itemSize(item)" class="gif-file-size">{{ itemSize(item) }}</span>
                 </div>
                 <div class="gif-meta-secondary">
@@ -103,6 +101,8 @@ const props = defineProps({
 const emit = defineEmits(['close', 'select', 'refresh', 'delete']);
 
 const { t } = useI18n();
+
+const MAX_FILE_NAME_CHARS = 18;
 
 const dateFormatter = computed(() => {
   return new Intl.DateTimeFormat(undefined, {
@@ -175,12 +175,27 @@ function itemUploaded(item) {
   return dateFormatter.value.format(parsed);
 }
 
+function fileName(item) {
+  if (!item) return t('gifLibraryUnknown');
+  const base = (item.originalName || '').trim();
+  const resolved = base || fallbackName(item.id);
+  return truncateFileName(resolved);
+}
+
+function truncateFileName(name) {
+  const normalized = (name || '').trim() || t('gifLibraryUnknown');
+  if (normalized.length <= MAX_FILE_NAME_CHARS) {
+    return normalized;
+  }
+  return `${normalized.slice(0, MAX_FILE_NAME_CHARS - 3)}...`;
+}
+
 /**
  * @param {string} id
  */
 function fallbackName(id) {
   if (!id) return t('gifLibraryUnknown');
-  return id.length > 24 ? `${id.slice(0, 24)}…` : id;
+  return id;
 }
 </script>
 
@@ -197,7 +212,7 @@ function fallbackName(id) {
 .gif-library-overlay {
   position: fixed;
   inset: 0;
-  background: color-mix(in srgb, var(--bg-overlay, rgba(7, 11, 18, 0.92)) 78%, transparent);
+  background: color-mix(in srgb, var(--bg-overlay, rgb(14 14 14 / 92%)) 78%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;

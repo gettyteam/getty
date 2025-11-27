@@ -870,17 +870,44 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
         } else if (requestedLibraryId) {
           const entry = await findLibraryEntry(ns, requestedLibraryId);
           if (!entry) {
-            return res.status(404).json({ success: false, error: 'library_item_not_found' });
+            if (incomingMeta.url) {
+              patch.imageUrl = incomingMeta.url;
+              patch.imageLibraryId = incomingMeta.libraryId;
+              patch.imageStorageProvider = incomingMeta.storageProvider;
+              patch.imageStoragePath = incomingMeta.storagePath;
+              patch.imageSha256 = incomingMeta.sha256;
+              patch.imageFingerprint = incomingMeta.fingerprint;
+              patch.imageOriginalName = incomingMeta.originalName;
+              
+              // Also save to library since it's new
+              const newEntry = normalizeLibraryEntry({
+                id: incomingMeta.libraryId,
+                url: incomingMeta.url,
+                provider: incomingMeta.storageProvider,
+                path: incomingMeta.storagePath,
+                sha256: incomingMeta.sha256,
+                fingerprint: incomingMeta.fingerprint,
+                originalName: incomingMeta.originalName,
+                uploadedAt: new Date().toISOString()
+              });
+              if (newEntry) {
+                await upsertLibraryEntry(ns, newEntry);
+                libraryItem = newEntry;
+              }
+            } else {
+              return res.status(404).json({ success: false, error: 'library_item_not_found' });
+            }
+          } else {
+            await upsertLibraryEntry(ns, entry);
+            libraryItem = entry;
+            patch.imageUrl = entry.url;
+            patch.imageLibraryId = entry.id;
+            patch.imageStorageProvider = entry.provider;
+            patch.imageStoragePath = entry.path;
+            patch.imageSha256 = entry.sha256;
+            patch.imageFingerprint = entry.fingerprint;
+            patch.imageOriginalName = entry.originalName;
           }
-          await upsertLibraryEntry(ns, entry);
-          libraryItem = entry;
-          patch.imageUrl = entry.url;
-          patch.imageLibraryId = entry.id;
-          patch.imageStorageProvider = entry.provider;
-          patch.imageStoragePath = entry.path;
-          patch.imageSha256 = entry.sha256;
-          patch.imageFingerprint = entry.fingerprint;
-          patch.imageOriginalName = entry.originalName;
           await removePreviousIfNeeded(
             patch.imageLibraryId,
             patch.imageStorageProvider,

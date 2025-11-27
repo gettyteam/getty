@@ -4,11 +4,103 @@ const crypto = require('crypto');
 const WebSocket = require('ws');
 const { getStorage, STORAGE_PROVIDERS } = require('../lib/storage');
 
+const WUZZY_PROVIDER = 'wuzzy';
+
+function isValidArweaveId(value) {
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  return trimmed.length > 0 && trimmed.length < 128 && !/\s/.test(trimmed);
+}
+
+function normalizeWuzzySelection(raw = {}) {
+  const wuzzyId = typeof raw.wuzzyId === 'string' ? raw.wuzzyId.trim() : '';
+  const wuzzyUrlRaw = typeof raw.wuzzyUrl === 'string' ? raw.wuzzyUrl.trim() : '';
+  if (!isValidArweaveId(wuzzyId) || !wuzzyUrlRaw) {
+    return null;
+  }
+  let normalizedUrl = '';
+  try {
+    const parsed = new URL(wuzzyUrlRaw);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return null;
+    }
+    if (parsed.protocol === 'http:') {
+      parsed.protocol = 'https:';
+    }
+    normalizedUrl = parsed.href;
+  } catch {
+    return null;
+  }
+  const sizeRaw = Number(raw.wuzzySize);
+  const size = Number.isFinite(sizeRaw) ? sizeRaw : Number(raw.wuzzySize) || 0;
+  const originalName =
+    typeof raw.wuzzyOriginalName === 'string' ? raw.wuzzyOriginalName.trim() : '';
+  const mimeType = typeof raw.wuzzyMimeType === 'string' ? raw.wuzzyMimeType.trim() : '';
+  const owner = typeof raw.wuzzyOwner === 'string' ? raw.wuzzyOwner.trim() : '';
+  const sha256 = typeof raw.wuzzySha256 === 'string' ? raw.wuzzySha256.trim() : '';
+  const fingerprint =
+    typeof raw.wuzzyFingerprint === 'string' && raw.wuzzyFingerprint.trim()
+      ? raw.wuzzyFingerprint.trim()
+      : `${wuzzyId}::${size || 0}`;
+  return {
+    id: wuzzyId,
+    url: normalizedUrl,
+    size: Math.max(0, size),
+    originalName,
+    mimeType,
+    owner,
+    sha256,
+    fingerprint,
+  };
+}
+
+function clearWuzzyMetadata(target = {}) {
+  target.wuzzyId = '';
+  target.wuzzyUrl = '';
+  target.wuzzySize = 0;
+  target.wuzzyOriginalName = '';
+  target.wuzzyMimeType = '';
+  target.wuzzySha256 = '';
+  target.wuzzyFingerprint = '';
+  return target;
+}
+
+function applyWuzzyMetadata(target = {}, source = {}) {
+  clearWuzzyMetadata(target);
+  target.wuzzyId = source.id || source.wuzzyId || '';
+  target.wuzzyUrl = source.url || source.wuzzyUrl || '';
+  const rawSize = Number(source.size ?? source.wuzzySize);
+  target.wuzzySize = Number.isFinite(rawSize) ? Math.max(0, rawSize) : 0;
+  target.wuzzyOriginalName = source.originalName || source.wuzzyOriginalName || '';
+  target.wuzzyMimeType = source.mimeType || source.wuzzyMimeType || '';
+  target.wuzzySha256 = source.sha256 || source.wuzzySha256 || '';
+  target.wuzzyFingerprint = source.fingerprint || source.wuzzyFingerprint || '';
+  return target;
+}
+
+function buildWuzzyLibraryEntry(selection) {
+  if (!selection || !selection.id || !selection.url) return null;
+  return {
+    id: selection.id,
+    url: selection.url,
+    size: Math.max(0, Number(selection.size) || 0),
+    originalName: selection.originalName || selection.id,
+    path: '',
+    uploadedAt: new Date().toISOString(),
+    mimeType: selection.mimeType || '',
+    sha256: selection.sha256 || '',
+    fingerprint: selection.fingerprint || `${selection.id}::${selection.size || 0}`,
+    owner: selection.owner || '',
+    provider: WUZZY_PROVIDER,
+  };
+}
+
 function normalizeProvider(provider) {
   if (!provider || typeof provider !== 'string') return '';
   const lower = provider.trim().toLowerCase();
   if (lower === STORAGE_PROVIDERS.TURBO || lower === 'arweave') return STORAGE_PROVIDERS.TURBO;
   if (lower === STORAGE_PROVIDERS.SUPABASE) return STORAGE_PROVIDERS.SUPABASE;
+  if (lower === WUZZY_PROVIDER) return WUZZY_PROVIDER;
   return lower;
 }
 
@@ -19,7 +111,7 @@ function ensureSettingsShape(raw = {}) {
     : Number(raw.audioFileSize) || 0;
   const volRaw = Number.isFinite(raw.volume) ? raw.volume : parseFloat(raw.volume);
   const volume = Number.isFinite(volRaw) ? Math.max(0, Math.min(1, volRaw)) : 0.5;
-  return {
+  const normalized = {
     audioSource: src,
     hasCustomAudio: !!raw.hasCustomAudio,
     audioFileName:
@@ -33,7 +125,22 @@ function ensureSettingsShape(raw = {}) {
     storageProvider: normalizeProvider(raw.storageProvider),
     enabled: typeof raw.enabled === 'boolean' ? raw.enabled : true,
     volume,
+    wuzzyId: typeof raw.wuzzyId === 'string' ? raw.wuzzyId : '',
+    wuzzyUrl: typeof raw.wuzzyUrl === 'string' ? raw.wuzzyUrl : '',
+    wuzzySize: Number.isFinite(raw.wuzzySize) ? raw.wuzzySize : Number(raw.wuzzySize) || 0,
+    wuzzyOriginalName:
+      typeof raw.wuzzyOriginalName === 'string' ? raw.wuzzyOriginalName : '',
+    wuzzyMimeType: typeof raw.wuzzyMimeType === 'string' ? raw.wuzzyMimeType : '',
+    wuzzySha256: typeof raw.wuzzySha256 === 'string' ? raw.wuzzySha256 : '',
+    wuzzyFingerprint:
+      typeof raw.wuzzyFingerprint === 'string' ? raw.wuzzyFingerprint : '',
   };
+  if (normalized.storageProvider !== WUZZY_PROVIDER) {
+    clearWuzzyMetadata(normalized);
+  } else {
+    normalized.wuzzySize = Math.max(0, Number(normalized.wuzzySize) || 0);
+  }
+  return normalized;
 }
 
 function loadAudioSettings(AUDIO_CONFIG_FILE) {
@@ -214,6 +321,7 @@ function registerAudioSettingsRoutes(
       const preferredProviderRaw =
         typeof req.body.storageProvider === 'string' ? req.body.storageProvider : '';
       const preferredProvider = normalizeProvider(preferredProviderRaw);
+      const wuzzySelection = normalizeWuzzySelection(req.body);
 
       if (!audioSource || (audioSource !== 'remote' && audioSource !== 'custom')) {
         return res.status(400).json({ error: 'Invalid audio source' });
@@ -259,6 +367,7 @@ function registerAudioSettingsRoutes(
         audioSource,
         storageProvider: normalizeProvider(currentSettings?.storageProvider),
       };
+      clearWuzzyMetadata(settings);
 
       if (Object.prototype.hasOwnProperty.call(req.body, 'enabled')) {
         settings.enabled = req.body.enabled === 'true' || req.body.enabled === true ? true : false;
@@ -268,7 +377,28 @@ function registerAudioSettingsRoutes(
         if (!isNaN(vol)) settings.volume = Math.max(0, Math.min(1, vol));
       }
 
-      if (audioSource === 'custom' && req.file) {
+      const wantsWuzzySelection = audioSource === 'custom' && preferredProvider === WUZZY_PROVIDER;
+
+      if (wantsWuzzySelection) {
+        const normalizedWuzzy = wuzzySelection;
+        if (!normalizedWuzzy) {
+          return res.status(400).json({ error: 'invalid_wuzzy_selection' });
+        }
+        const wuzzyLibraryItem = buildWuzzyLibraryEntry(normalizedWuzzy);
+        if (!wuzzyLibraryItem) {
+          return res.status(400).json({ error: 'invalid_wuzzy_selection' });
+        }
+        await upsertLibraryEntry(ns, wuzzyLibraryItem);
+        libraryItem = wuzzyLibraryItem;
+        settings.hasCustomAudio = true;
+        settings.audioFileName = wuzzyLibraryItem.originalName || wuzzyLibraryItem.id;
+        settings.audioFileSize = Number(wuzzyLibraryItem.size) || 0;
+        settings.audioFileUrl = wuzzyLibraryItem.url || null;
+        settings.audioFilePath = null;
+        settings.audioLibraryId = wuzzyLibraryItem.id;
+        settings.storageProvider = WUZZY_PROVIDER;
+        applyWuzzyMetadata(settings, wuzzyLibraryItem);
+      } else if (audioSource === 'custom' && req.file) {
         const fileName = `custom-notification-audio-${ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global'}-${Date.now()}.mp3`;
 
         try {
@@ -327,6 +457,7 @@ function registerAudioSettingsRoutes(
           settings.audioFilePath = libraryItem.path;
           settings.audioLibraryId = libraryItem.id;
           settings.storageProvider = providerId;
+          clearWuzzyMetadata(settings);
           await upsertLibraryEntry(ns, libraryItem);
         } catch (uploadError) {
           console.error('Error uploading audio file:', uploadError);
@@ -352,6 +483,20 @@ function registerAudioSettingsRoutes(
           settings.audioFilePath = entry.path || entry.id || null;
           settings.audioLibraryId = entry.id;
           settings.storageProvider = providerId;
+          if (providerId === WUZZY_PROVIDER) {
+            settings.audioFilePath = null;
+            applyWuzzyMetadata(settings, {
+              id: entry.id,
+              url: entry.url,
+              size: entry.size,
+              originalName: entry.originalName,
+              mimeType: entry.mimeType,
+              sha256: entry.sha256,
+              fingerprint: entry.fingerprint,
+            });
+          } else {
+            clearWuzzyMetadata(settings);
+          }
           libraryItem = entry;
         } catch (lookupError) {
           console.error('[audio-library] lookup error', lookupError.message);
@@ -380,6 +525,7 @@ function registerAudioSettingsRoutes(
         settings.audioFilePath = null;
         settings.audioLibraryId = '';
         settings.storageProvider = '';
+        clearWuzzyMetadata(settings);
       }
 
       let success = false;
@@ -466,7 +612,12 @@ function registerAudioSettingsRoutes(
       }
 
       const providerId = normalizeProvider(target.provider);
-      if (providerId && providerId !== STORAGE_PROVIDERS.SUPABASE) {
+      const allowVirtualDelete = providerId === WUZZY_PROVIDER;
+      if (
+        providerId &&
+        providerId !== STORAGE_PROVIDERS.SUPABASE &&
+        providerId !== WUZZY_PROVIDER
+      ) {
         return res.status(400).json({ error: 'audio_library_delete_unsupported' });
       }
 
@@ -479,6 +630,8 @@ function registerAudioSettingsRoutes(
         } catch (deleteError) {
           console.warn('[audio-library] failed to delete Supabase file:', deleteError.message);
         }
+      } else if (allowVirtualDelete) {
+        // No-op: Wuzzy selections point to external assets and don't require remote deletion.
       }
 
       const updatedItems = items.filter((item) => item && item.id !== entryId);

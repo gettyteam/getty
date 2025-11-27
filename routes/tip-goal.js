@@ -7,6 +7,97 @@ const { writeHybridConfig, readHybridConfig } = require('../lib/hybrid-config');
 const { isOpenTestMode } = require('../lib/test-open-mode');
 const { getStorage, STORAGE_PROVIDERS } = require('../lib/storage');
 
+const WUZZY_PROVIDER = 'wuzzy';
+
+function isValidArweaveId(value) {
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  return trimmed.length > 0 && trimmed.length < 128 && !/\s/.test(trimmed);
+}
+
+function normalizeWuzzySelection(raw = {}) {
+  const wuzzyId = typeof raw.wuzzyId === 'string' ? raw.wuzzyId.trim() : '';
+  const wuzzyUrlRaw = typeof raw.wuzzyUrl === 'string' ? raw.wuzzyUrl.trim() : '';
+  if (!isValidArweaveId(wuzzyId) || !wuzzyUrlRaw) {
+    return null;
+  }
+  let normalizedUrl = '';
+  try {
+    const parsed = new URL(wuzzyUrlRaw);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return null;
+    }
+    if (parsed.protocol === 'http:') {
+      parsed.protocol = 'https:';
+    }
+    normalizedUrl = parsed.href;
+  } catch {
+    return null;
+  }
+  const sizeRaw = Number(raw.wuzzySize);
+  const size = Number.isFinite(sizeRaw) ? sizeRaw : Number(raw.wuzzySize) || 0;
+  const originalName =
+    typeof raw.wuzzyOriginalName === 'string' ? raw.wuzzyOriginalName.trim() : '';
+  const mimeType = typeof raw.wuzzyMimeType === 'string' ? raw.wuzzyMimeType.trim() : '';
+  const owner = typeof raw.wuzzyOwner === 'string' ? raw.wuzzyOwner.trim() : '';
+  const sha256 = typeof raw.wuzzySha256 === 'string' ? raw.wuzzySha256.trim() : '';
+  const fingerprint =
+    typeof raw.wuzzyFingerprint === 'string' && raw.wuzzyFingerprint.trim()
+      ? raw.wuzzyFingerprint.trim()
+      : `${wuzzyId}::${size || 0}`;
+  return {
+    id: wuzzyId,
+    url: normalizedUrl,
+    size: Math.max(0, size),
+    originalName,
+    mimeType,
+    owner,
+    sha256,
+    fingerprint,
+  };
+}
+
+function clearWuzzyMetadata(target = {}) {
+  target.wuzzyId = '';
+  target.wuzzyUrl = '';
+  target.wuzzySize = 0;
+  target.wuzzyOriginalName = '';
+  target.wuzzyMimeType = '';
+  target.wuzzySha256 = '';
+  target.wuzzyFingerprint = '';
+  return target;
+}
+
+function applyWuzzyMetadata(target = {}, source = {}) {
+  clearWuzzyMetadata(target);
+  target.wuzzyId = source.id || source.wuzzyId || '';
+  target.wuzzyUrl = source.url || source.wuzzyUrl || '';
+  const rawSize = Number(source.size ?? source.wuzzySize);
+  target.wuzzySize = Number.isFinite(rawSize) ? Math.max(0, rawSize) : 0;
+  target.wuzzyOriginalName = source.originalName || source.wuzzyOriginalName || '';
+  target.wuzzyMimeType = source.mimeType || source.wuzzyMimeType || '';
+  target.wuzzySha256 = source.sha256 || source.wuzzySha256 || '';
+  target.wuzzyFingerprint = source.fingerprint || source.wuzzyFingerprint || '';
+  return target;
+}
+
+function buildWuzzyLibraryEntry(selection) {
+  if (!selection || !selection.id || !selection.url) return null;
+  return {
+    id: selection.id,
+    url: selection.url,
+    size: Math.max(0, Number(selection.size) || 0),
+    originalName: selection.originalName || selection.id,
+    path: '',
+    uploadedAt: new Date().toISOString(),
+    mimeType: selection.mimeType || '',
+    sha256: selection.sha256 || '',
+    fingerprint: selection.fingerprint || `${selection.id}::${selection.size || 0}`,
+    owner: selection.owner || '',
+    provider: WUZZY_PROVIDER,
+  };
+}
+
 const ARWEAVE_RX = /^[A-Za-z0-9_-]{43}$/;
 function isValidArweaveAddress(addr) {
   try {
@@ -78,6 +169,7 @@ function registerTipGoalRoutes(
     const lower = provider.trim().toLowerCase();
     if (lower === STORAGE_PROVIDERS.TURBO || lower === 'arweave') return STORAGE_PROVIDERS.TURBO;
     if (lower === STORAGE_PROVIDERS.SUPABASE) return STORAGE_PROVIDERS.SUPABASE;
+    if (lower === WUZZY_PROVIDER) return WUZZY_PROVIDER;
     return lower;
   }
 
@@ -97,7 +189,7 @@ function registerTipGoalRoutes(
       }
       return true;
     })();
-    return {
+    const normalized = {
       audioSource: base.audioSource === 'custom' ? 'custom' : 'remote',
       hasCustomAudio: !!base.hasCustomAudio,
       audioFileName:
@@ -115,7 +207,22 @@ function registerTipGoalRoutes(
       storageProvider: normalizeProviderValue(base.storageProvider),
       enabled,
       volume,
+      wuzzyId: typeof base.wuzzyId === 'string' ? base.wuzzyId : '',
+      wuzzyUrl: typeof base.wuzzyUrl === 'string' ? base.wuzzyUrl : '',
+      wuzzySize: Number.isFinite(base.wuzzySize) ? base.wuzzySize : Number(base.wuzzySize) || 0,
+      wuzzyOriginalName:
+        typeof base.wuzzyOriginalName === 'string' ? base.wuzzyOriginalName : '',
+      wuzzyMimeType: typeof base.wuzzyMimeType === 'string' ? base.wuzzyMimeType : '',
+      wuzzySha256: typeof base.wuzzySha256 === 'string' ? base.wuzzySha256 : '',
+      wuzzyFingerprint:
+        typeof base.wuzzyFingerprint === 'string' ? base.wuzzyFingerprint : '',
     };
+    if (normalized.storageProvider !== WUZZY_PROVIDER) {
+      clearWuzzyMetadata(normalized);
+    } else {
+      normalized.wuzzySize = Math.max(0, Number(normalized.wuzzySize) || 0);
+    }
+    return normalized;
   }
 
   async function loadGoalAudioSnapshot(req) {
@@ -399,6 +506,7 @@ function registerTipGoalRoutes(
         const requestedStorageProviderRaw =
           typeof req.body.storageProvider === 'string' ? req.body.storageProvider : '';
         const requestedStorageProvider = normalizeProviderValue(requestedStorageProviderRaw);
+        const wuzzySelection = normalizeWuzzySelection(req.body);
         const ns = req?.ns?.admin || req?.ns?.pub || null;
 
         let prevCfg = null;
@@ -546,7 +654,46 @@ function registerTipGoalRoutes(
           audioVolume = Math.min(Math.max(data.audioVolume, 0), 1);
         }
 
-        if (audioSource === 'custom' && req.file) {
+        const wantsWuzzySelection = audioSource === 'custom' && requestedStorageProvider === WUZZY_PROVIDER;
+
+        if (wantsWuzzySelection) {
+          const normalizedWuzzy = wuzzySelection;
+          if (!normalizedWuzzy) {
+            return res.status(400).json({ error: 'invalid_wuzzy_selection' });
+          }
+          const wuzzyLibraryItem = buildWuzzyLibraryEntry(normalizedWuzzy);
+          if (!wuzzyLibraryItem) {
+            return res.status(400).json({ error: 'invalid_wuzzy_selection' });
+          }
+          
+          const shouldDeleteStoredFile =
+            audioFilePath &&
+            (!audioLibraryId || !audioLibraryId.length) &&
+            storageProvider === STORAGE_PROVIDERS.SUPABASE;
+            
+          if (shouldDeleteStoredFile) {
+            try {
+              const storage = getStorage(STORAGE_PROVIDERS.SUPABASE);
+              if (storage && storage.provider === STORAGE_PROVIDERS.SUPABASE) {
+                await storage.deleteFile('tip-goal-audio', audioFilePath);
+              }
+            } catch (deleteError) {
+              console.warn(
+                'Failed to delete previous tip goal audio from Supabase:',
+                deleteError.message
+              );
+            }
+          }
+
+          hasCustomAudio = true;
+          audioFileName = wuzzyLibraryItem.originalName || wuzzyLibraryItem.id;
+          audioFileSize = Number(wuzzyLibraryItem.size) || 0;
+          audioFileUrl = wuzzyLibraryItem.url || null;
+          audioFilePath = null;
+          audioLibraryId = wuzzyLibraryItem.id;
+          storageProvider = WUZZY_PROVIDER;
+
+        } else if (audioSource === 'custom' && req.file) {
           try {
             const shouldDeleteStoredFile =
               audioFilePath &&
@@ -652,6 +799,11 @@ function registerTipGoalRoutes(
               ? { customAudioUrl: prevCfg.customAudioUrl }
               : {}),
         };
+        if (storageProvider === WUZZY_PROVIDER && wantsWuzzySelection && wuzzySelection) {
+          applyWuzzyMetadata(config, wuzzySelection);
+        } else {
+          clearWuzzyMetadata(config);
+        }
         let meta = null;
         if (tenant && tenant.tenantEnabled(req)) {
           try {
@@ -857,6 +1009,11 @@ function registerTipGoalRoutes(
             volume: audioVolume,
             ...(audioFileUrl ? { customAudioUrl: audioFileUrl } : {}),
           };
+          if (storageProvider === WUZZY_PROVIDER && wantsWuzzySelection && wuzzySelection) {
+            applyWuzzyMetadata(audioCfg, wuzzySelection);
+          } else {
+            clearWuzzyMetadata(audioCfg);
+          }
           if (tenant && tenant.tenantEnabled(req)) {
             tenant.saveTenantAwareConfig(
               req,
@@ -1008,6 +1165,11 @@ function registerTipGoalRoutes(
             volume: audioVolume,
             ...(audioFileUrl ? { customAudioUrl: audioFileUrl } : {}),
           };
+          if (storageProvider === WUZZY_PROVIDER && wantsWuzzySelection && wuzzySelection) {
+            applyWuzzyMetadata(audioBroadcast, wuzzySelection);
+          } else {
+            clearWuzzyMetadata(audioBroadcast);
+          }
 
           if (tenant && tenant.tenantEnabled(req)) {
             if (
