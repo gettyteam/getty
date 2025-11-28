@@ -38,17 +38,20 @@
           </div>
           <ul v-else class="img-library-grid">
             <li v-for="item in items" :key="item.id" class="img-library-item">
-              <div class="img-thumb" aria-hidden="true">
+              <div class="img-thumb group relative" aria-hidden="true">
                 <img
                   :src="item.url"
                   :alt="item.originalName || fallbackName(item.id)"
                   loading="lazy"
-                  decoding="async" />
+                  decoding="async"
+                  class="transition-transform duration-200 group-hover:scale-105" />
+                <div
+                  class="absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/70 opacity-0 transition-opacity flex flex-col justify-between p-2 group-hover:opacity-100 pointer-events-none"></div>
               </div>
               <div class="img-meta">
                 <div class="img-meta-primary">
-                  <span class="img-file-name">{{
-                    item.originalName || fallbackName(item.id)
+                  <span class="img-file-name" :title="item.originalName || fallbackName(item.id)">{{
+                    truncateName(item.originalName || fallbackName(item.id))
                   }}</span>
                   <span v-if="itemSize(item)" class="img-file-size">{{ itemSize(item) }}</span>
                 </div>
@@ -178,6 +181,11 @@ function itemUploaded(item) {
 function fallbackName(id) {
   if (!id) return t('imageLibraryUnknown');
   return id.length > 24 ? `${id.slice(0, 24)}…` : id;
+}
+
+function truncateName(name) {
+  if (!name) return '';
+  return name.length > 16 ? `${name.slice(0, 16)}…` : name;
 }
 </script>
 
@@ -347,10 +355,9 @@ function fallbackName(id) {
 }
 
 .img-thumb img {
-  max-width: 100%;
-  max-height: 180px;
-  object-fit: contain;
-  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .img-meta {

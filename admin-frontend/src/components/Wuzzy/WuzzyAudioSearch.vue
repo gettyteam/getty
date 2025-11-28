@@ -37,26 +37,20 @@
 
     <div v-else class="wuzzy-audio-list">
       <article v-for="item in filteredResults" :key="item.id" class="wuzzy-audio-card">
-        <div class="audio-thumb" aria-hidden="true">
+        <div class="audio-thumb group relative overflow-hidden" aria-hidden="true">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
+            fill="currentColor"
             role="presentation"
-            focusable="false">
+            focusable="false"
+            class="transition-transform duration-200 group-hover:scale-105">
             <title>{{ t('wuzzyAudioSearchTitle') }}</title>
-            <g fill="none" stroke="currentColor" stroke-width="1.5">
-              <path
-                stroke-linecap="round"
-                d="M11.5 6C7.022 6 4.782 6 3.391 7.172S2 10.229 2 14s0 5.657 1.391 6.828S7.021 22 11.5 22c4.478 0 6.718 0 8.109-1.172S21 17.771 21 14c0-1.17 0-2.158-.041-3" />
-              <path
-                stroke-linejoin="round"
-                d="m18.5 2 .258.697c.338.914.507 1.371.84 1.704c.334.334.791.503 1.705.841L22 5.5l-.697.258c-.914.338-1.371.507-1.704.84c-.334.334-.503.791-.841 1.705L18.5 9l-.258-.697c-.338-.914-.507-1.371-.84-1.704c-.334-.334-.791-.503-1.705-.841L15 5.5l.697-.258c.914-.338 1.371-.507 1.704-.84c.334-.334.503-.791.841-1.705z" />
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M12 10v8m-3-6v4m-3-3v2m9-3v4m3-3v2" />
-            </g>
+            <path
+              d="M10.75 18.692q.816 0 1.379-.563q.563-.564.563-1.379v-3.98h2.731v-1.54h-3.5v4.087q-.236-.257-.53-.383q-.293-.126-.643-.126q-.815 0-1.379.563q-.563.564-.563 1.379t.563 1.379q.564.563 1.379.563M6.616 21q-.691 0-1.153-.462T5 19.385V4.615q0-.69.463-1.152T6.616 3H14.5L19 7.5v11.885q0 .69-.462 1.153T17.384 21zM14 8h4l-4-4z" />
           </svg>
+          <div
+            class="absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/70 opacity-0 transition-opacity flex flex-col justify-between p-2 group-hover:opacity-100 pointer-events-none"></div>
         </div>
         <div class="audio-card-header">
           <div class="audio-name" :title="item.displayName">{{ item.displayName }}</div>
@@ -427,8 +421,8 @@ watch(
 }
 
 .audio-thumb svg {
-  width: 56px;
-  height: 56px;
+  width: 70px;
+  height: 70px;
 }
 
 :global([data-theme='light']) .audio-thumb {
@@ -454,7 +448,7 @@ watch(
 .audio-type {
   font-size: 11px;
   padding: 2px 6px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: rgba(59, 130, 246, 0.15);
   color: rgba(96, 165, 250, 0.95);
 }
@@ -479,6 +473,7 @@ watch(
 
 .audio-preview {
   width: 100%;
+  height: 32px;
 }
 
 .wuzzy-actions {

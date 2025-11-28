@@ -36,12 +36,15 @@
           </div>
           <ul v-else class="gif-library-grid">
             <li v-for="item in items" :key="item.id" class="gif-library-item">
-              <div class="gif-thumb" aria-hidden="true">
+              <div class="gif-thumb group relative" aria-hidden="true">
                 <img
                   :src="item.url"
                   :alt="item.originalName || item.id"
                   loading="lazy"
-                  decoding="async" />
+                  decoding="async"
+                  class="transition-transform duration-200 group-hover:scale-105" />
+                <div
+                  class="absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/70 opacity-0 transition-opacity flex flex-col justify-between p-2 group-hover:opacity-100 pointer-events-none"></div>
               </div>
               <div class="gif-meta">
                 <div class="gif-meta-primary">
@@ -373,10 +376,9 @@ function fallbackName(id) {
 }
 
 .gif-thumb img {
-  max-width: 100%;
-  max-height: 180px;
-  object-fit: contain;
-  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .gif-meta {
