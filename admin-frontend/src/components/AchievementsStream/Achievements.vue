@@ -368,7 +368,7 @@
           <div class="form-group">
             <div class="flex flex-wrap items-center gap-3">
               <span class="label mb-0">{{ t('achievementsWidgetUrlLabel') }}</span>
-              <CopyField :value="widgetUrl" :aria-label="t('achievementsWidgetUrlLabel')" />
+              <CopyField :value="widgetUrl" :aria-label="t('achievementsWidgetUrlLabel')" secret />
             </div>
           </div>
         </OsCard>

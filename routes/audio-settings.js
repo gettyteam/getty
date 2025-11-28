@@ -3,6 +3,7 @@ const path = require('path');
 const crypto = require('crypto');
 const WebSocket = require('ws');
 const { getStorage, STORAGE_PROVIDERS } = require('../lib/storage');
+const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
 
 const WUZZY_PROVIDER = 'wuzzy';
 
@@ -261,15 +262,14 @@ function registerAudioSettingsRoutes(
       }
 
       let settings = ensureSettingsShape(loadAudioSettings(AUDIO_CONFIG_FILE));
-      if (store && hasNs) {
-        try {
-          const st = await store.get(ns, 'audio-settings', null);
-          if (st && typeof st === 'object') {
-            settings = ensureSettingsShape(st);
-          }
-        } catch (error) {
-          console.error('Error loading tenant audio settings:', error);
+      try {
+        const loaded = await loadTenantConfig(req, store, AUDIO_CONFIG_FILE, 'audio-settings.json');
+        const data = loaded.data?.data ? loaded.data.data : loaded.data;
+        if (data) {
+          settings = ensureSettingsShape(data);
         }
+      } catch (error) {
+        console.error('Error loading tenant audio settings:', error);
       }
 
       const libraryItem = settings.audioLibraryId
@@ -329,38 +329,13 @@ function registerAudioSettingsRoutes(
 
       let libraryItem = null;
       let currentSettings = null;
-      if (ns && store) {
-        try {
-          currentSettings = await store.get(ns, 'audio-settings', null);
-          if (!currentSettings) {
-            currentSettings = ensureSettingsShape({
-              audioSource: 'remote',
-              hasCustomAudio: false,
-              audioFileName: null,
-              audioFileSize: 0,
-              audioFileUrl: null,
-              audioFilePath: null,
-              enabled: true,
-              volume: 0.5,
-            });
-          } else {
-            currentSettings = ensureSettingsShape(currentSettings);
-          }
-        } catch (error) {
-          console.error('Error loading current tenant audio settings:', error);
-          currentSettings = ensureSettingsShape({
-            audioSource: 'remote',
-            hasCustomAudio: false,
-            audioFileName: null,
-            audioFileSize: 0,
-            audioFileUrl: null,
-            audioFilePath: null,
-            enabled: true,
-            volume: 0.5,
-          });
-        }
-      } else {
-        currentSettings = ensureSettingsShape(loadAudioSettings(AUDIO_CONFIG_FILE));
+      try {
+        const loaded = await loadTenantConfig(req, store, AUDIO_CONFIG_FILE, 'audio-settings.json');
+        const data = loaded.data?.data ? loaded.data.data : loaded.data;
+        currentSettings = ensureSettingsShape(data);
+      } catch (error) {
+        console.error('Error loading current tenant audio settings:', error);
+        currentSettings = ensureSettingsShape({});
       }
 
       const settings = {
@@ -528,21 +503,14 @@ function registerAudioSettingsRoutes(
         clearWuzzyMetadata(settings);
       }
 
-      let success = false;
       let payload = null;
 
       const merged = ensureSettingsShape({ ...currentSettings, ...settings });
-      success = saveAudioSettings(AUDIO_CONFIG_FILE, merged);
-      if (success) {
+      try {
+        await saveTenantConfig(req, store, AUDIO_CONFIG_FILE, 'audio-settings.json', merged);
         payload = merged;
-        if (ns && store) {
-          try {
-            await store.set(ns, 'audio-settings', merged);
-          } catch (error) {
-            console.error('Error saving tenant audio settings:', error);
-          }
-        }
-      } else {
+      } catch (error) {
+        console.error('Error saving audio configuration:', error);
         return res.status(500).json({ error: 'Error saving audio configuration' });
       }
 
@@ -846,19 +814,19 @@ function registerAudioSettingsRoutes(
 
   app.get('/api/custom-audio', async (req, res) => {
     try {
-      const ns = req?.ns?.admin || req?.ns?.pub || null;
       let settings = null;
-
-      if (ns && store) {
-        try {
-          settings = await store.get(ns, 'audio-settings', null);
-        } catch (error) {
-          console.error('Error loading tenant audio settings for custom audio:', error);
+      try {
+        const loaded = await loadTenantConfig(req, store, AUDIO_CONFIG_FILE, 'audio-settings.json');
+        const data = loaded.data?.data ? loaded.data.data : loaded.data;
+        if (data) {
+          settings = ensureSettingsShape(data);
         }
+      } catch (error) {
+        console.error('Error loading tenant audio settings for custom audio:', error);
       }
 
       if (!settings) {
-        settings = loadAudioSettings(AUDIO_CONFIG_FILE);
+        settings = ensureSettingsShape(loadAudioSettings(AUDIO_CONFIG_FILE));
       }
 
       if (!settings || !settings.audioFileUrl) {

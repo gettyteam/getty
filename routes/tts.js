@@ -90,8 +90,9 @@ function registerTtsRoutes(app, wss, limiter, options = {}) {
     if (store && req.ns && req.ns.admin) {
       const current = await store.get(req.ns.admin, 'tts-settings', {});
       await store.set(req.ns.admin, 'tts-settings', { ...current, ...toSave });
+    } else {
+      saveSettings(toSave);
     }
-    saveSettings(toSave);
 
     const payload = {
       type: 'ttsSettingUpdate',
@@ -149,8 +150,9 @@ function registerTtsRoutes(app, wss, limiter, options = {}) {
     if (store && req.ns && req.ns.admin) {
       const current = await store.get(req.ns.admin, 'tts-settings', {});
       await store.set(req.ns.admin, 'tts-settings', { ...current, ttsLanguage });
+    } else {
+      saveSettings({ ttsLanguage });
     }
-    saveSettings({ ttsLanguage });
 
     const payload = { type: 'ttsLanguageUpdate', data: { ttsLanguage } };
     if (typeof wss.broadcast === 'function' && req.ns && (req.ns.admin || req.ns.pub)) {

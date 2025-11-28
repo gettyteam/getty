@@ -129,8 +129,10 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
     return ensureConfigShape();
   }
 
-  function saveConfig(cfg) {
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(ensureConfigShape(cfg), null, 2));
+  function saveConfig(cfg, ns) {
+    if (!ns) {
+      fs.writeFileSync(CONFIG_FILE, JSON.stringify(ensureConfigShape(cfg), null, 2));
+    }
   }
 
   function normalizeLibraryEntry(raw) {
@@ -202,6 +204,7 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
               : [];
           return list.map(normalizeLibraryEntry).filter((entry) => entry && entry.id);
         }
+        return [];
       } catch (error) {
         console.warn('[gif-library] store load error', error.message);
       }
@@ -210,7 +213,9 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
   }
 
   async function saveLibrary(ns, items) {
-    saveLibraryToFile(items);
+    if (!ns) {
+      saveLibraryToFile(items);
+    }
     if (store && ns) {
       try {
         await store.set(ns, 'tip-notification-gif-library', items);
@@ -265,6 +270,7 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
           if (st && typeof st === 'object') {
             return res.json(ensureConfigShape(st));
           }
+          return res.json(ensureConfigShape({}));
         } catch {}
       }
       res.json(cfg);
@@ -359,7 +365,7 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
           storageProvider: '',
         });
         cleared = true;
-        saveConfig(clearedCfg);
+        saveConfig(clearedCfg, ns);
         if (store && ns) {
           try {
             await store.set(ns, 'tip-notification-gif', clearedCfg);
@@ -558,7 +564,7 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
         }
 
         config.position = position;
-        saveConfig(config);
+        saveConfig(config, ns);
         if (store && ns) {
           try {
             await store.set(ns, 'tip-notification-gif', config);
@@ -627,7 +633,7 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
         libraryId: '',
         storageProvider: '',
       };
-      saveConfig(cleared);
+      saveConfig(cleared, ns);
       if (store && ns) {
         try {
           await store.set(ns, 'tip-notification-gif', cleared);

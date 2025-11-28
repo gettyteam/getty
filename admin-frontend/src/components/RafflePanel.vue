@@ -74,11 +74,16 @@
             accept="image/png,image/jpeg,image/gif"
             class="sr-only"
             @change="onImageFileChange" />
-          <button type="button" class="upload-btn" @click="openImageDialog">
+          <button
+            v-if="selectedStorageProvider !== 'wuzzy'"
+            type="button"
+            class="upload-btn"
+            @click="openImageDialog">
             <i class="pi pi-upload mr-2" aria-hidden="true"></i>
             {{ t('imageChoose') || t('rafflePrizeImageLabel') }}
           </button>
           <button
+            v-if="selectedStorageProvider !== 'wuzzy'"
             type="button"
             class="btn-secondary btn-compact-secondary"
             @click="openImageLibraryDrawer"
@@ -87,6 +92,7 @@
             {{ t('imageLibraryOpenBtn') }}
           </button>
           <button
+            v-if="selectedStorageProvider === 'wuzzy'"
             type="button"
             class="btn-secondary btn-compact-secondary"
             @click="openWuzzyDrawer"
@@ -102,19 +108,17 @@
             <label class="label mb-0" for="raffle-storage-provider">
               {{ t('storageProviderLabel') }}
             </label>
-            <select
-              id="raffle-storage-provider"
-              class="input select w-auto"
+            <QuickSelect
               v-model="selectedStorageProvider"
-              :disabled="storageLoading || !storageOptions.length">
-              <option
-                v-for="opt in storageOptions"
-                :key="opt.id"
-                :value="opt.id"
-                :disabled="!opt.available && opt.id !== selectedStorageProvider">
-                {{ opt.label }}
-              </option>
-            </select>
+              :disabled="storageLoading || !storageOptions.length"
+              :options="
+                storageOptions.map((opt) => ({
+                  label: opt.label,
+                  value: opt.id,
+                  disabled: !opt.available && opt.id !== selectedStorageProvider,
+                }))
+              "
+              :aria-label="t('storageProviderLabel')" />
           </div>
           <span v-if="selectedPrizeFilename" class="file-name-label" :title="selectedPrizeFilename">
             <i class="pi pi-image mr-1"></i>
@@ -223,7 +227,7 @@
       <div class="form-group">
         <div class="flex flex-wrap items-center gap-3">
           <span class="label mb-0">{{ t('raffleAdminSectionWidgetLink') }}</span>
-          <CopyField :value="widgetUrl" :aria-label="t('raffleAdminSectionWidgetLink')" />
+          <CopyField :value="widgetUrl" :aria-label="t('raffleAdminSectionWidgetLink')" secret />
         </div>
       </div>
     </OsCard>
@@ -262,6 +266,7 @@ import { useI18n } from 'vue-i18n';
 import { pushToast } from '../services/toast';
 import { confirmDialog } from '../services/confirm';
 import CopyField from './shared/CopyField.vue';
+import QuickSelect from './shared/QuickSelect.vue';
 import ImageLibraryDrawer from './shared/ImageLibraryDrawer.vue';
 import WuzzyImageDrawer from './Wuzzy/WuzzyImageDrawer.vue';
 import {
@@ -986,6 +991,7 @@ onMounted(async () => {
     await wallet.refresh();
     await refresh();
   } catch {}
+  storage.registerProvider('wuzzy');
   await storage.fetchProviders();
   resolveStorageSelection(form.imageStorageProvider);
   await load(true);

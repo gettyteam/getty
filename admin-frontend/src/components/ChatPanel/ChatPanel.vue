@@ -123,13 +123,13 @@
           </h3>
           <div class="form-group">
             <label class="label mb-0">{{ t('chatWidgetUrl') }}</label>
-            <CopyField :value="widgetUrl" />
+            <CopyField :value="widgetUrl" secret />
           </div>
           <div class="form-group mt-2">
             <label class="label mb-0">{{
               t('chatWidgetUrlHorizontal') || 'Chat Widget URL (horizontal):'
             }}</label>
-            <CopyField :value="widgetHorizontalUrl" />
+            <CopyField :value="widgetHorizontalUrl" secret />
           </div>
         </div>
       </div>
