@@ -212,12 +212,17 @@
           v-model.number="form.maxWinners"
           type="number"
           min="1" />
-        <label
-          class="flex items-center gap-1.5 mt-2"
-          @mouseenter="hoverEnabled = true"
-          @mouseleave="hoverEnabled = false">
-          <input type="checkbox" class="checkbox" v-model="form.enabled" /> {{ t('raffleEnabled') }}
-        </label>
+        <div class="flex items-center gap-2 mt-2">
+          <button
+            type="button"
+            class="switch"
+            :aria-pressed="String(form.enabled)"
+            :aria-label="t('raffleEnabled')"
+            @click="form.enabled = !form.enabled">
+            <span class="knob"></span>
+          </button>
+          <span class="text-sm font-medium">{{ t('raffleEnabled') }}</span>
+        </div>
         <button class="btn mt-3" @click="saveSettings" :disabled="savingSettings">
           {{ savingSettings ? t('commonSaving') : t('saveSettings') }}
         </button>
@@ -309,7 +314,6 @@ const state = reactive({
 const participants = ref([]);
 const winner = ref(null);
 
-const hoverEnabled = ref(false);
 const warning = ref({
   title: 'Reminder',
   body: 'The chat command must match the configured command.',
@@ -1026,6 +1030,41 @@ onMounted(async () => {
 }
 .icon-btn .pi {
   font-size: 0.9rem;
+}
+
+.switch {
+  width: 38px;
+  height: 22px;
+  background: var(--bg-chat, #f3f3f3);
+  border: 1px solid var(--border, var(--border-color, #d0d0d0));
+  border-radius: 9999px;
+  position: relative;
+  transition: background 0.2s ease, border-color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+.switch .knob {
+  position: absolute;
+  left: 2px;
+  top: 1px;
+  width: 18px;
+  height: 18px;
+  background: #fff;
+  border-radius: 9999px;
+  transition: transform 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+.switch[aria-pressed='true'] {
+  background: var(--switch-color, #553fee);
+  border-color: var(--switch-color, #553fee);
+}
+.switch[aria-pressed='true'] .knob {
+  transform: translateX(16px);
+}
+.switch:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--switch-color, #553fee) 35%, transparent);
 }
 
 .file-name-label {

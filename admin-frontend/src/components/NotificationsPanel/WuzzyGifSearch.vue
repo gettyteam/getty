@@ -38,8 +38,15 @@
 
     <div v-else class="wuzzy-grid">
       <article v-for="item in visibleResults" :key="item.id" class="wuzzy-card">
-        <div class="wuzzy-thumb">
-          <img :src="item.url" :alt="item.displayName" loading="lazy" decoding="async" />
+        <div class="wuzzy-thumb group relative">
+          <img
+            :src="item.url"
+            :alt="item.displayName"
+            loading="lazy"
+            decoding="async"
+            class="transition-transform duration-200 group-hover:scale-105" />
+          <div
+            class="absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/70 opacity-0 transition-opacity flex flex-col justify-between p-2 group-hover:opacity-100 pointer-events-none"></div>
         </div>
         <div class="wuzzy-meta">
           <div class="wuzzy-name" :title="item.displayName">
