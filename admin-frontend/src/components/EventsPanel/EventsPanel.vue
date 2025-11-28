@@ -189,7 +189,7 @@
             <div class="events-setting-desc">{{ t('eventsObsUrlHint') }}</div>
           </div>
           <div class="copy-field-row">
-            <CopyField :value="widgetUrl" :aria-label="t('eventsObsUrlLabel')" />
+            <CopyField :value="widgetUrl" :aria-label="t('eventsObsUrlLabel')" secret />
           </div>
         </div>
       </div>

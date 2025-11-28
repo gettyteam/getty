@@ -114,10 +114,7 @@ function setSelectedProvider(id) {
     selectedProvider.value = '';
     return;
   }
-  const match = providerOptions.value.find((opt) => opt.id === normalized);
-  if (match && match.searchOnly) {
-    return;
-  }
+  // Allow selecting searchOnly providers (like Wuzzy) so UI can react to them
   selectedProvider.value = normalized;
 }
 

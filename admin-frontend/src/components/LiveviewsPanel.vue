@@ -110,7 +110,7 @@
       </div>
       <div class="mt-4">
         <label class="label">Widget URL</label>
-        <CopyField :value="widgetUrl" />
+        <CopyField :value="widgetUrl" secret />
       </div>
     </OsCard>
   </section>

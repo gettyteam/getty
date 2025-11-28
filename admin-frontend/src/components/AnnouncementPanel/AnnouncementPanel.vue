@@ -339,19 +339,18 @@
                     <label class="ann-form-label mb-0" for="announcement-storage-provider">
                       {{ t('storageProviderLabel') }}
                     </label>
-                    <select
+                    <QuickSelect
                       id="announcement-storage-provider"
-                      class="ann-select w-auto"
                       v-model="selectedStorageProvider"
-                      :disabled="storageLoading || !storageOptions.length">
-                      <option
-                        v-for="opt in storageOptions"
-                        :key="opt.id"
-                        :value="opt.id"
-                        :disabled="!opt.available && opt.id !== selectedStorageProvider">
-                        {{ opt.label }}
-                      </option>
-                    </select>
+                      :options="
+                        storageOptions.map((opt) => ({
+                          label: opt.label,
+                          value: opt.id,
+                          disabled: !opt.available && opt.id !== selectedStorageProvider,
+                        }))
+                      "
+                      :disabled="storageLoading || !storageOptions.length"
+                      :aria-label="t('storageProviderLabel')" />
                   </div>
                   <p
                     v-if="providerStatus && !providerStatus.available"
@@ -581,7 +580,7 @@
         </div>
         <div class="ann-form-group">
           <label class="ann-form-label mb-1">{{ t('announcementWidgetUrlLabel') }}</label>
-          <CopyField :value="widgetUrl" :aria-label="t('announcementWidgetUrlLabel')" />
+          <CopyField :value="widgetUrl" :aria-label="t('announcementWidgetUrlLabel')" secret />
         </div>
       </div>
     </div>
@@ -924,6 +923,7 @@
 <script setup>
 import { reactive, ref, watch, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
+import QuickSelect from '../shared/QuickSelect.vue';
 import CopyField from '../shared/CopyField.vue';
 import ImageLibraryDrawer from '../shared/ImageLibraryDrawer.vue';
 import WuzzyImageDrawer from '../Wuzzy/WuzzyImageDrawer.vue';

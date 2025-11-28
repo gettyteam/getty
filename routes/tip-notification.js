@@ -167,6 +167,7 @@ module.exports = function registerTipNotificationRoutes(app, strictLimiter, { ws
           return res.json({ success: true, meta: saveRes.meta, ...norm });
         } catch {
           try {
+            if (ns) throw new Error('Tenant save failed');
             const prev = readJsonSafe(CONFIG_FILE, {});
             const legacyMerged = { ...prev, ...parsed.data };
             writeJsonSafe(CONFIG_FILE, legacyMerged);

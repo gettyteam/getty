@@ -58,25 +58,19 @@
             <div class="notif-setting-desc">{{ t('storageProviderDesc') }}</div>
           </div>
           <div class="notif-setting-control flex flex-col gap-1">
-            <select
-              class="input select"
+            <QuickSelect
               v-model="gifStorageSelection"
-              :disabled="storageLoading || !storageOptions.length">
-              <option
-                v-for="opt in storageOptions"
-                :key="opt.id"
-                :value="opt.id"
-                :disabled="!opt.available && opt.id !== gifStorageSelection">
-                {{ opt.label }}{{ opt.searchOnly ? ' · ' + t('wuzzyProviderSearchOnlyLabel') : '' }}
-              </option>
-            </select>
+              :options="
+                storageOptions.map((opt) => ({
+                  label:
+                    opt.label + (opt.searchOnly ? ' · ' + t('wuzzyProviderSearchOnlyLabel') : ''),
+                  value: opt.id,
+                  disabled: !opt.available && opt.id !== gifStorageSelection,
+                }))
+              "
+              :aria-label="t('storageProviderLabel')" />
             <div v-if="providerStatus && !providerStatus.available" class="small text-amber-500">
               {{ t('storageProviderUnavailable') }}
-            </div>
-            <div
-              v-else-if="providerStatus && providerStatus.searchOnly"
-              class="small text-emerald-400">
-              {{ t('wuzzyProviderSearchOnlyHint') }}
             </div>
           </div>
         </div>
@@ -274,7 +268,7 @@
             <div class="notif-setting-desc">{{ t('tipWidgetObsHint') }}</div>
           </div>
           <div class="copy-field-row">
-            <CopyField :value="widgetUrl" :aria-label="t('notificationWidgetUrl')" />
+            <CopyField :value="widgetUrl" :aria-label="t('notificationWidgetUrl')" secret />
           </div>
         </div>
       </div>
@@ -497,6 +491,7 @@ import { confirmDialog } from '../services/confirm';
 import { registerDirty } from '../composables/useDirtyRegistry';
 import { MAX_GIF_SIZE } from '../utils/validation';
 import CopyField from './shared/CopyField.vue';
+import QuickSelect from './shared/QuickSelect.vue';
 import { useWalletSession } from '../composables/useWalletSession';
 import { usePublicToken } from '../composables/usePublicToken';
 import LegacyAudioControls from './shared/LegacyAudioControls.vue';

@@ -1,14 +1,7 @@
 <template>
   <div class="wuzzy-panel">
-    <div class="wuzzy-header">
-      <div>
-        <h4 class="wuzzy-title">{{ t('wuzzyAudioSearchTitle') }}</h4>
-        <p class="wuzzy-hint">{{ t('wuzzyAudioProviderDesc') }}</p>
-        <p class="wuzzy-hint-secondary">
-          {{ t('wuzzyAudioMaxDurationHint', { max: MAX_DURATION_SECONDS }) }}
-        </p>
-      </div>
-      <div class="wuzzy-input-group">
+    <div class="wuzzy-header centered-header">
+      <div class="wuzzy-input-group wide-input-group">
         <input
           class="ann-input wuzzy-input"
           :placeholder="t('wuzzyAudioSearchPlaceholder')"
@@ -20,6 +13,9 @@
         </button>
       </div>
     </div>
+    <p class="wuzzy-hint-secondary text-center mb-2">
+      {{ t('wuzzyAudioMaxDurationHint', { max: MAX_DURATION_SECONDS }) }}
+    </p>
 
     <div v-if="error" class="wuzzy-error" role="alert">
       <span>{{ error }}</span>
@@ -29,10 +25,6 @@
         @click="() => executeSearch(true)">
         {{ t('wuzzySearchTryAgain') }}
       </button>
-    </div>
-
-    <div v-if="!hasSearched && !loading" class="wuzzy-placeholder">
-      {{ t('wuzzyAudioProviderHint') }}
     </div>
 
     <div v-if="loading && hasSearched" class="wuzzy-loading">
@@ -364,36 +356,22 @@ watch(
 
 .wuzzy-header {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  justify-content: center;
+  align-items: center;
   gap: 12px;
-}
-
-.wuzzy-title {
-  margin: 0;
-  font-size: 16px;
-}
-
-.wuzzy-hint {
-  margin: 4px 0 0;
-  font-size: 13px;
-  opacity: 0.8;
-}
-
-.wuzzy-hint-secondary {
-  margin: 2px 0 0;
-  font-size: 12px;
-  opacity: 0.75;
+  margin-bottom: 8px;
 }
 
 .wuzzy-input-group {
   display: flex;
   gap: 8px;
-  min-width: 260px;
+  width: 100%;
+  max-width: 600px;
 }
 
 .wuzzy-input {
-  min-width: 220px;
+  flex: 1;
+  min-width: 0;
   border-radius: 4px;
 }
 

@@ -1,11 +1,7 @@
 <template>
   <div class="wuzzy-panel">
-    <div class="wuzzy-header">
-      <div>
-        <h4 class="wuzzy-title">{{ t('wuzzyImageSearchTitle') }}</h4>
-        <p class="wuzzy-hint">{{ t('wuzzyImageProviderDesc') }}</p>
-      </div>
-      <div class="wuzzy-input-group">
+    <div class="wuzzy-header centered-header">
+      <div class="wuzzy-input-group wide-input-group">
         <input
           class="ann-input wuzzy-input"
           :placeholder="t('wuzzySearchPlaceholder')"
@@ -254,30 +250,22 @@ async function goToNextPage() {
 
 .wuzzy-header {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  justify-content: center;
+  align-items: center;
   gap: 12px;
-}
-
-.wuzzy-title {
-  margin: 0;
-  font-size: 16px;
-}
-
-.wuzzy-hint {
-  margin: 4px 0 0;
-  font-size: 13px;
-  opacity: 0.8;
+  margin-bottom: 8px;
 }
 
 .wuzzy-input-group {
   display: flex;
   gap: 8px;
-  min-width: 260px;
+  width: 100%;
+  max-width: 600px;
 }
 
 .wuzzy-input {
-  min-width: 220px;
+  flex: 1;
+  min-width: 0;
   border-radius: 4px;
 }
 
@@ -292,7 +280,13 @@ async function goToNextPage() {
   color: #fecaca;
 }
 
-.wuzzy-placeholder,
+.wuzzy-placeholder {
+  padding: 8px 0;
+  text-align: center;
+  opacity: 0.6;
+  font-size: 0.95rem;
+}
+
 .wuzzy-loading,
 .wuzzy-empty {
   padding: 8px 0;

@@ -88,30 +88,22 @@
                   role="note"
                   tabindex="0"></i>
               </label>
-              <select
-                id="legacy-audio-storage-provider"
-                class="input select w-full"
-                :value="storageSelection"
-                @change="(e) => onProviderChange(e.target.value)"
-                :disabled="storageLoading">
-                <option
-                  v-for="opt in storageProviderOptions"
-                  :key="opt.id"
-                  :value="opt.id"
-                  :disabled="!opt.available && opt.id !== storageSelection">
-                  {{ opt.label
-                  }}{{ opt.searchOnly ? ' · ' + t('wuzzyProviderSearchOnlyLabel') : '' }}
-                </option>
-              </select>
+              <QuickSelect
+                :model-value="storageSelection"
+                @update:model-value="onProviderChange"
+                :options="
+                  storageProviderOptions.map((opt) => ({
+                    label:
+                      opt.label + (opt.searchOnly ? ' · ' + t('wuzzyProviderSearchOnlyLabel') : ''),
+                    value: opt.id,
+                    disabled: !opt.available && opt.id !== storageSelection,
+                  }))
+                "
+                :aria-label="t('storageProviderLabel')" />
               <div
                 v-if="providerStatus && !providerStatus.available"
                 class="small text-amber-500 mt-1">
                 {{ t('storageProviderUnavailable') }}
-              </div>
-              <div
-                v-else-if="providerStatus && providerStatus.searchOnly"
-                class="small text-emerald-400 mt-1">
-                {{ t('wuzzyProviderSearchOnlyHint') }}
               </div>
             </div>
             <input
@@ -346,6 +338,7 @@ import api from '../../services/api';
 import { confirmDialog } from '../../services/confirm';
 import AudioLibraryDrawer from './AudioLibraryDrawer.vue';
 import WuzzyAudioDrawer from '../Wuzzy/WuzzyAudioDrawer.vue';
+import QuickSelect from './QuickSelect.vue';
 import { formatBytes as formatWuzzyBytes } from '../../services/wuzzySearch';
 
 const props = defineProps({
@@ -759,7 +752,7 @@ async function saveAudio() {
     }
     if (props.audioSource === 'custom' && isWuzzySelection) {
       if (!hasWuzzySelection.value) {
-        errorMsg.value = t('wuzzySelectionRequired');
+        errorMsg.value = t('wuzzyAudioSelectionHint');
         return;
       }
       fd.append('wuzzyId', wuzzySelection.id);

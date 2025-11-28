@@ -244,7 +244,7 @@
   .btn-danger,
   .btn.danger {
     @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white focus-visible:ring-2;
-    background: #111;
+    background: #1e1e1e;
     color: #fff;
   }
 

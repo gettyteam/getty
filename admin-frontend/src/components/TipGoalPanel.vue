@@ -238,7 +238,7 @@
             <div class="tip-setting-desc">{{ t('tipWidgetObsHint') }}</div>
           </div>
           <div class="copy-field-row">
-            <CopyField :value="widgetUrl" :aria-label="t('tipGoalWidgetUrl')" />
+            <CopyField :value="widgetUrl" :aria-label="t('tipGoalWidgetUrl')" secret />
           </div>
         </div>
       </div>
