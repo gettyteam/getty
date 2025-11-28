@@ -194,8 +194,7 @@ function fallbackName(id) {
 .img-library-overlay {
   position: fixed;
   inset: 0;
-  background: color-mix(in srgb, var(--bg-overlay, rgba(7, 11, 18, 0.92)) 78%, transparent);
-  backdrop-filter: blur(10px);
+  background: color-mix(in srgb, var(--bg-overlay, rgb(14 14 14 / 92%)) 78%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;

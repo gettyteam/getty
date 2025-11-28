@@ -365,7 +365,7 @@ import { ref, reactive, onMounted, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import api from '../services/api';
 import { pushToast } from '../services/toast';
-import { registerDirty } from '../composables/useDirtyRegistry';
+import { useDirty } from '../composables/useDirtyRegistry';
 import { isHttpUrl } from '../utils/validation';
 import OsCard from './os/OsCard.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -414,7 +414,7 @@ const dirty = ref(false);
 const saving = ref(false);
 const liveHas = ref({ discord: false, telegram: false });
 
-registerDirty(() => dirty.value);
+useDirty(() => dirty.value, t('externalNotificationsModule') || 'External Notifications');
 
 const hasErrors = computed(() => Object.values(errors.value).some((e) => e));
 

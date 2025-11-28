@@ -42,17 +42,16 @@
           <img :src="item.url" :alt="item.displayName" loading="lazy" decoding="async" />
         </div>
         <div class="wuzzy-meta">
-          <div class="wuzzy-name" :title="item.displayName">{{ item.displayName }}</div>
+          <div class="wuzzy-name" :title="item.displayName">
+            {{
+              item.displayName.length > 28
+                ? item.displayName.substring(0, 28) + '...'
+                : item.displayName
+            }}
+          </div>
           <div class="wuzzy-meta-row">
             <span>{{ formatBytes(item.size) }}</span>
             <span v-if="item.blockHeight">#{{ item.blockHeight }}</span>
-          </div>
-          <div class="wuzzy-owner" :title="item.owner">
-            {{
-              item.owner && item.owner.length > 18
-                ? item.owner.substring(0, 18) + '...'
-                : item.owner
-            }}
           </div>
         </div>
         <div class="wuzzy-actions">
@@ -325,9 +324,9 @@ async function goToNextPage() {
 }
 
 .wuzzy-thumb img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .wuzzy-meta {
@@ -362,6 +361,7 @@ async function goToNextPage() {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
+  justify-content: center;
 }
 
 .wuzzy-pagination {

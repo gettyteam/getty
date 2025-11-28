@@ -1,7 +1,7 @@
 import { reactive, computed, onMounted, onUnmounted, watch, ref } from 'vue';
 import api from '../../services/api';
 import { pushToast } from '../../services/toast';
-import { registerDirty } from '../../composables/useDirtyRegistry';
+import { useDirty } from '../../composables/useDirtyRegistry';
 import { usePublicToken } from '../../composables/usePublicToken';
 
 export function createChatPanel(t) {
@@ -188,7 +188,7 @@ export function createChatPanel(t) {
   function isChatDirty() {
     return original.snapshot && original.snapshot !== JSON.stringify(form);
   }
-  registerDirty(isChatDirty);
+  useDirty(isChatDirty, t('chatModule') || 'Chat');
   watch(form, () => {}, { deep: true });
   onMounted(async () => {
     try {

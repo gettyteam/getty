@@ -4,6 +4,7 @@ const state = reactive({
   open: false,
   title: '',
   description: '',
+  html: false,
   confirmText: 'Delete',
   cancelText: 'Cancel',
   danger: true,
@@ -18,6 +19,7 @@ export function confirmDialog(options = {}) {
   return new Promise((resolve) => {
     state.title = options.title || 'Are you sure?';
     state.description = options.description || 'This action cannot be undone.';
+    state.html = !!options.html;
     state.confirmText = options.confirmText || 'Continue';
     state.cancelText = options.cancelText || 'Cancel';
     state.danger = options.danger !== undefined ? !!options.danger : true;

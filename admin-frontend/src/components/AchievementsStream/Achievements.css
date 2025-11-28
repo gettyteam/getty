@@ -1262,11 +1262,13 @@ html.dark .ach-toast.info {
   font-weight: 600;
   font-size: 13px;
   letter-spacing: 0.3px;
+  color: var(--text-primary);
 }
 .ald-desc {
   opacity: 0.75;
   font-size: 11.5px;
   line-height: 1.3;
+  color: var(--text-secondary);
 }
 .ald-time {
   font-size: 11px;

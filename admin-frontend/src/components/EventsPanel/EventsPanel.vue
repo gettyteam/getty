@@ -202,7 +202,7 @@ import { reactive, onMounted, computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
 import { pushToast } from '@/services/toast';
-import { registerDirty } from '@/composables/useDirtyRegistry';
+import { useDirty } from '@/composables/useDirtyRegistry';
 import CopyField from '@/components/shared/CopyField.vue';
 import HeaderIcon from '@/components/shared/HeaderIcon.vue';
 import ColorInput from '@/components/shared/ColorInput.vue';
@@ -349,7 +349,7 @@ function isDirty() {
   const saved = originalSettings.value;
   return JSON.stringify(current) !== JSON.stringify(saved);
 }
-registerDirty(isDirty);
+useDirty(isDirty, t('eventsModule') || 'Events');
 
 onMounted(async () => {
   try {

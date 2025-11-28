@@ -488,7 +488,7 @@ import { useI18n } from 'vue-i18n';
 import api from '../services/api';
 import { pushToast } from '../services/toast';
 import { confirmDialog } from '../services/confirm';
-import { registerDirty } from '../composables/useDirtyRegistry';
+import { useDirty } from '../composables/useDirtyRegistry';
 import { MAX_GIF_SIZE } from '../utils/validation';
 import CopyField from './shared/CopyField.vue';
 import QuickSelect from './shared/QuickSelect.vue';
@@ -773,7 +773,7 @@ function isDirty() {
     widgetTheme.value !== originalTheme
   );
 }
-registerDirty(isDirty);
+useDirty(isDirty, t('notificationsModule') || 'Notifications');
 
 function triggerGif() {
   gifInput.value.click();

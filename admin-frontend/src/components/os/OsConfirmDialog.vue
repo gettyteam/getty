@@ -14,7 +14,15 @@
         <div class="modal-title text-sm font-semibold mb-1" id="os-confirm-title">
           {{ state.title }}
         </div>
-        <div class="text-sm opacity-80 leading-6" id="os-confirm-desc">{{ state.description }}</div>
+        <div class="mt-2">
+          <!-- eslint-disable vue/no-v-html -->
+          <div
+            v-if="state.html"
+            class="text-sm text-gray-500 dark:text-gray-400"
+            v-html="state.description"></div>
+          <!-- eslint-enable vue/no-v-html -->
+          <p v-else class="text-sm text-gray-500 dark:text-gray-400">{{ state.description }}</p>
+        </div>
         <div class="modal-actions flex gap-2 mt-4 justify-end">
           <button type="button" class="btn" @click="onCancel">{{ state.cancelText }}</button>
           <button

@@ -120,7 +120,7 @@ import { ref, onMounted, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import api from '../services/api';
 import { pushToast } from '../services/toast';
-import { registerDirty } from '../composables/useDirtyRegistry';
+import { useDirty } from '../composables/useDirtyRegistry';
 import CopyField from './shared/CopyField.vue';
 import OsCard from './os/OsCard.vue';
 import { useWalletSession } from '../composables/useWalletSession';
@@ -163,7 +163,7 @@ const iconInput = ref(null);
 const displayIcon = ref('');
 const locallyClearedIcon = ref(false);
 
-registerDirty(() => dirty.value);
+useDirty(() => dirty.value, t('liveviewsModule') || 'Live Views');
 watch(
   form,
   () => {

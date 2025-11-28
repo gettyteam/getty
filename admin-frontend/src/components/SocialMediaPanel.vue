@@ -106,7 +106,7 @@ import { ref, onMounted, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import api from '../services/api';
 import { pushToast } from '../services/toast';
-import { registerDirty } from '../composables/useDirtyRegistry';
+import { useDirty } from '../composables/useDirtyRegistry';
 import CopyField from './shared/CopyField.vue';
 import OsCard from './os/OsCard.vue';
 import { isHttpUrl, MAX_CUSTOM_ICON_SIZE } from '../utils/validation';
@@ -127,7 +127,7 @@ const widgetUrl = computed(() => withToken(`${location.origin}/widgets/socialmed
 function markDirty() {
   dirty.value = true;
 }
-registerDirty(() => dirty.value);
+useDirty(() => dirty.value, t('socialMediaModule') || 'Social Media');
 
 async function load() {
   try {

@@ -602,7 +602,7 @@
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter, RouterLink, RouterView } from 'vue-router';
 import { watch, ref, onMounted, onBeforeUnmount, computed } from 'vue';
-import { anyDirty } from './composables/useDirtyRegistry';
+import { anyDirty, getDirtyLabels } from './composables/useDirtyRegistry';
 import ToastHost from './components/shared/ToastHost.vue';
 import SidebarSuggestion from './components/shared/SidebarSuggestion.vue';
 import OsConfirmDialog from './components/os/OsConfirmDialog.vue';
@@ -908,10 +908,33 @@ router.beforeEach(async (to, from, next) => {
     return next();
   }
   if (from.fullPath !== to.fullPath && anyDirty()) {
+    const labels = getDirtyLabels();
+    let description =
+      t('unsavedChangesBody') || 'You have unsaved changes. Leave this page and discard them?';
+
+    const validLabels = labels.filter((l) => l && l.trim());
+
+    if (validLabels.length) {
+      const modules = validLabels.join(', ');
+      let checkMsg = t('unsavedChangesCheckSettings', { modules });
+      if (checkMsg === 'unsavedChangesCheckSettings') {
+        checkMsg = `Please check the settings in ${modules}.`;
+      }
+
+      description = `
+        <div class="flex flex-col gap-3">
+          <div class="flex items-start gap-2 text-red-600 dark:text-red-400">
+            <i class="pi pi-info-circle mt-0.5"></i>
+            <span class="font-medium">${checkMsg}</span>
+          </div>
+          <p>${description}</p>
+        </div>`;
+    }
+
     const ok = await confirmDialog({
       title: t('unsavedChangesTitle') || 'Unsaved changes',
-      description:
-        t('unsavedChangesBody') || 'You have unsaved changes. Leave this page and discard them?',
+      description,
+      html: !!validLabels.length,
       confirmText: t('leaveAnyway') || 'Leave anyway',
       cancelText: t('commonCancel') || 'Cancel',
       danger: true,

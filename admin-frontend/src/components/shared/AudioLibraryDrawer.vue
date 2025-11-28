@@ -171,7 +171,7 @@ function itemUploaded(item) {
 function formatName(item) {
   const val = item.originalName || item.id;
   if (!val) return t('audioLibraryUnknown');
-  return val.length > 30 ? `${val.slice(0, 30)}…` : val;
+  return val.length > 28 ? `${val.slice(0, 28)}…` : val;
 }
 </script>
 
@@ -188,8 +188,7 @@ function formatName(item) {
 .audio-library-overlay {
   position: fixed;
   inset: 0;
-  background: color-mix(in srgb, var(--bg-overlay, rgba(7, 11, 18, 0.92)) 78%, transparent);
-  backdrop-filter: blur(10px);
+  background: color-mix(in srgb, var(--bg-overlay, rgb(14 14 14 / 92%)) 78%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -361,6 +360,7 @@ function formatName(item) {
 
 .audio-preview {
   width: 100%;
+  height: 40px;
 }
 
 .audio-actions {

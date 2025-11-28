@@ -259,7 +259,7 @@
 <script setup>
 import { reactive, computed, onMounted, watch, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { registerDirty } from '../composables/useDirtyRegistry';
+import { useDirty } from '../composables/useDirtyRegistry';
 import api from '../services/api';
 import { pushToast } from '../services/toast';
 import { MAX_TITLE_LEN, isArweaveAddress } from '../utils/validation';
@@ -569,7 +569,7 @@ function handleAudioStorageProviderChange(val) {
   }
 }
 
-registerDirty(() => originalSnapshot.value !== serializeSnapshot());
+useDirty(() => originalSnapshot.value !== serializeSnapshot(), t('tipGoalModule') || 'Tip Goal');
 
 watch(storageOptions, () => resolveStorageSelection());
 

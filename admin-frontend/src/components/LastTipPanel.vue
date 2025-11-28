@@ -70,7 +70,7 @@
 </template>
 <script setup>
 import { reactive, computed, onMounted, watch, ref } from 'vue';
-import { registerDirty } from '../composables/useDirtyRegistry';
+import { useDirty } from '../composables/useDirtyRegistry';
 import { useI18n } from 'vue-i18n';
 import api from '../services/api';
 import ColorInput from './shared/ColorInput.vue';
@@ -236,7 +236,7 @@ function validate() {
 function isLastTipDirty() {
   return original.snapshot && original.snapshot !== JSON.stringify(form);
 }
-registerDirty(isLastTipDirty);
+useDirty(isLastTipDirty, t('lastTipModule') || 'Last Tip');
 watch(form, () => {}, { deep: true });
 
 watch(
