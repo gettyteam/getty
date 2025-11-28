@@ -210,15 +210,19 @@ function registerAudioSettingsRoutes(
           if (Array.isArray(stored)) return stored;
           if (stored && Array.isArray(stored.items)) return stored.items;
         }
+        return [];
       } catch (error) {
         console.warn('[audio-library] store load error', error.message);
+        return [];
       }
     }
     return loadLibraryFromFile();
   }
 
   async function saveLibrary(ns, items) {
-    saveLibraryToFile(items);
+    if (!ns) {
+      saveLibraryToFile(items);
+    }
     if (store && ns) {
       try {
         await store.set(ns, 'audio-library', items);
