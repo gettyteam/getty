@@ -15,7 +15,6 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
   const { isOpenTestMode } = require('../lib/test-open-mode');
   const BUCKET_NAME = 'raffle-images';
   const LIBRARY_FILE = path.join(process.cwd(), 'config', 'raffle-image-library.json');
-  const HOSTED_ENV = hostedWithRedis;
   const isTestEnv = process.env.NODE_ENV === 'test';
   const allowRealSupabaseInTests = process.env.SUPABASE_TEST_USE_REAL === '1';
   const shouldMockStorage = isTestEnv && !allowRealSupabaseInTests;
@@ -83,13 +82,14 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
   }
 
   async function saveLibrary(ns, items) {
+    const isMultiTenant = process.env.GETTY_MULTI_TENANT_WALLET === '1';
     if (store && ns) {
       try {
         await store.set(ns, 'raffle-image-library', items);
       } catch (error) {
         console.warn('[raffle-library] store save error', error.message);
       }
-      if (!HOSTED_ENV) {
+      if (!isMultiTenant) {
         saveLibraryToFile(items);
       }
       return;
