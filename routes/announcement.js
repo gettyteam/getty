@@ -17,7 +17,6 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
   const allowRealSupabaseInTests = process.env.SUPABASE_TEST_USE_REAL === '1';
   const shouldMockStorage = isTestEnv && !allowRealSupabaseInTests;
   const BUCKET_NAME = 'announcement-images';
-  const HOSTED_ENV = hostedWithRedis;
   const store =
     announcementModule && announcementModule.store
       ? announcementModule.store
@@ -93,13 +92,14 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
   }
 
   async function saveLibrary(ns, items) {
+    const isMultiTenant = process.env.GETTY_MULTI_TENANT_WALLET === '1';
     if (store && ns) {
       try {
         await store.set(ns, 'announcement-image-library', items);
       } catch (error) {
         console.warn('[announcement-library] store save error', error.message);
       }
-      if (!HOSTED_ENV) {
+      if (!isMultiTenant) {
         saveLibraryToFile(items);
       }
       return;

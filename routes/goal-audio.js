@@ -115,7 +115,6 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
   const { loadConfigWithFallback, saveTenantAwareConfig } = require('../lib/tenant');
 
   const LIBRARY_FILE = path.join(process.cwd(), 'config', 'audio-library.json');
-  const HOSTED_ENV = !!process.env.REDIS_URL;
 
   function normalizeProvider(provider) {
     if (!provider || typeof provider !== 'string') return '';
@@ -179,13 +178,14 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
 
   async function saveLibrary(ns, items) {
     const store = resolveStore();
+    const isMultiTenant = process.env.GETTY_MULTI_TENANT_WALLET === '1';
     if (store && ns) {
       try {
         await store.set(ns, 'audio-library', items);
       } catch (error) {
         console.warn('[goal-audio][library] store save error', error.message);
       }
-      if (!HOSTED_ENV) {
+      if (!isMultiTenant) {
         saveLibraryToFile(items);
       }
       return;

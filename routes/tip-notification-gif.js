@@ -213,7 +213,8 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
   }
 
   async function saveLibrary(ns, items) {
-    if (!ns) {
+    const isMultiTenant = process.env.GETTY_MULTI_TENANT_WALLET === '1';
+    if (!ns || !isMultiTenant) {
       saveLibraryToFile(items);
     }
     if (store && ns) {
