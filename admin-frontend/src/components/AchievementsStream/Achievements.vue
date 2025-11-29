@@ -127,10 +127,12 @@
                     :has-custom-audio="audioState.hasCustomAudio"
                     :audio-file-name="audioState.audioFileName"
                     :audio-file-size="audioState.audioFileSize"
+                    :audio-library-id="audioState.audioLibraryId"
+                    :library-enabled="true"
                     :remote-url="REMOTE_ACH_SOUND_URL"
-                    :save-endpoint="'/api/goal-audio-settings'"
-                    :delete-endpoint="'/api/goal-audio-settings'"
-                    :custom-audio-endpoint="'/api/goal-custom-audio'"
+                    :save-endpoint="'/api/achievements-audio-settings'"
+                    :delete-endpoint="'/api/achievements-audio-settings'"
+                    :custom-audio-endpoint="'/api/achievements-custom-audio'"
                     :storage-provider="audioStorageProvider"
                     :storage-providers="storageOptions"
                     :storage-loading="storageLoading"
@@ -615,6 +617,7 @@ const audioState = reactive({
   hasCustomAudio: false,
   audioFileName: '',
   audioFileSize: 0,
+  audioLibraryId: '',
   storageProvider: '',
 });
 
@@ -687,6 +690,7 @@ async function processAudioData(data) {
   audioState.hasCustomAudio = !!data.hasCustomAudio;
   audioState.audioFileName = data.audioFileName || '';
   audioState.audioFileSize = data.audioFileSize || 0;
+  audioState.audioLibraryId = data.audioLibraryId || '';
   audioState.storageProvider =
     typeof data.storageProvider === 'string' ? data.storageProvider : audioState.storageProvider;
   if (audioState.storageProvider) {
@@ -697,12 +701,16 @@ async function processAudioData(data) {
   }
 
   if (audio.audioSource === 'custom' && audioState.hasCustomAudio) {
-    try {
-      const response = await api.get('/api/goal-custom-audio');
-      cfg.sound.url = response.data.url;
-    } catch (error) {
-      console.error('Error fetching custom audio URL:', error);
-      cfg.sound.url = REMOTE_ACH_SOUND_URL;
+    if (data.audioFileUrl) {
+      cfg.sound.url = data.audioFileUrl;
+    } else {
+      try {
+        const response = await api.get('/api/achievements-custom-audio');
+        cfg.sound.url = response.data.url;
+      } catch (error) {
+        console.error('Error fetching custom audio URL:', error);
+        cfg.sound.url = REMOTE_ACH_SOUND_URL;
+      }
     }
   } else {
     cfg.sound.url = REMOTE_ACH_SOUND_URL;
@@ -712,7 +720,7 @@ async function processAudioData(data) {
 
 async function refreshAudioState() {
   try {
-    const { data } = await api.get('/api/goal-audio-settings');
+    const { data } = await api.get('/api/achievements-audio-settings');
     await processAudioData(data);
   } catch (error) {
     console.error('Error refreshing audio state:', error);
@@ -725,7 +733,7 @@ async function loadAll() {
     const [rConfig, rStatus, rAudio] = await Promise.allSettled([
       fetchAchievementsConfig(),
       getAchievementsStatus(),
-      api.get('/api/goal-audio-settings'),
+      api.get('/api/achievements-audio-settings'),
     ]);
 
     if (rConfig.status === 'fulfilled') {
@@ -772,6 +780,20 @@ async function save() {
   try {
     const payload = { ...cfg, sound: { ...cfg.sound } };
     const { config, meta } = await saveAchievementsConfig(payload);
+
+    try {
+      const formData = new FormData();
+      formData.append('audioSource', audio.audioSource);
+      formData.append('enabled', String(cfg.sound.enabled));
+      formData.append('volume', String(cfg.sound.volume));
+      if (audioState.storageProvider) {
+        formData.append('storageProvider', audioState.storageProvider);
+      }
+      await api.post('/api/achievements-audio-settings', formData);
+    } catch (e) {
+      console.warn('Failed to save achievements audio settings separately:', e);
+    }
+
     if (config && typeof config === 'object') {
       for (const k of Object.keys(config)) {
         if (k === 'sound' && typeof config.sound === 'object' && config.sound) {
@@ -819,7 +841,7 @@ watch(
   async (src) => {
     if (src === 'custom' && audioState.hasCustomAudio) {
       try {
-        const response = await api.get('/api/goal-custom-audio');
+        const response = await api.get('/api/achievements-custom-audio');
         cfg.sound.url = response.data.url;
       } catch (error) {
         console.error('Error fetching custom audio URL:', error);

@@ -134,7 +134,11 @@ function registerChannelAnalyticsRoutes(app, strictLimiter, options = {}) {
       const providedHandle = typeof body.channelHandle === 'string' ? body.channelHandle.trim() : '';
       let resolvedHandleMeta = current.lastResolvedHandle || '';
       let resolvedAtMeta = current.lastResolvedAt || null;
-      if (!isClaimId(nextClaim) && providedHandle) {
+      
+      const handleChanged = providedHandle && providedHandle !== (current.channelHandle || '');
+      const shouldResolve = providedHandle && (!isClaimId(nextClaim) || handleChanged);
+
+      if (shouldResolve) {
         const resolved = await resolveChannelClaimId(providedHandle);
         if (!resolved) {
           return res.status(400).json({ error: 'invalid_claim', message: 'Unable to resolve channel handle.' });

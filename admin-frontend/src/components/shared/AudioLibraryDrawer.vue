@@ -186,7 +186,7 @@ function itemUploaded(item) {
 function formatName(item) {
   const val = item.originalName || item.id;
   if (!val) return t('audioLibraryUnknown');
-  return val.length > 28 ? `${val.slice(0, 28)}…` : val;
+  return val.length > 18 ? `${val.slice(0, 18)}…` : val;
 }
 </script>
 
@@ -216,12 +216,13 @@ function formatName(item) {
 }
 
 .audio-library-panel {
-  width: min(720px, 92vw);
-  max-height: min(600px, 90vh);
+  width: 100%;
+  max-width: 960px;
+  max-height: min(680px, 92vh);
   background: var(--card, #0f1214);
   color: var(--text-strong, #f4f7ff);
   border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
-  border-radius: 8px;
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
   backdrop-filter: blur(16px);
@@ -310,8 +311,8 @@ function formatName(item) {
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
 }
 
 .audio-library-item {

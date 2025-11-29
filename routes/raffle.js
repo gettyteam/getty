@@ -6,6 +6,7 @@ const WebSocket = require('ws');
 const { z } = require('zod');
 const { resolveAdminNamespace } = require('../lib/namespace');
 const { getStorage, STORAGE_PROVIDERS } = require('../lib/storage');
+const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
 
 function registerRaffleRoutes(app, raffle, wss, opts = {}) {
   const store = opts.store || null;
@@ -38,81 +39,46 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
     };
   }
 
-  function loadLibraryFromFile() {
+  async function loadLibrary(req) {
     try {
-      if (fs.existsSync(LIBRARY_FILE)) {
-        const parsed = JSON.parse(fs.readFileSync(LIBRARY_FILE, 'utf8'));
-        const list = Array.isArray(parsed)
-          ? parsed
-          : parsed && Array.isArray(parsed.items)
-            ? parsed.items
-            : [];
-        return list.map(normalizeLibraryEntry).filter(Boolean);
-      }
+      const loaded = await loadTenantConfig(req, store, LIBRARY_FILE, 'raffle-image-library.json');
+      const data = loaded.data;
+      const list = Array.isArray(data)
+        ? data
+        : data && Array.isArray(data.items)
+          ? data.items
+          : [];
+      return list.map(normalizeLibraryEntry).filter(Boolean);
     } catch (error) {
-      console.error('[raffle-library] load error', error.message);
-    }
-    return [];
-  }
-
-  function saveLibraryToFile(items) {
-    try {
-      fs.writeFileSync(LIBRARY_FILE, JSON.stringify(items, null, 2));
-    } catch (error) {
-      console.error('[raffle-library] save error', error.message);
-    }
-  }
-
-  async function loadLibrary(ns) {
-    if (store && ns) {
-      try {
-        const stored = await store.get(ns, 'raffle-image-library', null);
-        const list = Array.isArray(stored)
-          ? stored
-          : stored && Array.isArray(stored.items)
-            ? stored.items
-            : [];
-        return list.map(normalizeLibraryEntry).filter(Boolean);
-      } catch (error) {
-        console.warn('[raffle-library] store load error', error.message);
-      }
+      console.warn('[raffle-library] load error', error.message);
       return [];
     }
-    return loadLibraryFromFile();
   }
 
-  async function saveLibrary(ns, items) {
-    const isMultiTenant = process.env.GETTY_MULTI_TENANT_WALLET === '1';
-    if (store && ns) {
-      try {
-        await store.set(ns, 'raffle-image-library', items);
-      } catch (error) {
-        console.warn('[raffle-library] store save error', error.message);
-      }
-      if (!isMultiTenant) {
-        saveLibraryToFile(items);
-      }
-      return;
+  async function saveLibrary(req, items) {
+    try {
+      await saveTenantConfig(req, store, LIBRARY_FILE, 'raffle-image-library.json', items);
+    } catch (error) {
+      console.warn('[raffle-library] save error', error.message);
     }
-    saveLibraryToFile(items);
   }
 
-  async function upsertLibraryEntry(ns, entry) {
+  async function upsertLibraryEntry(req, entry) {
     if (!entry || !entry.id) return [];
     const normalized = normalizeLibraryEntry(entry);
     if (!normalized) return [];
-    const current = await loadLibrary(ns);
+    const current = await loadLibrary(req);
     const filtered = current.filter((item) => item && item.id !== normalized.id);
     const updated = [normalized, ...filtered];
     const maxItems = 50;
     const trimmed = updated.slice(0, maxItems);
-    await saveLibrary(ns, trimmed);
+    await saveLibrary(req, trimmed);
     return trimmed;
   }
 
-  async function findLibraryEntry(ns, entryId) {
+  async function findLibraryEntry(req, entryId) {
     if (!entryId) return null;
-    const items = await loadLibrary(ns);
+    const items = await loadLibrary(req);
     return items.find((item) => item && item.id === entryId) || null;
   }
 
@@ -216,7 +182,7 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
       if (!isOpenTestMode() && requireSession && !adminNs) {
         return res.status(401).json({ error: 'session_required' });
       }
-      const items = await loadLibrary(adminNs);
+      const items = await loadLibrary(req);
       res.json({ items });
     } catch (error) {
       console.error('[raffle-library] list error', error.message);
@@ -244,7 +210,7 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
         return res.status(400).json({ error: 'invalid_library_id' });
       }
 
-      const items = await loadLibrary(adminNs);
+      const items = await loadLibrary(req);
       const target = items.find((item) => item && item.id === entryId) || null;
       if (!target) {
         return res.status(404).json({ error: 'image_library_item_not_found' });
@@ -260,7 +226,7 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
       }
 
       const updated = items.filter((item) => item && item.id !== entryId);
-      await saveLibrary(adminNs, updated);
+      await saveLibrary(req, updated);
 
       let activeImageCleared = false;
       try {
@@ -522,7 +488,7 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
       })();
 
       if (requestedLibraryId && !req.file) {
-        let entry = await findLibraryEntry(adminNs, requestedLibraryId);
+        let entry = await findLibraryEntry(req, requestedLibraryId);
 
         if (!entry && req.body.provider === 'wuzzy' && req.body.url) {
           entry = normalizeLibraryEntry({
@@ -537,7 +503,7 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
             fingerprint: requestedLibraryId,
           });
           if (entry) {
-            await upsertLibraryEntry(adminNs, entry);
+            await upsertLibraryEntry(req, entry);
           }
         }
 
@@ -592,7 +558,7 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
       const normalizedName = (req.file.originalname || '').trim().toLowerCase();
       const fingerprint = `${normalizedName || 'raffle-image'}::${fileSize || 0}`;
 
-      const existingItems = await loadLibrary(adminNs);
+      const existingItems = await loadLibrary(req);
       const duplicate = existingItems.find((item) => {
         if (fileHash && item.sha256 && item.sha256 === fileHash) return true;
         if (fingerprint && item.fingerprint && item.fingerprint === fingerprint) return true;
@@ -686,7 +652,7 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
         mimeType: req.file.mimetype || '',
       });
 
-      await upsertLibraryEntry(adminNs, entry);
+      await upsertLibraryEntry(req, entry);
       await raffle.setImage(adminNs, mapEntryToImagePayload(entry));
 
       if (prevState && prevState.imageStorageProvider === STORAGE_PROVIDERS.SUPABASE) {

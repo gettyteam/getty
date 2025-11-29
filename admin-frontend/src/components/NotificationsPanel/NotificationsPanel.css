@@ -144,7 +144,7 @@
 .notif-actions-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 4px;
   margin-top: 4px;
 }
 
@@ -546,4 +546,15 @@
   .notif-setting-control {
     align-self: flex-start;
   }
+}
+
+/* Custom style for compact save button to match btn-save color */
+html .notif-root .btn-secondary.btn-save-style {
+  background-color: #553fee !important;
+  border-color: #553fee !important;
+  color: #ffffff !important;
+}
+html .notif-root .btn-secondary.btn-save-style:hover {
+  background-color: #6366f1 !important;
+  border-color: #6366f1 !important;
 }

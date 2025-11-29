@@ -443,6 +443,7 @@ const socialMediaModule = new SocialMediaModule();
 const registerChatRoutes = require('./routes/chat');
 const registerExternalNotificationsRoutes = require('./routes/external-notifications');
 const registerGoalAudioRoutes = require('./routes/goal-audio');
+const registerAchievementsAudioRoutes = require('./routes/achievements-audio');
 const registerTipGoalRoutes = require('./routes/tip-goal');
 const registerStorageRoutes = require('./routes/storage');
 const registerRaffleRoutes = require('./routes/raffle');
@@ -2611,6 +2612,7 @@ registerTipGoalRoutes(
 );
 
 registerGoalAudioRoutes(app, wss, strictLimiter, GOAL_AUDIO_UPLOADS_DIR);
+registerAchievementsAudioRoutes(app, wss, strictLimiter);
 
 registerExternalNotificationsRoutes(app, externalNotifications, strictLimiter, { store });
 registerLiveviewsRoutes(app, strictLimiter, { store });

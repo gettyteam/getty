@@ -1,5 +1,4 @@
 const multer = require('multer');
-const fs = require('fs');
 const axios = require('axios');
 const path = require('path');
 const crypto = require('crypto');
@@ -7,6 +6,7 @@ const { z } = require('zod');
 const __faviconCache = Object.create(null);
 const { isOpenTestMode } = require('../lib/test-open-mode');
 const { getStorage, STORAGE_PROVIDERS } = require('../lib/storage');
+const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
 const FAVICON_TTL_MS = 60 * 60 * 1000;
 
 function registerAnnouncementRoutes(app, announcementModule, limiters) {
@@ -48,87 +48,63 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
     };
   }
 
-  function loadLibraryFromFile() {
+  async function loadLibrary(req) {
     try {
-      if (fs.existsSync(LIBRARY_FILE)) {
-        const parsed = JSON.parse(fs.readFileSync(LIBRARY_FILE, 'utf8'));
-        const list = Array.isArray(parsed)
-          ? parsed
-          : parsed && Array.isArray(parsed.items)
-            ? parsed.items
-            : [];
-        return list.map(normalizeLibraryEntry).filter(Boolean);
-      }
+      const loaded = await loadTenantConfig(
+        req,
+        store,
+        LIBRARY_FILE,
+        'announcement-image-library.json'
+      );
+      const data = loaded.data;
+      const list = Array.isArray(data)
+        ? data
+        : data && Array.isArray(data.items)
+          ? data.items
+          : [];
+      return list.map(normalizeLibraryEntry).filter(Boolean);
     } catch (error) {
-      console.error('[announcement-library] load error', error.message);
-    }
-    return [];
-  }
-
-  function saveLibraryToFile(items) {
-    try {
-      fs.writeFileSync(LIBRARY_FILE, JSON.stringify(items, null, 2));
-    } catch (error) {
-      console.error('[announcement-library] save error', error.message);
-    }
-  }
-
-  async function loadLibrary(ns) {
-    if (store && ns) {
-      try {
-        const stored = await store.get(ns, 'announcement-image-library', null);
-        const list = Array.isArray(stored)
-          ? stored
-          : stored && Array.isArray(stored.items)
-            ? stored.items
-            : [];
-        return list.map(normalizeLibraryEntry).filter(Boolean);
-      } catch (error) {
-        console.warn('[announcement-library] store load error', error.message);
-      }
+      console.warn('[announcement-library] load error', error.message);
       return [];
     }
-    return loadLibraryFromFile();
   }
 
-  async function saveLibrary(ns, items) {
-    const isMultiTenant = process.env.GETTY_MULTI_TENANT_WALLET === '1';
-    if (store && ns) {
-      try {
-        await store.set(ns, 'announcement-image-library', items);
-      } catch (error) {
-        console.warn('[announcement-library] store save error', error.message);
-      }
-      if (!isMultiTenant) {
-        saveLibraryToFile(items);
-      }
-      return;
+  async function saveLibrary(req, items) {
+    try {
+      await saveTenantConfig(
+        req,
+        store,
+        LIBRARY_FILE,
+        'announcement-image-library.json',
+        items
+      );
+    } catch (error) {
+      console.warn('[announcement-library] save error', error.message);
     }
-    saveLibraryToFile(items);
   }
 
-  async function upsertLibraryEntry(ns, entry) {
+  async function upsertLibraryEntry(req, entry) {
     if (!entry || !entry.id) return [];
     const normalized = normalizeLibraryEntry(entry);
     if (!normalized) return [];
-    const current = await loadLibrary(ns);
+    const current = await loadLibrary(req);
     const filtered = current.filter((item) => item && item.id !== normalized.id);
     const updated = [normalized, ...filtered];
     const maxItems = 100;
     const trimmed = updated.slice(0, maxItems);
-    await saveLibrary(ns, trimmed);
+    await saveLibrary(req, trimmed);
     return trimmed;
   }
 
-  async function findLibraryEntry(ns, entryId) {
+  async function findLibraryEntry(req, entryId) {
     if (!entryId) return null;
-    const items = await loadLibrary(ns);
+    const items = await loadLibrary(req);
     return items.find((item) => item && item.id === entryId) || null;
   }
 
-  async function findLibraryDuplicate(ns, sha256, fingerprint) {
+  async function findLibraryDuplicate(req, sha256, fingerprint) {
     if (!sha256 && !fingerprint) return null;
-    const items = await loadLibrary(ns);
+    const items = await loadLibrary(req);
     return (
       items.find((item) => {
         if (!item) return false;
@@ -261,8 +237,7 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
         const nsTest = await resolveNsFromReq(req);
         if (!nsTest) return res.status(401).json({ error: 'session_required' });
       }
-      const ns = await resolveNsFromReq(req);
-      const items = await loadLibrary(ns);
+      const items = await loadLibrary(req);
       res.json({ items });
     } catch (error) {
       console.error('[announcement-library] list error', error.message);
@@ -279,7 +254,7 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
       const ns = await resolveNsFromReq(req);
       const entryId = typeof req.params?.id === 'string' ? req.params.id.trim() : '';
       if (!entryId) return res.status(400).json({ error: 'invalid_library_id' });
-      const items = await loadLibrary(ns);
+      const items = await loadLibrary(req);
       const target = items.find((item) => item && item.id === entryId) || null;
       if (!target) return res.status(404).json({ error: 'image_library_item_not_found' });
       const providerId = (target.provider || '').toString().trim().toLowerCase();
@@ -290,7 +265,7 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
         await deleteStoredImage(STORAGE_PROVIDERS.SUPABASE, target.path);
       }
       const updated = items.filter((item) => item && item.id !== entryId);
-      await saveLibrary(ns, updated);
+      await saveLibrary(req, updated);
 
       let clearedMessages = 0;
       try {
@@ -426,12 +401,12 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
             fileSize || 0
           );
 
-          const duplicateEntry = await findLibraryDuplicate(ns, fileHash, fingerprint);
+          const duplicateEntry = await findLibraryDuplicate(req, fileHash, fingerprint);
           if (duplicateEntry) {
             duplicateDetected = true;
             libraryItem = duplicateEntry;
             imagePayload = mapEntryToImagePayload(duplicateEntry);
-            await upsertLibraryEntry(ns, duplicateEntry);
+            await upsertLibraryEntry(req, duplicateEntry);
           } else if (shouldMockStorage) {
             const stamp = Date.now();
             const baseName = `announcement-${stamp}-${Math.random().toString(36).slice(2)}${inferredExt}`;
@@ -468,7 +443,7 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
                   fingerprint,
                   mimeType: req.file.mimetype || '',
                 });
-                await upsertLibraryEntry(ns, entry);
+                await upsertLibraryEntry(req, entry);
                 libraryItem = entry;
                 imagePayload = mapEntryToImagePayload(entry);
               } else {
@@ -498,7 +473,7 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
                   fingerprint,
                   mimeType: req.file.mimetype || '',
                 });
-                await upsertLibraryEntry(ns, entry);
+                await upsertLibraryEntry(req, entry);
                 libraryItem = entry;
                 imagePayload = mapEntryToImagePayload(entry);
               } catch (uploadError) {
@@ -514,13 +489,29 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
             }
           }
         } else if (incomingMeta.libraryId) {
-          const entry = await findLibraryEntry(ns, incomingMeta.libraryId);
+          const entry = await findLibraryEntry(req, incomingMeta.libraryId);
           if (entry) {
-            await upsertLibraryEntry(ns, entry);
+            await upsertLibraryEntry(req, entry);
             libraryItem = entry;
             imagePayload = mapEntryToImagePayload(entry);
           } else if (incomingMeta.url) {
-            imagePayload = incomingMeta;
+            const newEntry = normalizeLibraryEntry({
+              id: incomingMeta.libraryId,
+              url: incomingMeta.url,
+              provider: incomingMeta.storageProvider,
+              path: incomingMeta.storagePath,
+              sha256: incomingMeta.sha256,
+              fingerprint: incomingMeta.fingerprint,
+              originalName: incomingMeta.originalName,
+              uploadedAt: new Date().toISOString(),
+            });
+            if (newEntry) {
+              await upsertLibraryEntry(req, newEntry);
+              libraryItem = newEntry;
+              imagePayload = mapEntryToImagePayload(newEntry);
+            } else {
+              imagePayload = incomingMeta;
+            }
           }
         } else if (incomingMeta.url) {
           imagePayload = incomingMeta;
@@ -636,7 +627,7 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
         patch.imageOriginalName = '';
         delete patch.removeImage;
       } else if (incomingMeta.libraryId) {
-        const entry = await findLibraryEntry(ns, incomingMeta.libraryId);
+        const entry = await findLibraryEntry(req, incomingMeta.libraryId);
         if (entry) {
           patch.imageUrl = entry.url;
           patch.imageLibraryId = entry.id;
@@ -645,7 +636,7 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
           patch.imageSha256 = entry.sha256;
           patch.imageFingerprint = entry.fingerprint;
           patch.imageOriginalName = entry.originalName;
-          await upsertLibraryEntry(ns, entry);
+          await upsertLibraryEntry(req, entry);
         } else if (incomingMeta.url) {
           patch.imageUrl = incomingMeta.url;
           patch.imageLibraryId = incomingMeta.libraryId;
@@ -654,6 +645,19 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
           patch.imageSha256 = incomingMeta.sha256;
           patch.imageFingerprint = incomingMeta.fingerprint;
           patch.imageOriginalName = incomingMeta.originalName;
+
+          if (patch.imageLibraryId) {
+            await upsertLibraryEntry(req, {
+              id: patch.imageLibraryId,
+              url: patch.imageUrl,
+              provider: patch.imageStorageProvider,
+              path: patch.imageStoragePath,
+              sha256: patch.imageSha256,
+              fingerprint: patch.imageFingerprint,
+              originalName: patch.imageOriginalName,
+              uploadedAt: new Date().toISOString(),
+            });
+          }
         }
       } else if (incomingMeta.url) {
         patch.imageUrl = incomingMeta.url;
@@ -663,6 +667,19 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
         patch.imageSha256 = incomingMeta.sha256;
         patch.imageFingerprint = incomingMeta.fingerprint;
         patch.imageOriginalName = incomingMeta.originalName;
+
+        if (patch.imageLibraryId) {
+          await upsertLibraryEntry(req, {
+            id: patch.imageLibraryId,
+            url: patch.imageUrl,
+            provider: patch.imageStorageProvider,
+            path: patch.imageStoragePath,
+            sha256: patch.imageSha256,
+            fingerprint: patch.imageFingerprint,
+            originalName: patch.imageOriginalName,
+            uploadedAt: new Date().toISOString(),
+          });
+        }
       }
       const updated = await announcementModule.updateMessage(req.params.id, patch, ns);
       res.json({ success: true, message: updated });
@@ -748,7 +765,7 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
             fileSize || 0
           );
 
-          const duplicateEntry = await findLibraryDuplicate(ns, fileHash, fingerprint);
+          const duplicateEntry = await findLibraryDuplicate(req, fileHash, fingerprint);
           if (duplicateEntry) {
             duplicateDetected = true;
             libraryItem = duplicateEntry;
@@ -759,7 +776,7 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
             patch.imageSha256 = duplicateEntry.sha256;
             patch.imageFingerprint = duplicateEntry.fingerprint;
             patch.imageOriginalName = duplicateEntry.originalName;
-            await upsertLibraryEntry(ns, duplicateEntry);
+            await upsertLibraryEntry(req, duplicateEntry);
           } else if (shouldMockStorage) {
             const stamp = Date.now();
             const baseName = `announcement-${stamp}-${Math.random().toString(36).slice(2)}${inferredExt}`;
@@ -775,7 +792,7 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
               fingerprint,
               mimeType: req.file.mimetype || '',
             });
-            await upsertLibraryEntry(ns, entry);
+            await upsertLibraryEntry(req, entry);
             libraryItem = entry;
             patch.imageUrl = entry.url;
             patch.imageLibraryId = entry.id;
@@ -802,7 +819,7 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
                   fingerprint,
                   mimeType: req.file.mimetype || '',
                 });
-                await upsertLibraryEntry(ns, entry);
+                await upsertLibraryEntry(req, entry);
                 libraryItem = entry;
                 patch.imageUrl = entry.url;
                 patch.imageLibraryId = entry.id;
@@ -838,7 +855,7 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
                   fingerprint,
                   mimeType: req.file.mimetype || '',
                 });
-                await upsertLibraryEntry(ns, entry);
+                await upsertLibraryEntry(req, entry);
                 libraryItem = entry;
                 patch.imageUrl = entry.url;
                 patch.imageLibraryId = entry.id;

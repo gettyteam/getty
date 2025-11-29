@@ -94,7 +94,7 @@ function buildWuzzyLibraryEntry(selection) {
   };
 }
 
-function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DIR) {
+function registerAchievementsAudioRoutes(app, wss, strictLimiter) {
   const multer = require('multer');
   const multerUpload = multer({
     storage: multer.memoryStorage(),
@@ -149,7 +149,7 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
       if (data && Array.isArray(data.items)) return data.items;
       return [];
     } catch (error) {
-      console.warn('[goal-audio][library] load error', error.message);
+      console.warn('[achievements-audio][library] load error', error.message);
       return [];
     }
   }
@@ -159,7 +159,7 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
     try {
       await saveTenantConfig(req, store, LIBRARY_FILE, 'audio-library.json', items);
     } catch (error) {
-      console.warn('[goal-audio][library] save error', error.message);
+      console.warn('[achievements-audio][library] save error', error.message);
     }
   }
 
@@ -179,7 +179,8 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
     const items = await loadLibrary(req);
     return items.find((item) => item && item.id === entryId) || null;
   }
-  app.get('/api/goal-audio', (req, res) => {
+
+  app.get('/api/achievements-audio', (req, res) => {
     try {
       const tokenParam =
         typeof req.query?.widgetToken === 'string' && req.query.widgetToken.trim()
@@ -195,7 +196,7 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
             req.ns.pub = walletHash;
           }
         } catch (e) {
-          console.warn('Failed to resolve widgetToken for goal audio:', e.message);
+          console.warn('Failed to resolve widgetToken for achievements audio:', e.message);
         }
       }
 
@@ -205,7 +206,7 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
         return res.status(404).json({ error: 'No audio file found' });
       }
 
-      const SETTINGS_FILENAME = 'goal-audio-settings.json';
+      const SETTINGS_FILENAME = 'achievements-audio-settings.json';
       const GLOBAL_SETTINGS_PATH = path.join(process.cwd(), 'config', SETTINGS_FILENAME);
       let customAudioUrl = null;
       let storageProvider = '';
@@ -220,7 +221,7 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
           storageProvider = settings.storageProvider;
         }
       } catch (e) {
-        console.warn('Error loading goal audio settings for URL:', e.message);
+        console.warn('Error loading achievements audio settings for URL:', e.message);
       }
 
       if (customAudioUrl && typeof customAudioUrl === 'string') {
@@ -231,12 +232,12 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
         });
       }
     } catch (error) {
-      console.error('Error serving goal audio:', error);
+      console.error('Error serving achievements audio:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
 
-  const SETTINGS_FILENAME = 'goal-audio-settings.json';
+  const SETTINGS_FILENAME = 'achievements-audio-settings.json';
   const GLOBAL_SETTINGS_PATH = path.join(process.cwd(), 'config', SETTINGS_FILENAME);
 
   function normalizeSettings(raw) {
@@ -296,7 +297,7 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
     return normalized;
   }
 
-  app.get('/api/goal-audio-settings/library', async (req, res) => {
+  app.get('/api/achievements-audio-settings/library', async (req, res) => {
     try {
       const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
       const hosted = !!process.env.REDIS_URL;
@@ -307,12 +308,12 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
       const items = await loadLibrary(req);
       res.json({ items });
     } catch (error) {
-      console.error('[goal-audio][library] list error', error.message);
+      console.error('[achievements-audio][library] list error', error.message);
       res.status(500).json({ error: 'audio_library_list_failed' });
     }
   });
 
-  app.delete('/api/goal-audio-settings/library/:id', async (req, res) => {
+  app.delete('/api/achievements-audio-settings/library/:id', async (req, res) => {
     try {
       const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
       const hosted = !!process.env.REDIS_URL;
@@ -353,7 +354,7 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
             await storageInstance.deleteFile('tip-goal-audio', target.path);
           }
         } catch (deleteError) {
-          console.warn('[goal-audio][library] failed to delete Supabase file:', deleteError.message);
+          console.warn('[achievements-audio][library] failed to delete Supabase file:', deleteError.message);
         }
       }
 
@@ -366,7 +367,7 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
         const loaded = await loadTenantConfig(req, resolveStore(), GLOBAL_SETTINGS_PATH, SETTINGS_FILENAME);
         if (loaded.data) currentSettings = normalizeSettings(loaded.data);
       } catch (e) {
-        console.warn('[goal-audio][library] failed to load settings for reset check', e.message);
+        console.warn('[achievements-audio][library] failed to load settings for reset check', e.message);
       }
 
       if (currentSettings.audioLibraryId === entryId) {
@@ -391,12 +392,12 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
           const ns = req?.ns?.admin || req?.ns?.pub || null;
           if (ns && wss) {
             if (typeof wss.broadcast === 'function') {
-              wss.broadcast(ns, { type: 'goalAudioSettingsUpdate', data: settingsPayload });
+              wss.broadcast(ns, { type: 'achievementsAudioSettingsUpdate', data: settingsPayload });
             } else {
               wss.clients.forEach((client) => {
                 if (client.readyState === WebSocket.OPEN) {
                   client.send(
-                    JSON.stringify({ type: 'goalAudioSettingsUpdate', data: settingsPayload })
+                    JSON.stringify({ type: 'achievementsAudioSettingsUpdate', data: settingsPayload })
                   );
                 }
               });
@@ -404,23 +405,23 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
           } else if (wss) {
             wss.clients.forEach((client) => {
               if (client.readyState === WebSocket.OPEN) {
-                client.send(JSON.stringify({ type: 'goalAudioSettingsUpdate', data: settingsPayload }));
+                client.send(JSON.stringify({ type: 'achievementsAudioSettingsUpdate', data: settingsPayload }));
               }
             });
           }
         } catch (broadcastError) {
-          console.warn('Error broadcasting goal audio settings update:', broadcastError);
+          console.warn('Error broadcasting achievements audio settings update:', broadcastError);
         }
       }
 
       res.json({ success: true });
     } catch (error) {
-      console.error('[goal-audio][library] delete error', error.message);
+      console.error('[achievements-audio][library] delete error', error.message);
       res.status(500).json({ error: 'audio_library_delete_failed' });
     }
   });
 
-  app.get('/api/goal-audio-settings', async (req, res) => {
+  app.get('/api/achievements-audio-settings', async (req, res) => {
     try {
       const tokenParam =
         typeof req.query?.widgetToken === 'string' && req.query.widgetToken.trim()
@@ -436,7 +437,7 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
             req.ns.pub = walletHash;
           }
         } catch (e) {
-          console.warn('Failed to resolve widgetToken for goal audio settings:', e.message);
+          console.warn('Failed to resolve widgetToken for achievements audio settings:', e.message);
         }
       }
 
@@ -457,17 +458,17 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
           : null;
         return res.json(meta ? { meta, libraryItem, ...flat } : { libraryItem, ...flat });
       } catch (e) {
-        console.error('Error loading goal audio settings (tenant):', e);
+        console.error('Error loading achievements audio settings (tenant):', e);
         return res.json({ audioSource: 'remote', hasCustomAudio: false });
       }
     } catch (error) {
-      console.error('Error loading goal audio settings:', error);
+      console.error('Error loading achievements audio settings:', error);
       res.status(500).json({ error: 'Error loading settings' });
     }
   });
 
   app.post(
-    '/api/goal-audio-settings',
+    '/api/achievements-audio-settings',
     strictLimiter,
     multerUpload.single('audioFile'),
     async (req, res) => {
@@ -558,7 +559,7 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
           applyWuzzyMetadata(settings, wuzzyLibraryItem);
         } else if (audioSource === 'custom' && req.file) {
           const nsSafe = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global';
-          const fileName = `goal-audio-${nsSafe}-${Date.now()}.mp3`;
+          const fileName = `achievements-audio-${nsSafe}-${Date.now()}.mp3`;
 
           const shouldDeleteStoredFile = currentData.audioFilePath && !currentData.audioLibraryId;
           if (
@@ -572,7 +573,7 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
               }
             } catch (deleteError) {
               console.warn(
-                '[goal-audio] failed to delete previous audio from Supabase:',
+                '[achievements-audio] failed to delete previous audio from Supabase:',
                 deleteError.message
               );
             }
@@ -631,14 +632,14 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
             settings.audioLibraryId = libraryItem.id;
             settings.storageProvider = providerId;
           } catch (uploadError) {
-            console.error('Error uploading goal audio file:', uploadError);
+            console.error('Error uploading achievements audio file:', uploadError);
             if (uploadError.code === 'TURBO_FILE_TOO_LARGE') {
               return res.status(400).json({ error: 'File too large for free upload. Maximum 100KB. Try using a smaller image or switch to Supabase storage.' });
             }
             if (uploadError.code === 'TURBO_INSUFFICIENT_BALANCE') {
               return res.status(400).json({ error: 'Upload not possible with Turbo. Please switch to Supabase storage.' });
             }
-            return res.status(500).json({ error: 'Error uploading goal audio file' });
+            return res.status(500).json({ error: 'Error uploading achievements audio file' });
           }
         } else if (audioSource === 'custom' && selectedAudioId) {
           try {
@@ -670,7 +671,7 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
               clearWuzzyMetadata(settings);
             }
           } catch (lookupError) {
-            console.error('[goal-audio][library] lookup error', lookupError.message);
+            console.error('[achievements-audio][library] lookup error', lookupError.message);
             return res.status(500).json({ error: 'audio_library_lookup_failed' });
           }
         } else if (audioSource === 'remote') {
@@ -685,7 +686,7 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
                 await storage.deleteFile('tip-goal-audio', currentData.audioFilePath);
               }
             } catch (deleteError) {
-              console.warn('Error deleting old goal audio file from Supabase:', deleteError);
+              console.warn('Error deleting old achievements audio file from Supabase:', deleteError);
             }
           }
           settings.hasCustomAudio = false;
@@ -711,34 +712,34 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
           const nsForBroadcast = req?.ns?.admin || req?.ns?.pub || null;
           if (nsForBroadcast) {
             if (typeof wss.broadcast === 'function') {
-              wss.broadcast(nsForBroadcast, { type: 'goalAudioSettingsUpdate', data: next });
+              wss.broadcast(nsForBroadcast, { type: 'achievementsAudioSettingsUpdate', data: next });
             } else {
               wss.clients.forEach((client) => {
                 if (client.readyState === WebSocket.OPEN) {
-                  client.send(JSON.stringify({ type: 'goalAudioSettingsUpdate', data: next }));
+                  client.send(JSON.stringify({ type: 'achievementsAudioSettingsUpdate', data: next }));
                 }
               });
             }
           } else {
             wss.clients.forEach((client) => {
               if (client.readyState === WebSocket.OPEN) {
-                client.send(JSON.stringify({ type: 'goalAudioSettingsUpdate', data: next }));
+                client.send(JSON.stringify({ type: 'achievementsAudioSettingsUpdate', data: next }));
               }
             });
           }
         } catch (broadcastError) {
-          console.warn('Error broadcasting goal audio settings update:', broadcastError);
+          console.warn('Error broadcasting achievements audio settings update:', broadcastError);
         }
 
         return res.json({ success: true, meta: saveRes.meta, ...next, libraryItem });
       } catch (error) {
-        console.error('Error saving goal audio settings:', error);
+        console.error('Error saving achievements audio settings:', error);
         res.status(500).json({ error: 'Error saving settings' });
       }
     }
   );
 
-  app.delete('/api/goal-audio-settings', strictLimiter, async (req, res) => {
+  app.delete('/api/achievements-audio-settings', strictLimiter, async (req, res) => {
     try {
       const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
       const hostedWithRedis = !!process.env.REDIS_URL;
@@ -767,7 +768,7 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
           const storage = getStorage(STORAGE_PROVIDERS.SUPABASE);
           if (storage && storage.provider === STORAGE_PROVIDERS.SUPABASE) {
             storage.deleteFile('tip-goal-audio', data.audioFilePath).catch((deleteError) => {
-              console.warn('Failed to delete goal audio from Supabase:', deleteError.message);
+              console.warn('Failed to delete achievements audio from Supabase:', deleteError.message);
             });
           }
         }
@@ -801,40 +802,40 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
             const ns = req?.ns?.admin || req?.ns?.pub || null;
             if (ns) {
               if (typeof wss.broadcast === 'function') {
-                wss.broadcast(ns, { type: 'goalAudioSettingsUpdate', data: next });
+                wss.broadcast(ns, { type: 'achievementsAudioSettingsUpdate', data: next });
               } else {
                 wss.clients.forEach((client) => {
                   if (client.readyState === WebSocket.OPEN)
-                    client.send(JSON.stringify({ type: 'goalAudioSettingsUpdate', data: next }));
+                    client.send(JSON.stringify({ type: 'achievementsAudioSettingsUpdate', data: next }));
                 });
               }
             } else {
               wss.clients.forEach((client) => {
                 if (client.readyState === WebSocket.OPEN)
-                  client.send(JSON.stringify({ type: 'goalAudioSettingsUpdate', data: next }));
+                  client.send(JSON.stringify({ type: 'achievementsAudioSettingsUpdate', data: next }));
               });
             }
           } catch (broadcastError) {
-            console.warn('Error broadcasting goal audio settings reset:', broadcastError);
+            console.warn('Error broadcasting achievements audio settings reset:', broadcastError);
           }
 
           return res.json({ success: true, meta: saveRes.meta, ...next });
         } catch (e) {
-          console.error('Error resetting goal audio settings (tenant):', e);
+          console.error('Error resetting achievements audio settings (tenant):', e);
           return res.json({ success: true, audioSource: 'remote', hasCustomAudio: false });
         }
     } catch (error) {
-      console.error('Error deleting goal audio:', error);
+      console.error('Error deleting achievements audio:', error);
       res.status(500).json({ error: 'Error deleting audio' });
     }
   });
 
-  app.get('/api/goal-custom-audio', async (req, res) => {
+  app.get('/api/achievements-custom-audio', async (req, res) => {
     try {
       const ns = req?.ns?.admin || req?.ns?.pub || null;
       const hosted = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
       if (!isOpenTestMode() && hosted && !ns) {
-        return res.status(404).json({ error: 'Custom goal audio not found' });
+        return res.status(404).json({ error: 'Custom achievements audio not found' });
       }
 
       let customAudioUrl = null;
@@ -849,19 +850,19 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
           storageProvider = data.storageProvider;
         }
       } catch (e) {
-        console.warn('Error loading goal audio settings for URL:', e.message);
+        console.warn('Error loading achievements audio settings for URL:', e.message);
       }
 
       if (customAudioUrl && typeof customAudioUrl === 'string') {
         return res.json({ url: customAudioUrl, storageProvider });
       } else {
-        return res.status(404).json({ error: 'Custom goal audio not found' });
+        return res.status(404).json({ error: 'Custom achievements audio not found' });
       }
     } catch (error) {
-      console.error('Error serving custom goal audio:', error);
-      res.status(500).json({ error: 'Error serving custom goal audio' });
+      console.error('Error serving custom achievements audio:', error);
+      res.status(500).json({ error: 'Error serving custom achievements audio' });
     }
   });
 }
 
-module.exports = registerGoalAudioRoutes;
+module.exports = registerAchievementsAudioRoutes;

@@ -3,6 +3,7 @@
 function walletTestMiddleware(forceHash) {
   return function (req, _res, next) {
     req.walletSession = { walletHash: forceHash };
+    req.__forceWalletHash = forceHash;
     if (!req.ns) req.ns = {};
     req.ns.admin = forceHash;
     next();

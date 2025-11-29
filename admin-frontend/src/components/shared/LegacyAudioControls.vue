@@ -115,7 +115,7 @@
             <div class="custom-audio-row" v-if="isWuzzyMode">
               <div class="upload-col">
                 <button class="btn-secondary w-full" type="button" @click="openWuzzyDrawer(true)">
-                  <i class="pi pi-search-plus mr-2" aria-hidden="true"></i>
+                  <i class="pi pi-search-plus" aria-hidden="true"></i>
                   {{ t('wuzzyAudioOpenDrawerBtn') }}
                 </button>
               </div>
@@ -125,7 +125,7 @@
                   type="button"
                   :disabled="savingAudio || libraryLoading"
                   @click="openLibrary">
-                  <i class="pi pi-address-book mr-2" aria-hidden="true"></i>
+                  <i class="pi pi-address-book" aria-hidden="true"></i>
                   {{ libraryLoading ? t('commonLoading') : t('audioLibraryChoose') }}
                 </button>
               </div>
@@ -173,7 +173,7 @@
             <div class="custom-audio-row" v-else>
               <div class="upload-col">
                 <button class="btn-secondary w-full" type="button" @click="triggerAudio">
-                  <i class="pi pi-file-arrow-up mr-2" aria-hidden="true"></i>
+                  <i class="pi pi-file-arrow-up" aria-hidden="true"></i>
                   {{ t('customAudioUploadLabel') }}
                 </button>
               </div>
@@ -183,7 +183,7 @@
                   type="button"
                   :disabled="savingAudio || libraryLoading"
                   @click="openLibrary">
-                  <i class="pi pi-address-book mr-2" aria-hidden="true"></i>
+                  <i class="pi pi-address-book" aria-hidden="true"></i>
                   {{ libraryLoading ? t('commonLoading') : t('audioLibraryChoose') }}
                 </button>
                 <button
@@ -1129,10 +1129,11 @@ watch(
   grid-template-columns: 1fr;
 }
 .library-col {
-  flex: 1 1 180px;
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
 }
 .legacy-audio.force-stack .legacy-audio-right {
   display: none;
@@ -1228,10 +1229,11 @@ watch(
   align-items: flex-start;
 }
 .upload-col {
-  flex: 1 1 200px;
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
 }
 .wuzzy-selection-header {
   display: flex;
@@ -1320,7 +1322,6 @@ watch(
 .legacy-audio.compact .btn-secondary {
   border-radius: 6px;
   font-size: 12px;
-  line-height: 1.1;
   min-height: 30px;
   padding: 4px 10px;
 }
@@ -1335,17 +1336,16 @@ watch(
   min-width: 30px;
 }
 .legacy-audio.force-stack.compact .custom-audio-row {
-  gap: 12px;
+  gap: 4px;
 }
 .legacy-audio.compact .actions-col {
-  gap: 6px;
+  gap: 4px;
   flex-direction: row;
 }
 .legacy-audio.compact .actions-col .btn-save,
 .legacy-audio.compact .actions-col .btn,
 .legacy-audio.compact .actions-col .btn-danger {
   padding: 4px 10px;
-  line-height: 1.1;
   font-size: 12px;
   min-height: 30px;
   border-radius: 6px;

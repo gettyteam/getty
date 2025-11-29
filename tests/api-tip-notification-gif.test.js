@@ -2,13 +2,30 @@ const request = require('supertest');
 const path = require('path');
 const fs = require('fs');
 const { freshServer } = require('./helpers/freshServer');
+const { loadTenantConfig } = require('../lib/tenant-config');
 let appRef; let restoreBaseline;
-beforeAll(() => { ({ app: appRef, restore: restoreBaseline } = freshServer({ REDIS_URL: null, GETTY_REQUIRE_SESSION: null, GETTY_ENFORCE_OWNER_WRITES: '0', GETTY_REQUIRE_ADMIN_WRITE: '0' })); });
-afterAll(() => { try { restoreBaseline && restoreBaseline(); } catch {} });
+beforeEach(() => {
+  try { fs.rmSync(TENANT_DIR, { recursive: true, force: true }); } catch {}
+  if (!fs.existsSync(configDir)) {
+    fs.mkdirSync(configDir, { recursive: true });
+  }
+  ({ app: appRef, restore: restoreBaseline } = freshServer({ REDIS_URL: null, GETTY_REQUIRE_SESSION: null, GETTY_ENFORCE_OWNER_WRITES: '0', GETTY_REQUIRE_ADMIN_WRITE: '0' }));
+});
+afterEach(() => { try { restoreBaseline && restoreBaseline(); } catch {} });
 
-const configDir = path.join(process.cwd(), 'config');
+const configDir = path.join(process.cwd(), 'tenant', 'local', 'config');
 const gifLibraryFile = path.join(configDir, 'tip-notification-gif-library.json');
 const gifConfigFile = path.join(configDir, 'tip-notification-config.json');
+const TENANT_DIR = path.join(process.cwd(), 'tenant');
+
+if (!fs.existsSync(configDir)) {
+  fs.mkdirSync(configDir, { recursive: true });
+}
+
+async function readConfig(filename) {
+  const loaded = await loadTenantConfig({}, null, path.join(configDir, filename), filename);
+  return loaded.data || {};
+}
 
 function makeMinimalGif(width, height) {
   const buf = Buffer.alloc(10);
@@ -86,7 +103,8 @@ describe('Tip Notification GIF API', () => {
   });
 
   test('Updates position without re-uploading file', async () => {
-  const res = await request(appRef)
+    await uploadGif(120, 100, 'left');
+    const res = await request(appRef)
       .post('/api/tip-notification-gif')
       .field('position', 'bottom');
     expect(res.status).toBe(200);
@@ -141,10 +159,10 @@ describe('Tip Notification GIF API', () => {
       const res = await request(appRef).delete('/api/tip-notification-gif/library/lib-supabase-1');
       expect(res.status).toBe(200);
       expect(res.body).toMatchObject({ success: true, cleared: true });
-      const libraryState = JSON.parse(fs.readFileSync(gifLibraryFile, 'utf8'));
+      const libraryState = await readConfig('tip-notification-gif-library.json');
       expect(Array.isArray(libraryState)).toBe(true);
       expect(libraryState).toHaveLength(0);
-      const cfgState = JSON.parse(fs.readFileSync(gifConfigFile, 'utf8'));
+      const cfgState = await readConfig('tip-notification-config.json');
       expect(cfgState.gifPath).toBe('');
       expect(cfgState.libraryId).toBe('');
     } finally {
@@ -188,9 +206,9 @@ describe('Tip Notification GIF API', () => {
       expect(res.body.success).toBe(true);
       expect(res.body.storageProvider).toBe('wuzzy');
       expect(res.body.libraryId).toBe(txId);
-      const libraryState = JSON.parse(fs.readFileSync(gifLibraryFile, 'utf8'));
+      const libraryState = await readConfig('tip-notification-gif-library.json');
       expect(libraryState[0]).toMatchObject({ id: txId, provider: 'wuzzy' });
-      const cfgState = JSON.parse(fs.readFileSync(gifConfigFile, 'utf8'));
+      const cfgState = await readConfig('tip-notification-config.json');
       expect(cfgState.storageProvider).toBe('wuzzy');
       expect(cfgState.libraryId).toBe(txId);
     } finally {
@@ -229,7 +247,7 @@ describe('Tip Notification GIF API', () => {
       );
       expect(res.status).toBe(200);
       expect(res.body).toMatchObject({ success: true });
-      const libraryState = JSON.parse(fs.readFileSync(gifLibraryFile, 'utf8'));
+      const libraryState = await readConfig('tip-notification-gif-library.json');
       expect(libraryState).toHaveLength(0);
     } finally {
       if (previousLibrary === null) {

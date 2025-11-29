@@ -86,15 +86,6 @@ module.exports = function registerTipNotificationRoutes(app, strictLimiter, { ws
       }
       (async () => {
         try {
-          if (store && hasNs) {
-            try {
-              const ns = req.ns.admin || req.ns.pub;
-              const st = await store.get(ns, 'tip-notification-config', null);
-              if (st) return res.json({ success: true, ...normalize(st) });
-            } catch {
-              /* fallthrough to disk */
-            }
-          }
           const loaded = await loadTenantConfig(req, store, CONFIG_FILE, CONFIG_FILENAME);
           const data = loaded.data?.data ? loaded.data.data : loaded.data;
           const meta =

@@ -118,16 +118,16 @@
               @click="handleChooseGifClick"
               :disabled="!sessionActive && hostedSupported"
               :aria-busy="savingGif ? 'true' : 'false'">
-              <i v-if="isWuzzyMode" class="pi pi-search-plus mr-2" aria-hidden="true"></i>
+              <i v-if="isWuzzyMode" class="pi pi-search-plus" aria-hidden="true"></i>
               {{ isWuzzyMode ? t('wuzzyOpenDrawerBtn') : t('notificationGifChooseBtn') }}
             </button>
             <button
-              v-if="!isWuzzyMode"
               class="btn-secondary btn-compact-secondary"
               type="button"
               @click="openGifLibrary"
               :disabled="gifLibrary.loading || (!sessionActive && hostedSupported)"
               :aria-busy="gifLibrary.loading ? 'true' : 'false'">
+              <i class="pi pi-address-book" aria-hidden="true"></i>
               {{ t('notificationGifLibraryBtn') }}
             </button>
             <button
@@ -141,12 +141,12 @@
               <i class="pi pi-trash" aria-hidden="true"></i>
             </button>
             <button
-              class="btn-save"
+              class="btn-secondary btn-compact-secondary btn-save-style"
               type="button"
               :disabled="savingGif || (!sessionActive && hostedSupported)"
               @click="saveGif"
               :aria-busy="savingGif ? 'true' : 'false'">
-              {{ savingGif ? t('commonSaving') : t('saveSettings') }}
+              {{ savingGif ? t('commonSaving') : t('saveGif') }}
             </button>
           </div>
           <div

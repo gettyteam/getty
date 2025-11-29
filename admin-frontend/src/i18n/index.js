@@ -164,6 +164,7 @@ const adminExtra = {
     raffleActionFailed: 'Action failed',
     statusRaffleWinners: 'Winners: {n}',
     raffleSettings: 'Raffle settings',
+    raffleImageCleared: 'Image cleared',
     sessionTools: 'Session tools',
     regeneratePublicToken: 'Regenerate token',
     exportConfig: 'Export config',
@@ -494,7 +495,7 @@ const adminExtra = {
     wuzzyAudioDrawerTitle: 'Search audio on Wuzzy',
     wuzzyAudioDrawerSubtitle:
       'Search the Arweave network via Wuzzy and select audio without re-uploading.',
-    wuzzyAudioOpenDrawerBtn: 'Search audio on Wuzzy',
+    wuzzyAudioOpenDrawerBtn: 'Search on Wuzzy',
     wuzzyAudioSelectionHint: 'Pick an audio track from Wuzzy before saving.',
     wuzzyAudioSelectionLabel: 'Audio',
     wuzzyAudioMaxDurationHint:
@@ -655,7 +656,7 @@ const adminExtra = {
     commonSave: 'Guardar',
     commonPause: 'Pausar',
     commonClose: 'Cerrar',
-    commonSaving: 'Guardando...',
+    commonSaving: 'Guardando',
     commonLoading: 'Cargando...',
     commonAdd: 'Agregar',
     commonAdding: 'Agregando...',
@@ -727,6 +728,7 @@ const adminExtra = {
     raffleActionFailed: 'Acción fallida',
     statusRaffleWinners: 'Ganadores: {n}',
     raffleSettings: 'Configuración de sorteo',
+    raffleImageCleared: 'Imagen eliminada',
     sessionTools: 'Herramientas de sesión',
     regeneratePublicToken: 'Regenerar token',
     exportConfig: 'Exportar config',
@@ -1057,7 +1059,7 @@ const adminExtra = {
     wuzzyAudioDrawerTitle: 'Buscar audio en Wuzzy',
     wuzzyAudioDrawerSubtitle:
       'Busca en la red Arweave vía Wuzzy y selecciona audio sin volver a subir.',
-    wuzzyAudioOpenDrawerBtn: 'Buscar audio en Wuzzy',
+    wuzzyAudioOpenDrawerBtn: 'Buscar en Wuzzy',
     wuzzyAudioSelectionHint: 'Elige una pista de audio de Wuzzy antes de guardar.',
     wuzzyAudioSelectionLabel: 'Audio',
     wuzzyAudioMaxDurationHint:

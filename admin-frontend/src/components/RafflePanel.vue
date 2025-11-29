@@ -88,7 +88,7 @@
             class="btn-secondary btn-compact-secondary"
             @click="openImageLibraryDrawer"
             :aria-label="t('imageLibraryOpenBtn')">
-            <i class="pi pi-images mr-2" aria-hidden="true"></i>
+            <i class="pi pi-images" aria-hidden="true"></i>
             {{ t('imageLibraryOpenBtn') }}
           </button>
           <button
@@ -97,7 +97,7 @@
             class="btn-secondary btn-compact-secondary"
             @click="openWuzzyDrawer"
             :aria-label="t('wuzzyOpenDrawerBtn')">
-            <i class="pi pi-search-plus mr-2" aria-hidden="true"></i>
+            <i class="pi pi-search-plus" aria-hidden="true"></i>
             {{ t('wuzzyOpenDrawerBtn') }}
           </button>
           <div
@@ -120,34 +120,6 @@
               "
               :aria-label="t('storageProviderLabel')" />
           </div>
-          <span v-if="selectedPrizeFilename" class="file-name-label" :title="selectedPrizeFilename">
-            <i class="pi pi-image mr-1"></i>
-            {{
-              selectedPrizeFilename.length > 18
-                ? selectedPrizeFilename.substring(0, 18) + '...'
-                : selectedPrizeFilename
-            }}
-          </span>
-          <span
-            v-else-if="form.imageOriginalName"
-            class="file-name-label"
-            :title="form.imageOriginalName">
-            <i class="pi pi-image mr-1"></i>
-            {{
-              form.imageOriginalName.length > 18
-                ? form.imageOriginalName.substring(0, 18) + '...'
-                : form.imageOriginalName
-            }}
-          </span>
-          <button
-            v-if="displayImageUrl"
-            type="button"
-            class="icon-btn"
-            :aria-label="t('remove')"
-            :title="t('remove')"
-            @click="clearPrizeImage">
-            <i class="pi pi-trash"></i>
-          </button>
         </div>
         <div v-if="imageLibrary.error" class="small mt-1 text-red-500">
           {{ imageLibrary.error }}
@@ -158,6 +130,38 @@
             alt="raffle"
             class="object-contain rounded"
             style="max-height: 9rem" />
+          <div class="flex items-center gap-2 mt-1">
+            <span
+              v-if="selectedPrizeFilename"
+              class="file-name-label"
+              :title="selectedPrizeFilename">
+              <i class="pi pi-image mr-1"></i>
+              {{
+                selectedPrizeFilename.length > 18
+                  ? selectedPrizeFilename.substring(0, 18) + '...'
+                  : selectedPrizeFilename
+              }}
+            </span>
+            <span
+              v-else-if="form.imageOriginalName"
+              class="file-name-label"
+              :title="form.imageOriginalName">
+              <i class="pi pi-image mr-1"></i>
+              {{
+                form.imageOriginalName.length > 18
+                  ? form.imageOriginalName.substring(0, 18) + '...'
+                  : form.imageOriginalName
+              }}
+            </span>
+            <button
+              type="button"
+              class="icon-btn"
+              :aria-label="t('remove')"
+              :title="t('remove')"
+              @click="clearPrizeImage">
+              <i class="pi pi-trash"></i>
+            </button>
+          </div>
         </div>
       </div>
       <div class="flex flex-wrap gap-2 form-group mt-4" role="group" aria-label="Raffle actions">

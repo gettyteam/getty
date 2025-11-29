@@ -378,7 +378,7 @@
                       class="btn-secondary btn-compact-secondary"
                       @click="openImageLibraryDrawer({ type: 'new' })"
                       :aria-label="t('imageLibraryOpenBtn')">
-                      <i class="pi pi-images mr-2" aria-hidden="true"></i>
+                      <i class="pi pi-images" aria-hidden="true"></i>
                       {{ t('imageLibraryOpenBtn') }}
                     </button>
                     <button
@@ -387,7 +387,7 @@
                       class="btn-secondary btn-compact-secondary"
                       @click="openWuzzyDrawer('new')"
                       :aria-label="t('wuzzyOpenDrawerBtn')">
-                      <i class="pi pi-search-plus mr-2" aria-hidden="true"></i>
+                      <i class="pi pi-search-plus" aria-hidden="true"></i>
                       {{ t('wuzzyOpenDrawerBtn') }}
                     </button>
                     <span
@@ -842,7 +842,7 @@
               :disabled="!editForm?.id"
               @click="openImageLibraryDrawer({ type: 'edit', messageId: editForm?.id || null })"
               :aria-label="t('imageLibraryOpenBtn')">
-              <i class="pi pi-images mr-2" aria-hidden="true"></i>
+              <i class="pi pi-images" aria-hidden="true"></i>
               {{ t('imageLibraryOpenBtn') }}
             </button>
             <button
@@ -851,7 +851,7 @@
               class="btn-secondary btn-compact-secondary"
               @click="openWuzzyDrawer('edit')"
               :aria-label="t('wuzzyOpenDrawerBtn')">
-              <i class="pi pi-search-plus mr-2" aria-hidden="true"></i>
+              <i class="pi pi-search-plus" aria-hidden="true"></i>
               {{ t('wuzzyOpenDrawerBtn') }}
             </button>
             <span

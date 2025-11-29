@@ -1015,11 +1015,13 @@ function registerTipGoalRoutes(
             clearWuzzyMetadata(audioCfg);
           }
           if (tenant && tenant.tenantEnabled(req)) {
-            tenant.saveTenantAwareConfig(
+            const storeInst = req.app && req.app.get ? req.app.get('store') : store;
+            await saveTenantConfig(
               req,
+              storeInst,
               GOAL_AUDIO_CONFIG_FILE,
               'goal-audio-settings.json',
-              () => audioCfg
+              audioCfg
             );
           } else if (store && ns) {
             await store.set(ns, 'goal-audio-settings', audioCfg);

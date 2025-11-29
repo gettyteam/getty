@@ -1,4 +1,3 @@
-const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const multer = require('multer');
@@ -86,7 +85,9 @@ function readGifDimensionsFromBuffer(buffer) {
 }
 
 function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
-  const CONFIG_FILE = path.join(process.cwd(), 'config', 'tip-notification-config.json');
+  const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
+  const CONFIG_FILENAME = 'tip-notification-config.json';
+  const CONFIG_FILE = path.join(process.cwd(), 'config', CONFIG_FILENAME);
   const BUCKET_NAME = 'notification-gifs';
   const LIBRARY_FILE = path.join(process.cwd(), 'config', 'tip-notification-gif-library.json');
 
@@ -108,6 +109,7 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
         ? raw.position
         : 'right';
     return {
+      ...raw,
       gifPath: typeof raw.gifPath === 'string' ? raw.gifPath : '',
       position: pos,
       width: Number.isFinite(raw.width) ? raw.width : Number(raw.width) || 0,
@@ -115,24 +117,6 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
       libraryId: typeof raw.libraryId === 'string' ? raw.libraryId : '',
       storageProvider: typeof raw.storageProvider === 'string' ? raw.storageProvider : '',
     };
-  }
-
-  function loadConfig() {
-    try {
-      if (fs.existsSync(CONFIG_FILE)) {
-        const parsed = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-        return ensureConfigShape(parsed);
-      }
-    } catch {
-      console.error('[gif-config] load error');
-    }
-    return ensureConfigShape();
-  }
-
-  function saveConfig(cfg, ns) {
-    if (!ns) {
-      fs.writeFileSync(CONFIG_FILE, JSON.stringify(ensureConfigShape(cfg), null, 2));
-    }
   }
 
   function normalizeLibraryEntry(raw) {
@@ -167,87 +151,71 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
     };
   }
 
-  function loadLibraryFromFile() {
+  async function loadLibrary(req) {
     try {
-      if (fs.existsSync(LIBRARY_FILE)) {
-        const parsed = JSON.parse(fs.readFileSync(LIBRARY_FILE, 'utf8'));
-        const list = Array.isArray(parsed)
-          ? parsed
-          : parsed && Array.isArray(parsed.items)
-            ? parsed.items
-            : [];
-        return list.map(normalizeLibraryEntry).filter((entry) => entry && entry.id);
-      }
+      const loaded = await loadTenantConfig(
+        req,
+        store,
+        LIBRARY_FILE,
+        'tip-notification-gif-library.json'
+      );
+      const data = loaded.data;
+      const list = Array.isArray(data)
+        ? data
+        : data && Array.isArray(data.items)
+          ? data.items
+          : [];
+      return list.map(normalizeLibraryEntry).filter((entry) => entry && entry.id);
     } catch (error) {
-      console.error('[gif-library] load error', error.message);
+      console.warn('[gif-library] load error', error.message);
+      return [];
     }
-    return [];
   }
 
-  function saveLibraryToFile(items) {
+  async function saveLibrary(req, items) {
     try {
-      fs.writeFileSync(LIBRARY_FILE, JSON.stringify(items, null, 2));
+      await saveTenantConfig(
+        req,
+        store,
+        LIBRARY_FILE,
+        'tip-notification-gif-library.json',
+        items
+      );
     } catch (error) {
-      console.error('[gif-library] save error', error.message);
+      console.warn('[gif-library] save error', error.message);
     }
   }
 
-  async function loadLibrary(ns) {
-    if (store && ns) {
-      try {
-        const stored = await store.get(ns, 'tip-notification-gif-library', null);
-        if (stored) {
-          const list = Array.isArray(stored)
-            ? stored
-            : stored && Array.isArray(stored.items)
-              ? stored.items
-              : [];
-          return list.map(normalizeLibraryEntry).filter((entry) => entry && entry.id);
-        }
-        return [];
-      } catch (error) {
-        console.warn('[gif-library] store load error', error.message);
-      }
-    }
-    return loadLibraryFromFile();
-  }
-
-  async function saveLibrary(ns, items) {
-    const isMultiTenant = process.env.GETTY_MULTI_TENANT_WALLET === '1';
-    if (!ns || !isMultiTenant) {
-      saveLibraryToFile(items);
-    }
-    if (store && ns) {
-      try {
-        await store.set(ns, 'tip-notification-gif-library', items);
-      } catch (error) {
-        console.warn('[gif-library] store save error', error.message);
-      }
-    }
-  }
-
-  async function upsertLibraryEntry(ns, entry) {
+  async function upsertLibraryEntry(req, entry) {
     if (!entry || !entry.id) return;
     const normalized = normalizeLibraryEntry(entry);
     if (!normalized) return;
-    const current = await loadLibrary(ns);
+    const current = await loadLibrary(req);
     const filtered = current.filter((item) => item && item.id !== normalized.id);
     const updated = [normalized, ...filtered];
     const maxItems = 50;
     const trimmed = updated.slice(0, maxItems);
-    await saveLibrary(ns, trimmed);
+    await saveLibrary(req, trimmed);
     return trimmed;
   }
 
-  async function findLibraryEntry(ns, entryId) {
+  async function findLibraryEntry(req, entryId) {
     if (!entryId) return null;
-    const items = await loadLibrary(ns);
-    return items.find((item) => item && item.id === entryId) || null;
+    const items = await loadLibrary(req);
+    const found = items.find((item) => item && item.id === entryId) || null;
+    if (!found) {
+      console.warn(
+        '[gif-library] item not found',
+        { requestedId: entryId, availableIds: items.map((i) => i.id) }
+      );
+    }
+    return found;
   }
 
   app.get('/api/tip-notification-gif', async (req, res) => {
     try {
-      const cfg = loadConfig();
+      const loaded = await loadTenantConfig(req, store, CONFIG_FILE, CONFIG_FILENAME);
+      const cfg = ensureConfigShape(loaded.data || {});
       const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
       const conceal = shouldMaskSensitive(req);
       const trusted = isTrustedLocalAdmin(req);
@@ -264,16 +232,6 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
         return res.json({ gifPath: '', width: 0, height: 0, libraryId: '' });
       }
 
-      if (store && hasNs) {
-        try {
-          const ns = req.ns.admin || req.ns.pub;
-          const st = await store.get(ns, 'tip-notification-gif', null);
-          if (st && typeof st === 'object') {
-            return res.json(ensureConfigShape(st));
-          }
-          return res.json(ensureConfigShape({}));
-        } catch {}
-      }
       res.json(cfg);
     } catch {
       res.status(500).json({ error: 'Error loading config' });
@@ -288,98 +246,11 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
       if (!isOpenTestMode() && (requireSessionFlag || hosted) && !hasNs) {
         return res.status(401).json({ error: 'no_session' });
       }
-      const ns = req?.ns?.admin || req?.ns?.pub || null;
-      const items = await loadLibrary(ns);
+      const items = await loadLibrary(req);
       res.json({ items });
     } catch (error) {
       console.error('[gif-library] list error', error.message);
       res.status(500).json({ error: 'library_list_failed' });
-    }
-  });
-
-  app.delete('/api/tip-notification-gif/library/:id', strictLimiter, async (req, res) => {
-    const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
-    const hosted = !!process.env.REDIS_URL;
-    const requireAdminWrites = process.env.GETTY_REQUIRE_ADMIN_WRITE === '1' || hosted;
-    const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
-    if (!isOpenTestMode() && (requireSessionFlag || hosted) && !hasNs) {
-      return res.status(401).json({ error: 'no_session' });
-    }
-    if (!isOpenTestMode() && requireAdminWrites) {
-      const isAdmin = !!(req?.auth && req.auth.isAdmin);
-      if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
-    }
-
-    const entryId = typeof req.params?.id === 'string' ? req.params.id.trim() : '';
-    if (!entryId) {
-      return res.status(400).json({ error: 'invalid_library_id' });
-    }
-
-    try {
-      const ns = req?.ns?.admin || req?.ns?.pub || null;
-      const items = await loadLibrary(ns);
-      const target = items.find((item) => item && item.id === entryId) || null;
-      if (!target) {
-        return res.status(404).json({ error: 'gif_library_item_not_found' });
-      }
-
-      const providerId = normalizeProvider(target.provider);
-      const allowVirtualDelete = providerId === WUZZY_PROVIDER;
-      if (providerId && providerId !== STORAGE_PROVIDERS.SUPABASE && !allowVirtualDelete) {
-        return res.status(400).json({ error: 'gif_library_delete_unsupported' });
-      }
-
-      if (providerId === STORAGE_PROVIDERS.SUPABASE && target.path) {
-        try {
-          const storageInstance = getStorage(STORAGE_PROVIDERS.SUPABASE);
-          if (storageInstance && storageInstance.provider === STORAGE_PROVIDERS.SUPABASE) {
-            await storageInstance.deleteFile(BUCKET_NAME, target.path);
-          }
-        } catch (deleteError) {
-          console.warn('[gif-library] failed to delete Supabase file:', deleteError.message);
-        }
-      }
-
-      const updatedItems = items.filter((item) => item && item.id !== entryId);
-      await saveLibrary(ns, updatedItems);
-
-      let cfg = ensureConfigShape(loadConfig());
-      if (store && ns) {
-        try {
-          const storedCfg = await store.get(ns, 'tip-notification-gif', null);
-          if (storedCfg && typeof storedCfg === 'object') {
-            cfg = ensureConfigShape(storedCfg);
-          }
-        } catch (cfgError) {
-          console.warn('[gif-library] store config load error', cfgError.message);
-        }
-      }
-
-      let cleared = false;
-      if (cfg.libraryId === entryId) {
-        const clearedCfg = ensureConfigShape({
-          ...cfg,
-          gifPath: '',
-          width: 0,
-          height: 0,
-          libraryId: '',
-          storageProvider: '',
-        });
-        cleared = true;
-        saveConfig(clearedCfg, ns);
-        if (store && ns) {
-          try {
-            await store.set(ns, 'tip-notification-gif', clearedCfg);
-          } catch (setError) {
-            console.warn('[gif-library] store config save error', setError.message);
-          }
-        }
-      }
-
-      return res.json({ success: true, cleared });
-    } catch (error) {
-      console.error('[gif-library] delete error', error);
-      return res.status(500).json({ error: 'gif_library_delete_failed' });
     }
   });
 
@@ -422,7 +293,8 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
             ? selectedGifIdRaw.trim()
             : null;
         const ns = req?.ns?.admin || req?.ns?.pub || null;
-        let config = ensureConfigShape(loadConfig());
+        const loaded = await loadTenantConfig(req, store, CONFIG_FILE, CONFIG_FILENAME);
+        let config = ensureConfigShape(loaded.data || {});
         let libraryEntry = null;
         const preferredProviderRaw =
           typeof req.body?.storageProvider === 'string' ? req.body.storageProvider : '';
@@ -451,7 +323,7 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
             fingerprint: wuzzySelection.fingerprint || wuzzySelection.id,
           };
           config.libraryId = libraryEntry.id;
-          await upsertLibraryEntry(ns, libraryEntry);
+          await upsertLibraryEntry(req, libraryEntry);
         } else if (req.file) {
           let dims;
           try {
@@ -532,7 +404,7 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
                 fingerprint,
               };
               config.libraryId = libraryEntry.id;
-              await upsertLibraryEntry(ns, libraryEntry);
+              await upsertLibraryEntry(req, libraryEntry);
             } catch (uploadError) {
               console.error('Supabase upload error:', uploadError);
               if (uploadError.code === 'TURBO_FILE_TOO_LARGE') {
@@ -546,7 +418,7 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
           }
         } else if (selectedGifId) {
           try {
-            const entry = await findLibraryEntry(ns, selectedGifId);
+            const entry = await findLibraryEntry(req, selectedGifId);
             if (!entry) {
               return res.status(404).json({ error: 'library_item_not_found' });
             }
@@ -565,12 +437,7 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
         }
 
         config.position = position;
-        saveConfig(config, ns);
-        if (store && ns) {
-          try {
-            await store.set(ns, 'tip-notification-gif', config);
-          } catch {}
-        }
+        await saveTenantConfig(req, store, CONFIG_FILE, CONFIG_FILENAME, config);
         res.json({ success: true, ...config, libraryItem: libraryEntry });
       } catch (_e) {
         console.error('Error saving GIF config:', _e);
@@ -578,6 +445,68 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
       }
     }
   );
+
+  app.delete('/api/tip-notification-gif/library/:id', strictLimiter, async (req, res) => {
+    const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+    const hosted = !!process.env.REDIS_URL;
+    const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
+    if (!isOpenTestMode() && (requireSessionFlag || hosted) && !hasNs) {
+      return res.status(401).json({ error: 'no_session' });
+    }
+
+    const entryId = req.params.id;
+    if (!entryId) return res.status(400).json({ error: 'invalid_id' });
+
+    try {
+      const items = await loadLibrary(req);
+      const target = items.find((item) => item && item.id === entryId);
+
+      if (!target) {
+        return res.status(404).json({ error: 'library_item_not_found' });
+      }
+
+      const provider = normalizeProvider(target.provider);
+      if (provider !== STORAGE_PROVIDERS.SUPABASE && provider !== WUZZY_PROVIDER) {
+        return res.status(400).json({ error: 'gif_library_delete_unsupported' });
+      }
+
+      if (provider === STORAGE_PROVIDERS.SUPABASE && target.path) {
+        const storage = getStorage(STORAGE_PROVIDERS.SUPABASE);
+        if (storage) {
+          try {
+            await storage.deleteFile(BUCKET_NAME, target.path);
+          } catch (e) {
+            console.warn('Failed to delete file from Supabase:', e.message);
+          }
+        }
+      }
+
+      const updatedItems = items.filter((i) => i.id !== entryId);
+      await saveLibrary(req, updatedItems);
+
+      const loaded = await loadTenantConfig(req, store, CONFIG_FILE, CONFIG_FILENAME);
+      let cfg = ensureConfigShape(loaded.data || {});
+
+      let cleared = false;
+      if (cfg.libraryId === entryId) {
+        const clearedCfg = ensureConfigShape({
+          ...cfg,
+          gifPath: '',
+          width: 0,
+          height: 0,
+          libraryId: '',
+          storageProvider: '',
+        });
+        cleared = true;
+        await saveTenantConfig(req, store, CONFIG_FILE, CONFIG_FILENAME, clearedCfg);
+      }
+
+      return res.json({ success: true, cleared });
+    } catch (error) {
+      console.error('[gif-library] delete error', error);
+      return res.status(500).json({ error: 'gif_library_delete_failed' });
+    }
+  });
 
   app.delete('/api/tip-notification-gif', strictLimiter, async (req, res) => {
     const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
@@ -598,14 +527,8 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
       return res.status(403).json({ error: 'forbidden_untrusted_context' });
     }
     try {
-      const ns = req?.ns?.admin || req?.ns?.pub || null;
-      let cfgToUse = ensureConfigShape(loadConfig());
-      if (store && ns) {
-        try {
-          const st = await store.get(ns, 'tip-notification-gif', null);
-          if (st && typeof st === 'object') cfgToUse = ensureConfigShape(st);
-        } catch {}
-      }
+      const loaded = await loadTenantConfig(req, store, CONFIG_FILE, CONFIG_FILENAME);
+      let cfgToUse = ensureConfigShape(loaded.data || {});
 
       const shouldDeleteStoredFile =
         cfgToUse.gifPath &&
@@ -627,6 +550,7 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
       }
 
       const cleared = {
+        ...cfgToUse,
         gifPath: '',
         position: 'right',
         width: 0,
@@ -634,12 +558,7 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
         libraryId: '',
         storageProvider: '',
       };
-      saveConfig(cleared, ns);
-      if (store && ns) {
-        try {
-          await store.set(ns, 'tip-notification-gif', cleared);
-        } catch {}
-      }
+      await saveTenantConfig(req, store, CONFIG_FILE, CONFIG_FILENAME, cleared);
       return res.json({ success: true, ...cleared });
     } catch {
       res.status(500).json({ error: 'Internal server error' });
