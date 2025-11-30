@@ -1,48 +1,29 @@
 <template>
   <section class="os-card overflow-hidden flex flex-col">
-    <h1 class="section-title flex items-center gap-1.5">
-      <HeaderIcon>
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round">
-          <path d="M8 21h8" />
-          <path d="M12 17v4" />
-          <path d="M7 4h10v5a5 5 0 0 1-10 0V4Z" />
-          <path d="M17 9a5 5 0 0 0 5-5h-5" />
-          <path d="M7 9a5 5 0 0 1-5-5h5" />
-        </svg>
-      </HeaderIcon>
-      <span>{{ t('achievementsTitle') }}</span>
-    </h1>
-
     <div class="p-4 space-y-4">
-      <div class="banner">
-        <h3 class="banner-title">{{ t('achievementsBannerTitle') }}</h3>
-        <p class="banner-desc">
-          {{ t('achievementsBannerDesc') }}
-        </p>
-      </div>
-
-      <div class="flex items-center justify-end gap-3">
-        <div class="text-xs opacity-70 hidden md:block">
-          <span>{{ t('settingsTitle') }}</span>
+      <div class="banner flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h3 class="banner-title">{{ t('achievementsBannerTitle') }}</h3>
+          <p class="banner-desc">
+            {{ t('achievementsBannerDesc') }}
+          </p>
         </div>
-        <button
-          type="button"
-          class="btn-secondary btn-compact-secondary"
-          :aria-expanded="String(!settingsCollapsed)"
-          aria-controls="ach-settings"
-          @click="toggleSettings">
-          <span class="opacity-90">{{
-            settingsCollapsed ? t('commonShow') : t('commonHide')
-          }}</span>
-        </button>
+
+        <div class="flex items-center gap-3 shrink-0">
+          <div class="text-xs opacity-70 hidden md:block">
+            <span>{{ t('settingsTitle') }}</span>
+          </div>
+          <button
+            type="button"
+            class="btn-secondary btn-compact-secondary"
+            :aria-expanded="String(!settingsCollapsed)"
+            aria-controls="ach-settings"
+            @click="toggleSettings">
+            <span class="opacity-90">{{
+              settingsCollapsed ? t('commonShow') : t('commonHide')
+            }}</span>
+          </button>
+        </div>
       </div>
 
       <div
@@ -353,6 +334,38 @@
                 </div>
               </div>
             </div>
+
+            <div class="ach-group-box" :aria-label="t('obsIntegration')">
+              <div class="ach-group-head">
+                <HeaderIcon>
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                    <line x1="8" y1="21" x2="16" y2="21" />
+                    <line x1="12" y1="17" x2="12" y2="21" />
+                  </svg>
+                </HeaderIcon>
+                <span class="ach-head-title">{{ t('obsIntegration') }}</span>
+              </div>
+              <div class="ach-setting-item is-vertical">
+                <div class="ach-setting-text">
+                  <div class="ach-setting-title">{{ t('achievementsWidgetUrlLabel') }}</div>
+                </div>
+                <div class="copy-field-row">
+                  <CopyField
+                    :value="widgetUrl"
+                    :aria-label="t('achievementsWidgetUrlLabel')"
+                    secret />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -365,15 +378,6 @@
             {{ t('achievementsTestNotificationBtn') }}
           </button>
         </div>
-
-        <OsCard class="mt-4" :title="t('obsIntegration')">
-          <div class="form-group">
-            <div class="flex flex-wrap items-center gap-3">
-              <span class="label mb-0">{{ t('achievementsWidgetUrlLabel') }}</span>
-              <CopyField :value="widgetUrl" :aria-label="t('achievementsWidgetUrlLabel')" secret />
-            </div>
-          </div>
-        </OsCard>
       </div>
 
       <div>
@@ -547,7 +551,6 @@
 import { onMounted, reactive, ref, computed, watch } from 'vue';
 import LegacyAudioControls from '../shared/LegacyAudioControls.vue';
 import CopyField from '../shared/CopyField.vue';
-import OsCard from '../os/OsCard.vue';
 import HeaderIcon from '../shared/HeaderIcon.vue';
 import SkeletonLoader from '../SkeletonLoader.vue';
 import { useI18n } from 'vue-i18n';

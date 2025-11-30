@@ -404,11 +404,14 @@
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  stroke-width="2"
+                  stroke-width="1.5"
                   stroke-linecap="round"
                   stroke-linejoin="round">
-                  <rect x="6" y="3" width="12" height="18" rx="1" />
-                  <path d="M10 12h.01" />
+                  <circle cx="12" cy="18" r="3" />
+                  <circle cx="6" cy="6" r="3" />
+                  <circle cx="18" cy="6" r="3" />
+                  <path d="M6 9v1a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V9" />
+                  <path d="M12 12v3" />
                 </svg>
               </span>
               <span>{{ t('externalNotificationsTitle') }}</span>

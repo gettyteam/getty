@@ -15,7 +15,8 @@
         <div class="notif-group-head">
           <HeaderIcon>
             <svg
-              class="os-icon"
+              width="14"
+              height="14"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -211,7 +212,8 @@
         <div class="notif-group-head">
           <HeaderIcon>
             <svg
-              class="os-icon"
+              width="14"
+              height="14"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -277,7 +279,8 @@
         <div class="notif-group-head">
           <HeaderIcon>
             <svg
-              class="os-icon"
+              width="14"
+              height="14"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -337,7 +340,8 @@
         <div class="notif-group-head">
           <HeaderIcon>
             <svg
-              class="os-icon"
+              width="14"
+              height="14"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -386,7 +390,8 @@
         <div class="notif-group-head">
           <HeaderIcon>
             <svg
-              class="os-icon"
+              width="14"
+              height="14"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
