@@ -195,14 +195,12 @@ html.dark .ann-tab.active {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--card-border);
   border-left: 4px solid var(--accent, #6366f1);
-  border-radius: 6px;
+  border-radius: 4px;
   padding: 0.9rem 0.95rem 1rem;
-  margin: 0 0 1rem;
   transition: 0.25s;
 }
 .ann-message-item:hover {
   background: rgba(255, 255, 255, 0.07);
-  border-color: color-mix(in srgb, var(--card-border) 60%, transparent);
 }
 .ann-message-header {
   display: flex;

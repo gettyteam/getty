@@ -13,9 +13,26 @@
 
     <OsCard>
       <div class="mb-2 font-semibold">{{ t('tipNotificationsTitle') }}</div>
-      <p class="small mb-3 text-gray-400" aria-live="polite">
-        {{ t('externalSecretLegend', { mask: MASK }) }}
-      </p>
+
+      <div
+        class="flex items-start gap-3 p-3 mb-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30 text-blue-700 dark:text-blue-300">
+        <svg
+          class="w-5 h-5 shrink-0 mt-0.5 opacity-80"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 16v-4" />
+          <path d="M12 8h.01" />
+        </svg>
+        <div class="text-sm font-medium leading-relaxed">
+          {{ t('externalSecretLegend', { mask: MASK }) }}
+        </div>
+      </div>
+
       <div class="form-group">
         <label class="label">{{ t('externalDiscordWebhook') }}</label>
         <div class="input-group">
