@@ -63,9 +63,7 @@ html.dark .ann-tab.active {
 .ann-grid-full {
   grid-column: 1 / -1;
 }
-.ann-form-group {
-  margin: 0 0 1rem;
-}
+
 .ann-form-label {
   display: block;
   margin: 0 0 0.35rem;

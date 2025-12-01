@@ -120,6 +120,12 @@ function registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, option
         icon: z.string(),
         link: z.string().url(),
         customIcon: z.string().optional(),
+        bgColor: z.string().optional(),
+        textColor: z.string().optional(),
+        linkColor: z.string().optional(),
+        borderColor: z.string().optional(),
+        useGradient: z.boolean().optional(),
+        gradientTo: z.string().optional(),
       });
       const LegacyItem = z.object({
         platform: z.string(),
@@ -174,6 +180,12 @@ function registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, option
         icon: String(it.icon || '').trim(),
         link: String(it.link || '').trim(),
         ...(it.customIcon ? { customIcon: String(it.customIcon).trim() } : {}),
+        ...(it.bgColor ? { bgColor: String(it.bgColor).trim() } : {}),
+        ...(it.textColor ? { textColor: String(it.textColor).trim() } : {}),
+        ...(it.linkColor ? { linkColor: String(it.linkColor).trim() } : {}),
+        ...(it.borderColor ? { borderColor: String(it.borderColor).trim() } : {}),
+        ...(it.useGradient !== undefined ? { useGradient: !!it.useGradient } : {}),
+        ...(it.gradientTo ? { gradientTo: String(it.gradientTo).trim() } : {}),
       }));
 
       const MAX_NAME = 50;

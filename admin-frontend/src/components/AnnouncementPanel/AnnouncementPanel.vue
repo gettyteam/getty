@@ -1,19 +1,6 @@
 <template>
   <section class="announcement-admin" role="form">
-    <nav class="ann-tabs" aria-label="Announcement tabs">
-      <button
-        v-for="tab in tabs"
-        :key="tab.id"
-        class="ann-tab"
-        :class="{ active: activeTab === tab.id }"
-        role="tab"
-        :aria-selected="activeTab === tab.id ? 'true' : 'false'"
-        @click="activeTab = tab.id">
-        {{ tab.label }}
-      </button>
-    </nav>
-
-    <div v-show="activeTab === 'settings'" class="ann-tab-panel" role="tabpanel">
+    <div class="ann-tab-panel">
       <div class="ann-card">
         <div class="ann-card-header">
           <h3 class="ann-card-title">{{ t('announcementSettings') }}</h3>
@@ -415,7 +402,7 @@
                   <div v-if="imageLibrary.error" class="small mt-1 text-red-500">
                     {{ imageLibrary.error }}
                   </div>
-                  <div v-if="newMsg.imageUrl" class="mt-2">
+                  <div v-if="newMsg.imageUrl" class="mt-2" style="margin-top: 1.2rem">
                     <img
                       :src="newMsg.imageUrl"
                       alt="announcement"
@@ -571,9 +558,7 @@
           </div>
         </div>
       </div>
-    </div>
 
-    <div v-show="activeTab === 'integration'" class="ann-tab-panel" role="tabpanel">
       <div class="ann-card">
         <div class="ann-card-header">
           <h3 class="ann-card-title">{{ t('obsIntegration') }}</h3>
@@ -958,7 +943,6 @@ const {
   updating,
   modalRef,
   widgetUrl,
-  activeTab,
   load,
   saveSettings,
   addMessage,
@@ -1049,11 +1033,6 @@ function showUploadErrorDialog(title, message) {
   uploadErrorDialog.message = message;
   uploadErrorDialog.open = true;
 }
-
-const tabs = [
-  { id: 'settings', label: t('settings') || t('announcementSettings') },
-  { id: 'integration', label: t('obsIntegration') },
-];
 
 const sectionOpen = reactive({ content: true, style: false, cta: false, media: false });
 const annNewImageInput = ref(null);

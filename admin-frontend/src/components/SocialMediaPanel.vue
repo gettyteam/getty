@@ -19,10 +19,10 @@
       <div class="os-table social-media" :aria-label="t('socialMediaTitle') + ' table'">
         <div class="os-tr py-2">
           <div class="os-th num">#</div>
-          <div class="os-th">{{ t('socialMediaName') }}</div>
-          <div class="os-th">{{ t('socialMediaLink') }}</div>
-          <div class="os-th">{{ t('socialMediaIcon') }}</div>
-          <div class="os-th">{{ t('socialMediaCustomIcon') }}</div>
+          <div class="os-th text-left">{{ t('socialMediaName') }}</div>
+          <div class="os-th text-left">{{ t('socialMediaLink') }}</div>
+          <div class="os-th text-left">{{ t('socialMediaPlatform') }}</div>
+          <div class="os-th text-left">{{ t('socialMediaCustomIcon') }}</div>
           <div class="os-th"></div>
         </div>
 
@@ -73,14 +73,29 @@
               <input
                 type="file"
                 accept="image/*"
+                class="sr-only"
+                :id="'custom-icon-' + idx"
                 @change="(e) => selectCustomIcon(e, item)"
                 :aria-label="t('socialMediaCustomIcon')" />
+              <label
+                :for="'custom-icon-' + idx"
+                class="btn-secondary cursor-pointer inline-flex items-center gap-2">
+                <i class="pi pi-images" aria-hidden="true"></i>
+                Upload icon
+              </label>
               <div v-if="item.customIcon" class="mt-1">
                 <img :src="item.customIcon" alt="custom" class="max-h-10 object-contain" />
               </div>
             </div>
           </div>
-          <div class="os-td actions">
+          <div class="os-td actions flex gap-2 justify-end items-center">
+            <button
+              class="btn-secondary flex items-center gap-2"
+              @click="openStyleEditor(idx)"
+              :title="t('socialMediaStyleTitle')">
+              <i class="pi pi-palette"></i>
+              <span>Color</span>
+            </button>
             <button
               class="btn danger"
               @click="remove(idx)"
@@ -99,10 +114,101 @@
         </div>
       </div>
     </OsCard>
+
+    <div v-if="editingStyleIndex !== null" class="sm-modal-overlay" role="dialog" aria-modal="true">
+      <div class="sm-modal">
+        <h3 class="sm-modal-title">{{ t('socialMediaStyleTitle') }}</h3>
+        <div class="sm-grid">
+          <div class="grid grid-cols-2 gap-4">
+            <div class="sm-form-group">
+              <label class="sm-label">{{ t('socialMediaBgColor') }}</label>
+              <div class="flex gap-2">
+                <input class="input h-10 w-12 p-1" type="color" v-model="styleForm.bgColor" />
+                <input
+                  class="input h-10 flex-1 min-w-0"
+                  type="text"
+                  v-model="styleForm.bgColor"
+                  maxlength="7" />
+              </div>
+            </div>
+            <div class="sm-form-group">
+              <label class="sm-label">{{ t('socialMediaTextColor') }}</label>
+              <div class="flex gap-2">
+                <input class="input h-10 w-12 p-1" type="color" v-model="styleForm.textColor" />
+                <input
+                  class="input h-10 flex-1 min-w-0"
+                  type="text"
+                  v-model="styleForm.textColor"
+                  maxlength="7" />
+              </div>
+            </div>
+            <div class="sm-form-group">
+              <label class="sm-label">{{ t('socialMediaLinkColor') }}</label>
+              <div class="flex gap-2">
+                <input class="input h-10 w-12 p-1" type="color" v-model="styleForm.linkColor" />
+                <input
+                  class="input h-10 flex-1 min-w-0"
+                  type="text"
+                  v-model="styleForm.linkColor"
+                  maxlength="7" />
+              </div>
+            </div>
+            <div class="sm-form-group">
+              <label class="sm-label">{{ t('socialMediaBorderColor') }}</label>
+              <div class="flex gap-2">
+                <input class="input h-10 w-12 p-1" type="color" v-model="styleForm.borderColor" />
+                <input
+                  class="input h-10 flex-1 min-w-0"
+                  type="text"
+                  v-model="styleForm.borderColor"
+                  maxlength="7" />
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-row items-center gap-2 justify-start mt-2 mb-2">
+            <input
+              type="checkbox"
+              id="sm-gradient"
+              v-model="styleForm.useGradient"
+              class="switch" />
+            <label for="sm-gradient" class="sm-label mb-0 cursor-pointer select-none">{{
+              t('socialMediaGradient')
+            }}</label>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="sm-form-group" v-if="styleForm.useGradient">
+              <label class="sm-label">{{ t('socialMediaGradientTo') }}</label>
+              <div class="flex gap-2">
+                <input class="input h-10 w-12 p-1" type="color" v-model="styleForm.gradientTo" />
+                <input
+                  class="input h-10 flex-1 min-w-0"
+                  type="text"
+                  v-model="styleForm.gradientTo"
+                  maxlength="7" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="flex gap-2 mt-4 justify-end">
+          <button class="btn-secondary" @click="resetStyle">
+            {{ t('socialMediaReset') }}
+          </button>
+          <div class="flex-1"></div>
+          <button class="btn-secondary" @click="editingStyleIndex = null">
+            {{ t('commonCancel') || 'Cancel' }}
+          </button>
+          <button class="btn" @click="saveStyle">
+            {{ t('commonSave') || 'Save' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </section>
 </template>
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, reactive } from 'vue';
 import { useI18n } from 'vue-i18n';
 import api from '../services/api';
 import { pushToast } from '../services/toast';
@@ -119,6 +225,16 @@ const items = ref([]);
 const rowErrors = ref({});
 const dirty = ref(false);
 const saving = ref(false);
+
+const editingStyleIndex = ref(null);
+const styleForm = reactive({
+  bgColor: '#ffffff',
+  textColor: '#000000',
+  linkColor: '#00ff7f',
+  borderColor: '#000000',
+  useGradient: false,
+  gradientTo: '#ffffff',
+});
 
 const wallet = useWalletSession();
 const { withToken, refresh } = usePublicToken();
@@ -144,12 +260,25 @@ async function load() {
 }
 
 function addItem() {
-  items.value.push({ name: '', icon: 'x', link: '', customIcon: undefined });
+  items.value.push({
+    name: '',
+    icon: 'x',
+    link: '',
+    customIcon: undefined,
+    bgColor: '',
+    textColor: '',
+    linkColor: '',
+    borderColor: '',
+    useGradient: false,
+    gradientTo: '',
+  });
   validateRow(items.value.length - 1);
   markDirty();
 }
 function remove(i) {
   items.value.splice(i, 1);
+  rowErrors.value = {};
+  items.value.forEach((_, idx) => validateRow(idx));
   markDirty();
 }
 function onIconChange(item) {
@@ -170,6 +299,42 @@ function selectCustomIcon(e, item) {
     markDirty();
   };
   reader.readAsDataURL(file);
+}
+
+function openStyleEditor(idx) {
+  const item = items.value[idx];
+  if (!item) return;
+  editingStyleIndex.value = idx;
+  styleForm.bgColor = item.bgColor || '#ffffff';
+  styleForm.textColor = item.textColor || '#000000';
+  styleForm.linkColor = item.linkColor || '#00ff7f';
+  styleForm.borderColor = item.borderColor || '#000000';
+  styleForm.useGradient = !!item.useGradient;
+  styleForm.gradientTo = item.gradientTo || '#ffffff';
+}
+
+function saveStyle() {
+  if (editingStyleIndex.value === null) return;
+  const item = items.value[editingStyleIndex.value];
+  if (item) {
+    item.bgColor = styleForm.bgColor;
+    item.textColor = styleForm.textColor;
+    item.linkColor = styleForm.linkColor;
+    item.borderColor = styleForm.borderColor;
+    item.useGradient = styleForm.useGradient;
+    item.gradientTo = styleForm.gradientTo;
+    markDirty();
+  }
+  editingStyleIndex.value = null;
+}
+
+function resetStyle() {
+  styleForm.bgColor = '#ffffff';
+  styleForm.textColor = '#000000';
+  styleForm.linkColor = '#00ff7f';
+  styleForm.borderColor = '#000000';
+  styleForm.useGradient = false;
+  styleForm.gradientTo = '#ffffff';
 }
 
 function validateRow(i) {
@@ -200,6 +365,7 @@ function mapBackendError(msg) {
 }
 
 async function save() {
+  rowErrors.value = {};
   items.value.forEach((_, i) => validateRow(i));
   const hasErr = Object.values(rowErrors.value).some((r) => r.name || r.link);
   if (hasErr) {
@@ -213,6 +379,12 @@ async function save() {
         name: i.name,
         icon: i.icon,
         link: i.link,
+        bgColor: i.bgColor,
+        textColor: i.textColor,
+        linkColor: i.linkColor,
+        borderColor: i.borderColor,
+        useGradient: i.useGradient,
+        gradientTo: i.gradientTo,
         ...(i.icon === 'custom' && i.customIcon ? { customIcon: i.customIcon } : {}),
       })),
     };
@@ -240,3 +412,46 @@ onMounted(async () => {
   await load();
 });
 </script>
+
+<style scoped>
+.sm-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(2px);
+}
+.sm-modal {
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--card-border, #e4e4e7);
+  border-radius: 12px;
+  padding: 24px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+.sm-modal-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--text-primary, #111);
+}
+.sm-grid {
+  display: grid;
+  gap: 1rem;
+}
+.sm-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.sm-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  color: var(--text-secondary, #71717a);
+}
+</style>
