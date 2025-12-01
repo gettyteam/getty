@@ -120,6 +120,7 @@
               :disabled="!sessionActive && hostedSupported"
               :aria-busy="savingGif ? 'true' : 'false'">
               <i v-if="isWuzzyMode" class="pi pi-search-plus" aria-hidden="true"></i>
+              <i v-else class="pi pi-image" aria-hidden="true"></i>
               {{ isWuzzyMode ? t('wuzzyOpenDrawerBtn') : t('notificationGifChooseBtn') }}
             </button>
             <button

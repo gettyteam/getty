@@ -179,6 +179,8 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  padding: 10px;
+  box-sizing: border-box;
 }
 
 .announcement-message.horizontal .ann-media {
