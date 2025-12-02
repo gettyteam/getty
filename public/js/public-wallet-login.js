@@ -714,15 +714,6 @@ class WanderWalletLogin {
     const message = nonceResp.message;
     if (!message) throw new Error('No message to sign was received');
 
-    try {
-      const encoder = new TextEncoder();
-      const bytes = encoder.encode(message);
-      const hashBuf = await crypto.subtle.digest('SHA-256', bytes);
-      const h = Array.from(new Uint8Array(hashBuf))
-        .map((b) => b.toString(16).padStart(2, '0'))
-        .join('');
-      console.info('[wander-login][debug] message bytes', bytes.length, 'sha256', h.slice(0, 32));
-    } catch {}
     console.info('[wander-login] signing message of length', message?.length);
     const firstSig = await this.signMessage(message, { order: 'message-first' });
     let signatureB64 = this.toBase64Url(firstSig.signature);
