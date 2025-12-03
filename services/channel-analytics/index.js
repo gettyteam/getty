@@ -20,6 +20,7 @@ const {
 const DEFAULT_PROXY_URL = 'https://api.na-backend.odysee.com/api/v1/proxy';
 const DEFAULT_PUBLIC_API = 'https://api.odysee.com';
 const DEFAULT_WEB_ORIGIN = 'https://odysee.com';
+const CHANNEL_UPLOAD_ALLOW_SOURCELESS = process.env.CHANNEL_UPLOAD_ALLOW_SOURCELESS !== '0';
 
 function normalizeApiBase(raw) {
   if (!raw || typeof raw !== 'string') return null;
@@ -324,89 +325,102 @@ async function fetchChannelStreams(claimId, limit = 200) {
   if (!isClaimId(claimId)) {
     return { streams: [], claimsInChannel: 0, totalItems: 0 };
   }
-  const streams = [];
-  const seen = new Set();
-  let page = 1;
-  let claimsInChannel = null;
-  let totalItems = null;
-  while (streams.length < limit) {
-    const pageSize = Math.min(50, limit - streams.length);
-    try {
-      const resp = await axios.post(
-        ODYSEE_PROXY_URL,
-        {
+
+  async function runClaimSearch(requireSource) {
+    const streams = [];
+    const seen = new Set();
+    let page = 1;
+    let claimsInChannel = null;
+    let totalItems = null;
+    while (streams.length < limit) {
+      const pageSize = Math.min(50, limit - streams.length);
+      try {
+        const params = {
           method: 'claim_search',
           params: {
             channel_ids: [claimId],
             claim_type: 'stream',
             order_by: ['release_time'],
-            has_source: true,
             page_size: pageSize,
             page,
             no_totals: false,
           },
-        },
-        { timeout: 7000 }
-      );
-      const items =
-        resp?.data?.result?.items ||
-        resp?.data?.data?.result?.items ||
-        resp?.data?.data?.items ||
-        resp?.data?.items ||
-        [];
-      const metaSources = [
-        resp?.data?.result,
-        resp?.data?.data?.result,
-        resp?.data?.data,
-        resp?.data,
-      ];
-      for (const source of metaSources) {
-        if (!source || typeof source !== 'object') continue;
-        if (claimsInChannel === null && source.claims_in_channel !== undefined) {
-          const numeric = extractClaimsInChannelCount(claimId, source.claims_in_channel);
-          if (numeric !== null) claimsInChannel = numeric;
+        };
+        if (requireSource) {
+          params.params.has_source = true;
         }
-        if (totalItems === null && source.total_items !== undefined) {
-          const numeric = coerceNumericCount(source.total_items);
-          if (numeric !== null) totalItems = numeric;
+        const resp = await axios.post(ODYSEE_PROXY_URL, params, { timeout: 7000 });
+        const items =
+          resp?.data?.result?.items ||
+          resp?.data?.data?.result?.items ||
+          resp?.data?.data?.items ||
+          resp?.data?.items ||
+          [];
+        const metaSources = [
+          resp?.data?.result,
+          resp?.data?.data?.result,
+          resp?.data?.data,
+          resp?.data,
+        ];
+        for (const source of metaSources) {
+          if (!source || typeof source !== 'object') continue;
+          if (claimsInChannel === null && source.claims_in_channel !== undefined) {
+            const numeric = extractClaimsInChannelCount(claimId, source.claims_in_channel);
+            if (numeric !== null) claimsInChannel = numeric;
+          }
+          if (totalItems === null && source.total_items !== undefined) {
+            const numeric = coerceNumericCount(source.total_items);
+            if (numeric !== null) totalItems = numeric;
+          }
         }
+        if (!items || !items.length) break;
+        for (const item of items) {
+          const cid = item?.claim_id || item?.value?.claim_id;
+          if (!cid || seen.has(cid)) continue;
+          seen.add(cid);
+          if (claimsInChannel === null) {
+            const channelCount = extractChannelClaimCountFromItem(claimId, item);
+            if (channelCount !== null) claimsInChannel = channelCount;
+          }
+          const releaseRaw = item?.value?.release_time || item?.release_time || item?.timestamp || null;
+          const releaseMs = releaseRaw ? Number(releaseRaw) * 1000 : null;
+          streams.push({
+            claimId: cid,
+            releaseMs: Number.isFinite(releaseMs) ? releaseMs : null,
+            title: item?.value?.title || item?.meta?.title || '',
+            raw: item || {},
+          });
+          if (streams.length >= limit) break;
+        }
+        if (items.length < pageSize) break;
+        page += 1;
+      } catch (err) {
+        try {
+          console.error('[channel-analytics] claim_search failed', err.message);
+        } catch {}
+        break;
       }
-      if (!items || !items.length) break;
-      for (const item of items) {
-        const cid = item?.claim_id || item?.value?.claim_id;
-        if (!cid || seen.has(cid)) continue;
-        seen.add(cid);
-        if (claimsInChannel === null) {
-          const channelCount = extractChannelClaimCountFromItem(claimId, item);
-          if (channelCount !== null) claimsInChannel = channelCount;
-        }
-        const releaseRaw = item?.value?.release_time || item?.release_time || item?.timestamp || null;
-        const releaseMs = releaseRaw ? Number(releaseRaw) * 1000 : null;
-        streams.push({
-          claimId: cid,
-          releaseMs: Number.isFinite(releaseMs) ? releaseMs : null,
-          title: item?.value?.title || item?.meta?.title || '',
-          raw: item || {},
-        });
-        if (streams.length >= limit) break;
-      }
-      if (items.length < pageSize) break;
-      page += 1;
-    } catch (err) {
-      try {
-        console.error('[channel-analytics] claim_search failed', err.message);
-      } catch {}
-      break;
     }
+    const fallbackCount = streams.length;
+    const normalizedClaims = Number.isFinite(claimsInChannel) ? claimsInChannel : null;
+    const normalizedTotal = Number.isFinite(totalItems) ? totalItems : null;
+    return {
+      streams,
+      claimsInChannel: normalizedClaims ?? normalizedTotal ?? fallbackCount,
+      totalItems: normalizedTotal ?? normalizedClaims ?? fallbackCount,
+    };
   }
-  const fallbackCount = streams.length;
-  const normalizedClaims = Number.isFinite(claimsInChannel) ? claimsInChannel : null;
-  const normalizedTotal = Number.isFinite(totalItems) ? totalItems : null;
-  return {
-    streams,
-    claimsInChannel: normalizedClaims ?? normalizedTotal ?? fallbackCount,
-    totalItems: normalizedTotal ?? normalizedClaims ?? fallbackCount,
-  };
+
+  const primary = await runClaimSearch(true);
+  if (primary.streams.length || !CHANNEL_UPLOAD_ALLOW_SOURCELESS) {
+    return primary;
+  }
+  try {
+    console.warn('[channel-analytics] no uploads with sources, retrying without filter', {
+      channel: claimId,
+    });
+  } catch {}
+  return runClaimSearch(false);
 }
 
 function buildAuthHeaders(token, extras = {}) {

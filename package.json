@@ -44,6 +44,7 @@
   "dependencies": {
     "@ardrive/turbo-sdk": "^1.36.0",
     "@infisical/sdk": "^4.0.6",
+    "@modelcontextprotocol/sdk": "^1.24.1",
     "@primevue/themes": "^4.4.1",
     "@supabase/supabase-js": "^2.86.0",
     "@untitledui/icons": "^0.0.19",
