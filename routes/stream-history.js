@@ -246,6 +246,19 @@ function markSampleAppended(hist, sample) {
   hist.__pendingSamples.push(sample);
 }
 
+function markTipsTrimmed(hist, count) {
+  if (!hist || typeof hist !== 'object') return;
+  const amt = Number(count);
+  if (!Number.isFinite(amt) || amt <= 0) return;
+  hist.__tipsTrimmed = (hist.__tipsTrimmed || 0) + Math.floor(amt);
+}
+
+function markTipAppended(hist, tipEvent) {
+  if (!hist || typeof hist !== 'object') return;
+  if (!hist.__pendingTips) hist.__pendingTips = [];
+  hist.__pendingTips.push(tipEvent);
+}
+
 function markReplaceAll(hist) {
   if (!hist || typeof hist !== 'object') return;
   hist.__replaceAll = true;
@@ -256,6 +269,8 @@ function clearPersistenceMarkers(hist) {
   delete hist.__segmentsDirty;
   delete hist.__samplesTrimmed;
   delete hist.__pendingSamples;
+  delete hist.__tipsTrimmed;
+  delete hist.__pendingTips;
   delete hist.__replaceAll;
 }
 
@@ -263,7 +278,8 @@ function normalizeHistoryData(raw) {
   const base = raw && typeof raw === 'object' ? raw : {};
   const segments = Array.isArray(base.segments) ? base.segments.filter(Boolean) : [];
   const samples = Array.isArray(base.samples) ? base.samples.filter(Boolean) : [];
-  return { segments, samples };
+  const tipEvents = sanitizeTipEvents(base.tipEvents || base.tips || []);
+  return { segments, samples, tipEvents };
 }
 
 function ensureDir(p) {
@@ -275,8 +291,7 @@ function loadHistoryFromFile(filePath) {
     if (!fs.existsSync(filePath)) return { segments: [] };
     const j = JSON.parse(fs.readFileSync(filePath, 'utf8'));
     if (!j || typeof j !== 'object' || !Array.isArray(j.segments)) return { segments: [] };
-    if (!Array.isArray(j.samples)) j.samples = [];
-    return j;
+    return normalizeHistoryData(j);
   } catch {
     return { segments: [] };
   }
@@ -303,6 +318,17 @@ function endSegment(hist, ts) {
   }
 }
 
+function truncateTipEvents(hist, maxDays = 400) {
+  if (!hist || !Array.isArray(hist.tipEvents)) return;
+  try {
+    const cutoff = Date.now() - maxDays * 86400000;
+    const before = hist.tipEvents.length;
+    hist.tipEvents = hist.tipEvents.filter((evt) => Number(evt?.ts || 0) >= cutoff);
+    const removed = before - hist.tipEvents.length;
+    if (removed > 0) markTipsTrimmed(hist, removed);
+  } catch {}
+}
+
 function truncateSegments(hist, maxDays = 400) {
   if (STREAM_HISTORY_DISABLE_TRIM) return;
   try {
@@ -325,6 +351,7 @@ function truncateSegments(hist, maxDays = 400) {
         markSamplesTrimmed(hist, excess);
       }
     }
+    truncateTipEvents(hist, maxDays);
   } catch {}
 }
 
@@ -373,6 +400,75 @@ function splitSpanByDayTz(start, end, tzOffsetMinutes) {
     s = e;
   }
   return out;
+}
+
+function sanitizeTipEvents(rawTipEvents) {
+  if (!Array.isArray(rawTipEvents)) return [];
+  const events = rawTipEvents
+    .map((evt) => {
+      const ts = Number(evt?.ts);
+      if (!Number.isFinite(ts)) return null;
+      const normalized = { ts };
+      const amount = Number(evt?.amount);
+      if (Number.isFinite(amount) && amount > 0) normalized.amount = +amount.toFixed(6);
+      const usd = Number(evt?.usd);
+      if (Number.isFinite(usd) && usd > 0) normalized.usd = +usd.toFixed(2);
+      if (typeof evt?.source === 'string' && evt.source.trim()) {
+        normalized.source = evt.source.trim().slice(0, 64);
+      }
+      return normalized;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.ts - b.ts);
+  return events;
+}
+
+function normalizeTipEventPayload(rawEvent) {
+  if (!rawEvent || typeof rawEvent !== 'object') return null;
+  const nowTs = Date.now();
+  let ts = rawEvent.ts;
+  if (typeof ts === 'string' && ts.trim()) {
+    const parsed = Date.parse(ts);
+    if (Number.isFinite(parsed)) ts = parsed;
+  }
+  if (!Number.isFinite(Number(ts))) {
+    let iso = rawEvent.timestamp;
+    if (typeof iso === 'string' && iso.trim()) {
+      const parsed = Date.parse(iso);
+      if (Number.isFinite(parsed)) ts = parsed;
+    }
+  }
+  const tsNumber = Number(ts);
+  const normalizedTs = Number.isFinite(tsNumber) && tsNumber > 0 ? tsNumber : nowTs;
+  const normalized = { ts: normalizedTs };
+
+  const amountCandidates = [rawEvent.amount, rawEvent.amountAr, rawEvent.ar, rawEvent.credits];
+  for (const candidate of amountCandidates) {
+    const num = Number(candidate);
+    if (Number.isFinite(num) && num > 0) {
+      normalized.amount = +num.toFixed(6);
+      break;
+    }
+  }
+
+  const usdCandidates = [rawEvent.usd, rawEvent.amountUsd, rawEvent.usdValue];
+  for (const candidate of usdCandidates) {
+    const num = Number(candidate);
+    if (Number.isFinite(num) && num > 0) {
+      normalized.usd = +num.toFixed(2);
+      break;
+    }
+  }
+
+  const sourceFields = [rawEvent.source, rawEvent.type, rawEvent.origin];
+  for (const candidate of sourceFields) {
+    if (typeof candidate === 'string' && candidate.trim()) {
+      normalized.source = candidate.trim().slice(0, 64);
+      break;
+    }
+  }
+
+  return normalized;
 }
 
 function sanitizeSegments(rawSegments, nowTs) {
@@ -736,6 +832,7 @@ function makeEmptyAggregate(bucketStartEpoch, bucketPeriod, offsetMinutes = 0) {
     rangeEndEpoch,
     rangeStartDate: formatLocalDateYMD(bucketStartEpoch, offsetMinutes),
     rangeEndDate: formatLocalDateYMD(rangeEndEpoch, offsetMinutes),
+    tipCount: 0,
   };
 }
 
@@ -752,7 +849,7 @@ function aggregateDailyBuckets(hist, spanDays = 30, tzOffsetMinutes = 0, options
   const fmtYMD = (dayStart) => formatLocalDateYMD(dayStart, offset);
   for (let i = span - 1; i >= 0; i--) {
     const dayStart = todayStart - i * 86400000;
-    buckets.push({ key: dayStart, label: fmtYMD(dayStart), ms: 0, vsec: 0, lsec: 0, peak: 0 });
+    buckets.push({ key: dayStart, label: fmtYMD(dayStart), ms: 0, vsec: 0, lsec: 0, peak: 0, tips: 0 });
   }
   if (!buckets.length) return [];
   const bmap = new Map(buckets.map((b) => [b.key, b]));
@@ -769,6 +866,7 @@ function aggregateDailyBuckets(hist, spanDays = 30, tzOffsetMinutes = 0, options
 
   const segments = sanitizeSegments(hist.segments, clampNow);
   const samples = sortSamples(hist.samples);
+  const tipEvents = sanitizeTipEvents(hist.tipEvents || []);
   const liveIntervals = buildLiveIntervals(samples, clampNow);
   const paddedIntervals = extendIntervalsWithSegments(liveIntervals, segments, {
     maxPadMs: 2 * 3600000,
@@ -826,6 +924,15 @@ function aggregateDailyBuckets(hist, spanDays = 30, tzOffsetMinutes = 0, options
     }
   }
 
+  for (const evt of tipEvents) {
+    const ts = Number(evt?.ts || 0);
+    if (!Number.isFinite(ts)) continue;
+    if (ts < rangeStart || ts >= rangeEnd) continue;
+    const dayKey = dayStartUTC(ts, offset);
+    const bucket = bmap.get(dayKey);
+    if (bucket) bucket.tips = (bucket.tips || 0) + 1;
+  }
+
   return buckets.map((b) => ({
     date: b.label,
     epoch: b.key,
@@ -840,6 +947,7 @@ function aggregateDailyBuckets(hist, spanDays = 30, tzOffsetMinutes = 0, options
     rangeEndEpoch: computeRangeEndEpoch(b.key, 'day', offset),
     rangeStartDate: formatLocalDateYMD(b.key, offset),
     rangeEndDate: formatLocalDateYMD(b.key, offset),
+    tipCount: Number(b.tips || 0),
   }));
 }
 
@@ -934,6 +1042,7 @@ function aggregate(hist, period = 'day', span = 30, tzOffsetMinutes = 0, options
       peakViewers: 0,
       firstActiveEpoch: null,
       lastActiveEpoch: null,
+      tipCount: 0,
     };
 
     const hoursVal = Number(item?.hours || 0);
@@ -958,6 +1067,11 @@ function aggregate(hist, period = 'day', span = 30, tzOffsetMinutes = 0, options
     const peakCandidate = Number(item?.peakViewers || 0);
     if (Number.isFinite(peakCandidate)) {
       entry.peakViewers = Math.max(entry.peakViewers, peakCandidate);
+    }
+
+    const tipCountVal = Number(item?.tipCount || 0);
+    if (Number.isFinite(tipCountVal) && tipCountVal > 0) {
+      entry.tipCount = (entry.tipCount || 0) + tipCountVal;
     }
 
     map.set(key, entry);
@@ -986,6 +1100,7 @@ function aggregate(hist, period = 'day', span = 30, tzOffsetMinutes = 0, options
         rangeEndEpoch: entry.rangeEndEpoch,
         rangeStartDate: formatLocalDateYMD(entry.rangeStartEpoch, offset),
         rangeEndDate: formatLocalDateYMD(entry.rangeEndEpoch, offset),
+        tipCount: Number(entry.tipCount || 0),
       };
     });
 
@@ -1186,6 +1301,10 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     return redisKey(ns, 'stream-history:segments');
   }
 
+  function redisTipsKey(ns) {
+    return redisKey(ns, 'stream-history:tips');
+  }
+
   function redisLegacyKey(ns) {
     return redisKey(ns, 'stream-history-data');
   }
@@ -1235,6 +1354,40 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     }
   }
 
+  async function loadRedisTipsList(adminNs) {
+    if (!redis || !adminNs) return { items: [], total: 0, truncated: false };
+    try {
+      const tipsKey = redisTipsKey(adminNs);
+      const total = await redis.llen(tipsKey);
+      if (!Number.isFinite(total) || total <= 0) {
+        return { items: [], total: 0, truncated: false };
+      }
+      const chunkSize = Math.max(1, STREAM_HISTORY_REDIS_CHUNK_SIZE);
+      const fetchLimit =
+        STREAM_HISTORY_REDIS_MAX_FETCH && STREAM_HISTORY_REDIS_MAX_FETCH > 0
+          ? Math.min(total, STREAM_HISTORY_REDIS_MAX_FETCH)
+          : total;
+      const startIndex = Math.max(0, total - fetchLimit);
+      const items = [];
+      for (let cursor = startIndex; cursor < total; cursor += chunkSize) {
+        const end = Math.min(total - 1, cursor + chunkSize - 1);
+        const chunk = await redis.lrange(tipsKey, cursor, end);
+        if (!Array.isArray(chunk) || !chunk.length) continue;
+        for (const payload of chunk) {
+          const parsed = decryptJSON(payload, null);
+          if (parsed && typeof parsed === 'object' && Number.isFinite(Number(parsed.ts))) {
+            items.push(parsed);
+          }
+        }
+      }
+      const truncated = startIndex > 0 || fetchLimit < total;
+      return { items, total, truncated };
+    } catch (err) {
+      console.error('[stream-history][redis] failed to load tips', err);
+      return { items: [], total: 0, truncated: false };
+    }
+  }
+
   function getHistoryFilePath(adminNs) {
     if (!adminNs) return DATA_FILE;
     const safe = adminNs.replace(/[^a-zA-Z0-9_-]/g, '');
@@ -1248,13 +1401,17 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     const data = normalizeHistoryData(hist);
     const samplesKey = redisSamplesKey(adminNs);
     const segmentsKey = redisSegmentsKey(adminNs);
+    const tipsKey = redisTipsKey(adminNs);
     const legacyKey = redisLegacyKey(adminNs);
     const pendingSamples = Array.isArray(hist.__pendingSamples) ? hist.__pendingSamples : [];
+    const pendingTips = Array.isArray(hist.__pendingTips) ? hist.__pendingTips : [];
     const replaceAll = opts.forceReplace === true || hist.__replaceAll === true;
     const segmentsDirty =
       replaceAll || opts.forceSegments === true || hist.__segmentsDirty === true;
     const trimmedCount = replaceAll ? 0 : Number(hist.__samplesTrimmed || 0);
+    const trimmedTips = replaceAll ? 0 : Number(hist.__tipsTrimmed || 0);
     const totalSamples = Array.isArray(data.samples) ? data.samples.length : 0;
+    const totalTips = Array.isArray(data.tipEvents) ? data.tipEvents.length : 0;
     let wrote = false;
 
     try {
@@ -1300,12 +1457,42 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       }
 
       if (replaceAll) {
+        await redis.del(tipsKey);
+        if (totalTips > 0) {
+          const payloads = data.tipEvents.map((tip) => encryptJSON(tip)).filter(Boolean);
+          if (payloads.length) {
+            await redis.rpush(tipsKey, ...payloads);
+            wrote = true;
+          }
+        } else {
+          wrote = true;
+        }
+      } else {
+        if (pendingTips.length) {
+          const payloads = pendingTips.map((tip) => encryptJSON(tip)).filter(Boolean);
+          if (payloads.length) {
+            await redis.rpush(tipsKey, ...payloads);
+            wrote = true;
+          }
+        }
+        if (trimmedTips > 0) {
+          if (totalTips > 0) {
+            await redis.ltrim(tipsKey, -totalTips, -1);
+          } else {
+            await redis.del(tipsKey);
+          }
+          wrote = true;
+        }
+      }
+
+      if (replaceAll) {
         await redis.del(legacyKey);
       }
 
       if (storeTtlSeconds && storeTtlSeconds > 0 && wrote) {
         await redis.expire(samplesKey, storeTtlSeconds);
         await redis.expire(segmentsKey, storeTtlSeconds);
+        await redis.expire(tipsKey, storeTtlSeconds);
       }
 
       return true;
@@ -1319,6 +1506,7 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     try {
       const segmentsRaw = await redis.get(redisSegmentsKey(adminNs));
       const { items: sampleItems, total: totalSamples } = await loadRedisSamplesList(adminNs);
+      const { items: tipItems } = await loadRedisTipsList(adminNs);
       let segments = [];
       if (segmentsRaw) {
         const parsed = decryptJSON(segmentsRaw, null);
@@ -1342,7 +1530,7 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
         }
       }
 
-      return normalizeHistoryData({ segments, samples });
+      return normalizeHistoryData({ segments, samples, tipEvents: tipItems });
     } catch {
       return { segments: [], samples: [] };
     }
@@ -1475,6 +1663,7 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
         const hist = j && typeof j === 'object' ? j : { segments: [], samples: [] };
         if (!Array.isArray(hist.segments)) hist.segments = [];
         if (!Array.isArray(hist.samples)) hist.samples = [];
+        hist.tipEvents = sanitizeTipEvents(hist.tipEvents || []);
 
         closeStaleOpenSegment(hist);
         clearPersistenceMarkers(hist);
@@ -1522,6 +1711,24 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       clearPersistenceMarkers(data);
     }
     return true;
+  }
+
+  async function appendTipEventToHistory(reqLike, rawTipEvent, opts = {}) {
+    if (!reqLike) return false;
+    const tipEvent = normalizeTipEventPayload(rawTipEvent);
+    if (!tipEvent) return false;
+    try {
+      const hist = await loadHistoryNS(reqLike);
+      if (!Array.isArray(hist.tipEvents)) hist.tipEvents = [];
+      hist.tipEvents.push(tipEvent);
+      markTipAppended(hist, tipEvent);
+      truncateSegments(hist);
+      const syncOpts = { source: opts.source || 'tip-event' };
+      if (opts.claimId) syncOpts.claimId = opts.claimId;
+      return await saveHistoryNS(reqLike, hist, syncOpts);
+    } catch {
+      return false;
+    }
   }
 
   const DEFAULT_POLL_EVERY_MS = 5000;
@@ -2215,6 +2422,16 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     computePerformance: (hist, period, span, tz, options = {}) =>
       computePerformance(hist, period, span, tz, options),
     loadConfig: async (reqLike) => loadConfigNS(reqLike),
+    recordTipEvent: async (adminNs, rawTipEvent, opts = {}) => {
+      const effectiveNs = adminNs || null;
+      const reqLike = opts.reqLike || makeReqLike(effectiveNs, opts.pubNs || null);
+      if (effectiveNs && !reqLike.__forceWalletHash) {
+        reqLike.__forceWalletHash = effectiveNs;
+      }
+      const syncOpts = { source: opts.source || 'tip-event' };
+      if (opts.claimId) syncOpts.claimId = opts.claimId;
+      return appendTipEventToHistory(reqLike, rawTipEvent, syncOpts);
+    },
   };
 
   if (!app.__shBootstrapScheduled) {

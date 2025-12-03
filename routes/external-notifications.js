@@ -958,7 +958,7 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       }
       const schema = z.object({
         title: z.string().max(150).optional(),
-        description: z.string().max(200).optional(),
+        description: z.string().max(120).optional(),
         channelUrl: z.string().url().optional(),
         imageUrl: z
           .string()
@@ -1164,7 +1164,7 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       }
       const schema = z.object({
         title: z.string().max(150).optional(),
-        description: z.string().max(200).optional(),
+        description: z.string().max(120).optional(),
         channelUrl: z.string().url().optional(),
         imageUrl: z
           .string()
@@ -1219,7 +1219,7 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
           payload.description ||
           draft?.description ||
           'This is a test live notification to verify configuration.'
-        ).slice(0, 200),
+        ).slice(0, 120),
         channelUrl: payload.channelUrl || draft?.channelUrl || undefined,
         signature: payload.signature || draft?.signature || undefined,
         discordWebhook: payload.discordWebhook || draft?.discordWebhook || undefined,
@@ -1361,7 +1361,7 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       }
       const schema = z.object({
         title: z.string().max(150).optional(),
-        description: z.string().max(200).optional(),
+        description: z.string().max(120).optional(),
         channelUrl: z.string().url().optional(),
         imageUrl: z
           .string()
