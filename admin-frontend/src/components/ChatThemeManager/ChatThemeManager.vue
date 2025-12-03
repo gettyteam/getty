@@ -1,7 +1,7 @@
 <template>
   <div class="chat-theme-manager">
     <OsCard class="mt-4" aria-labelledby="chat-theme-heading">
-      <h3 id="chat-theme-heading" class="os-card-title mb-3 flex items-center gap-3">
+      <h3 id="chat-theme-heading" class="os-card-title mb-3 flex items-center gap-2">
         <HeaderIcon>
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -162,7 +162,7 @@
     </OsCard>
 
     <OsCard class="mt-4" aria-labelledby="chat-theme-custom-heading">
-      <h3 id="chat-theme-custom-heading" class="os-card-title mb-3 flex items-center gap-3">
+      <h3 id="chat-theme-custom-heading" class="os-card-title mb-3 flex items-center gap-2">
         <HeaderIcon>
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -426,8 +426,8 @@
                 creatingVariant
                   ? t('commonSaving') || 'Saving…'
                   : variantMode === 'overwrite' && !variantModeDuplicate
-                  ? t('chatThemeOverwrite') || 'Overwrite'
-                  : t('chatThemeSave') || 'Save'
+                    ? t('chatThemeOverwrite') || 'Overwrite'
+                    : t('chatThemeSave') || 'Save'
               }}
             </button>
           </div>

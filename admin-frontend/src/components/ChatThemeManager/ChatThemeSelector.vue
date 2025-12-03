@@ -1,8 +1,7 @@
 <template>
   <div class="chat-theme-selector">
-    <!-- Theme selection + preview -->
     <OsCard class="mt-4" aria-labelledby="chat-theme-heading">
-      <h3 id="chat-theme-heading" class="os-card-title mb-3 flex items-center gap-3">
+      <h3 id="chat-theme-heading" class="os-card-title mb-3 flex items-center gap-2">
         <span>{{ t('chatThemeLabel') || 'Chat theme:' }}</span>
         <span v-if="recentlyUpdated" class="badge-updated">{{
           t('updatedBadge') || 'Updated'

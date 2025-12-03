@@ -218,16 +218,18 @@
         <div class="tip-goal-head">
           <HeaderIcon>
             <svg
-              class="os-icon"
+              xmlns="http://www.w3.org/2000/svg"
+              width="14"
+              height="14"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               stroke-width="2"
               stroke-linecap="round"
               stroke-linejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="12" y1="3" x2="12" y2="21" />
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
             </svg>
           </HeaderIcon>
           <h3 id="tip-goal-widget-title" class="tip-goal-title">{{ t('obsIntegration') }}</h3>
@@ -420,18 +422,18 @@ async function loadTipGoal() {
         typeof data.monthlyGoal === 'number'
           ? data.monthlyGoal
           : typeof data.goalAmount === 'number'
-          ? data.goalAmount
-          : undefined;
+            ? data.goalAmount
+            : undefined;
       if (typeof incomingGoal === 'number') form.goalAmount = incomingGoal;
 
       const incomingCurrent =
         typeof data.currentAmount === 'number'
           ? data.currentAmount
           : typeof data.startingAmount === 'number'
-          ? data.startingAmount
-          : typeof data.currentTips === 'number'
-          ? data.currentTips
-          : undefined;
+            ? data.startingAmount
+            : typeof data.currentTips === 'number'
+              ? data.currentTips
+              : undefined;
       if (typeof incomingCurrent === 'number') form.startingAmount = incomingCurrent;
 
       if (typeof data.theme === 'string') form.theme = data.theme;

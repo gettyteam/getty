@@ -278,22 +278,21 @@
 
       <div class="notif-group-box" aria-labelledby="notif-audio-title">
         <div class="notif-group-head">
-          <HeaderIcon>
+          <span class="icon-badge" aria-hidden="true">
             <svg
-              width="14"
-              height="14"
+              class="os-icon"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               stroke-width="2"
               stroke-linecap="round"
               stroke-linejoin="round">
-              <path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6l-5 4H4a1 1 0 0 0-1 1Z" />
-              <path d="M16 12h2" />
-              <path d="M16 8h2" />
-              <path d="M16 16h2" />
+              <path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6l-5 4H4a1 1 0 0 0-1 1Z"></path>
+              <path d="M16 12h2"></path>
+              <path d="M16 8h2"></path>
+              <path d="M16 16h2"></path>
             </svg>
-          </HeaderIcon>
+          </span>
           <h3 id="notif-audio-title" class="notif-group-title">{{ t('customAudioTitle') }}</h3>
         </div>
         <div class="notif-setting-item is-vertical">
@@ -339,24 +338,23 @@
 
       <div class="notif-group-box" aria-labelledby="notif-colors-title">
         <div class="notif-group-head">
-          <HeaderIcon>
+          <span class="icon-badge" aria-hidden="true">
             <svg
-              width="14"
-              height="14"
+              class="os-icon"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               stroke-width="2"
               stroke-linecap="round"
               stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M14.31 8l5.74 9.94" />
-              <path d="M9.69 8h11.48" />
-              <path d="M7.38 12l5.74-9.94" />
-              <path d="M9.69 16L3.95 6.06" />
-              <path d="M14.31 16H2.83" />
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M14.31 8l5.74 9.94"></path>
+              <path d="M9.69 8h11.48"></path>
+              <path d="M7.38 12l5.74-9.94"></path>
+              <path d="M9.69 16L3.95 6.06"></path>
+              <path d="M14.31 16H2.83"></path>
             </svg>
-          </HeaderIcon>
+          </span>
           <h3 id="notif-colors-title" class="notif-group-title">
             {{ t('colorCustomizationTitle') }}
           </h3>

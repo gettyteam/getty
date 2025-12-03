@@ -17,6 +17,37 @@
     color: var(--text-secondary);
     opacity: 0.7;
   }
+
+  [multiple]:focus,
+  [type='date']:focus,
+  [type='datetime-local']:focus,
+  [type='email']:focus,
+  [type='month']:focus,
+  [type='number']:focus,
+  [type='password']:focus,
+  [type='search']:focus,
+  [type='tel']:focus,
+  [type='text']:focus,
+  [type='time']:focus,
+  [type='url']:focus,
+  [type='week']:focus,
+  input:where(:not([type])):focus,
+  select:focus,
+  textarea:focus {
+    outline: 1px solid transparent;
+    outline-offset: 1px;
+    --tw-ring-inset: var(--tw-empty, /*!*/ /*!*/);
+    --tw-ring-offset-width: 0px;
+    --tw-ring-offset-color: #fff;
+    --tw-ring-color: #777777;
+    --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width)
+      var(--tw-ring-offset-color);
+    --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) #777777;
+    border-color: var(--border-color);
+    box-shadow:
+      var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #00000000);
+  }
+
   html.dark input:not([type='checkbox']):not([type='radio']):not([type='range']),
   html.dark select,
   html.dark textarea {
@@ -36,18 +67,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.75rem;
-    height: 1.75rem;
-    border-radius: 0.3rem;
-    background: #111;
-    color: #fff;
     line-height: 1;
-    font-size: 0.75rem;
     flex-shrink: 0;
-  }
-  html.dark .icon-badge {
-    background: #fff;
-    color: #111;
   }
   .icon-badge svg {
     stroke: currentColor;
@@ -134,7 +155,9 @@
     @apply bg-neutral-100 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 font-medium border border-neutral-200 dark:border-neutral-800;
   }
   .os-icon {
-    @apply w-4 h-4 text-neutral-400 group-hover:text-neutral-700 dark:text-neutral-500 dark:group-hover:text-neutral-200;
+    @apply w-4 h-4;
+    color: currentColor;
+    stroke: currentColor;
   }
   .panel-surface {
     @apply backdrop-blur-sm border border-[var(--card-border)] rounded-xl p-5 shadow-sm transition-all;
@@ -163,13 +186,19 @@
   .input,
   .select,
   .textarea {
-    @apply border border-[var(--card-border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 transition;
+    @apply border border-[var(--card-border)] rounded-lg px-3 py-2 text-sm focus:outline-none transition;
     background: color-mix(in srgb, var(--card-bg) 60%, transparent);
-    --tw-ring-color: rgba(148, 163, 184, 0.5);
   }
   .input:focus,
   .select:focus,
   .textarea:focus {
+    outline: 1px solid transparent;
+    outline-offset: 1px;
+    --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width)
+      var(--tw-ring-offset-color);
+    --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) #777777;
+    box-shadow:
+      var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #00000000);
   }
 
   .btn {
@@ -323,8 +352,7 @@
     background: color-mix(in srgb, var(--card-bg) 60%, transparent);
   }
   .input-group input {
-    @apply flex-1 px-3 py-2 text-sm focus:outline-none focus:ring-2;
-    --tw-ring-color: rgba(148, 163, 184, 0.5);
+    @apply flex-1 px-3 py-2 text-sm border-0 rounded-none;
   }
   .input-group button {
     @apply btn-primary px-4 py-2 rounded-none shadow-none border-l border-[var(--card-border)];
@@ -573,7 +601,9 @@
     border-radius: 999px;
     border: 1px solid var(--card-border);
     background-color: color-mix(in srgb, var(--card-bg) 75%, transparent);
-    transition: background-color 120ms ease-out, box-shadow 120ms ease-out;
+    transition:
+      background-color 120ms ease-out,
+      box-shadow 120ms ease-out;
     flex-shrink: 0;
     margin: 0;
   }
@@ -591,7 +621,10 @@
     height: 14px;
     border-radius: 50%;
     background-color: #fff;
-    transition: transform 120ms ease-out, left 120ms ease-out, background-color 120ms ease-out;
+    transition:
+      transform 120ms ease-out,
+      left 120ms ease-out,
+      background-color 120ms ease-out;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
   }
   input[type='checkbox'].checkbox:hover {

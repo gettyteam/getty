@@ -1,8 +1,15 @@
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
+const LanguageConfig = require('./language-config');
 const IS_TEST = process.env.NODE_ENV === 'test';
 const __VERBOSE_EXT_NOTIF = process.env.GETTY_VERBOSE_EXTERNAL_NOTIFICATIONS === '1';
+const ODYSEE_BRAND_NAME = 'Odysee';
+const ODYSEE_BRAND_ICON = 'https://odysee.com/public/favicon_128.png';
+const languageConfig = new LanguageConfig();
+const SHARED_I18N_DIR = path.join(process.cwd(), 'shared-i18n');
+const SHARED_LOCALE_CACHE = new Map();
+const DEFAULT_CHANNEL_UPLOAD_PREFIX = 'The channel has uploaded new content:';
 
 let tenantConfigLib = null;
 function ensureTenantLib() {
@@ -14,6 +21,35 @@ function ensureTenantLib() {
     }
   }
   return tenantConfigLib;
+}
+
+function loadSharedLocale(lang) {
+  if (!lang) return null;
+  if (SHARED_LOCALE_CACHE.has(lang)) return SHARED_LOCALE_CACHE.get(lang);
+  try {
+    const filePath = path.join(SHARED_I18N_DIR, `${lang}.json`);
+    const raw = fs.readFileSync(filePath, 'utf8');
+    const parsed = JSON.parse(raw);
+    SHARED_LOCALE_CACHE.set(lang, parsed);
+    return parsed;
+  } catch {
+    SHARED_LOCALE_CACHE.set(lang, null);
+    return null;
+  }
+}
+
+function getChannelUploadContentPrefix() {
+  let lang = 'en';
+  try {
+    lang = languageConfig.getLanguage() || 'en';
+  } catch {}
+  const preferred = loadSharedLocale(lang);
+  const fallback = lang === 'en' ? preferred : loadSharedLocale('en');
+  return (
+    preferred?.channelUploadDiscordContentPrefix ||
+    fallback?.channelUploadDiscordContentPrefix ||
+    DEFAULT_CHANNEL_UPLOAD_PREFIX
+  );
 }
 
 class ExternalNotifications {
@@ -43,6 +79,13 @@ class ExternalNotifications {
     this.liveTelegramBotToken = process.env.LIVE_TELEGRAM_BOT_TOKEN || '';
     this.liveTelegramChatId = process.env.LIVE_TELEGRAM_CHAT_ID || '';
     this.template = 'New tip from {from}: {amount} AR (${usd}) - "{message}"';
+
+    this.channelUploadDiscordWebhook = process.env.CHANNEL_UPLOAD_DISCORD_WEBHOOK || '';
+    this.channelUploadClaimId = process.env.CHANNEL_UPLOAD_CLAIM_ID || '';
+    this.channelUploadNotifiedClaimIds = [];
+    this.channelUploadLastPublishedAt = null;
+    this.channelUploadLastUrl = '';
+    this.channelUploadLastTitle = '';
 
     this.loadConfig();
     this.setupListeners();
@@ -96,8 +139,35 @@ class ExternalNotifications {
         template: this.template,
         hasLiveDiscord: !!this.liveDiscordWebhook,
         hasLiveTelegram: !!(this.liveTelegramBotToken && this.liveTelegramChatId),
+        hasChannelUpload: !!(this.channelUploadDiscordWebhook && this.channelUploadClaimId),
+        channelUploadStatus: {
+          hasDiscord: !!this.channelUploadDiscordWebhook,
+          claimId: this.channelUploadClaimId || '',
+          lastPublishedAt: this.channelUploadLastPublishedAt,
+          lastUrl: this.channelUploadLastUrl || '',
+          lastTitle: this.channelUploadLastTitle || '',
+        },
       },
       lastUpdated: new Date().toISOString(),
+    };
+  }
+
+  getConfigSnapshot() {
+    return {
+      discordWebhook: this.discordWebhook,
+      telegramBotToken: this.telegramBotToken,
+      telegramChatId: this.telegramChatId,
+      template: this.template,
+      liveDiscordWebhook: this.liveDiscordWebhook,
+      liveTelegramBotToken: this.liveTelegramBotToken,
+      liveTelegramChatId: this.liveTelegramChatId,
+      channelUploadDiscordWebhook: this.channelUploadDiscordWebhook,
+      channelUploadClaimId: this.channelUploadClaimId,
+      channelUploadNotifiedClaimIds: this.channelUploadNotifiedClaimIds,
+      channelUploadLastPublishedAt: this.channelUploadLastPublishedAt,
+      channelUploadLastUrl: this.channelUploadLastUrl,
+      channelUploadLastTitle: this.channelUploadLastTitle,
+      lastTips: this.lastTips,
     };
   }
 
@@ -156,6 +226,16 @@ class ExternalNotifications {
         if (!this.liveTelegramChatId) this.liveTelegramChatId = config.liveTelegramChatId || '';
         this.template = config.template || this.template;
         this.lastTips = config.lastTips || [];
+        if (!this.channelUploadDiscordWebhook)
+          this.channelUploadDiscordWebhook = config.channelUploadDiscordWebhook || '';
+        if (!this.channelUploadClaimId) this.channelUploadClaimId = config.channelUploadClaimId || '';
+        if (Array.isArray(config.channelUploadNotifiedClaimIds)) {
+          this.channelUploadNotifiedClaimIds = config.channelUploadNotifiedClaimIds;
+        }
+        if (config.channelUploadLastPublishedAt)
+          this.channelUploadLastPublishedAt = config.channelUploadLastPublishedAt;
+        if (config.channelUploadLastUrl) this.channelUploadLastUrl = config.channelUploadLastUrl;
+        if (config.channelUploadLastTitle) this.channelUploadLastTitle = config.channelUploadLastTitle;
 
         if (__VERBOSE_EXT_NOTIF) {
           try {
@@ -195,6 +275,22 @@ class ExternalNotifications {
       if (!process.env.LIVE_TELEGRAM_CHAT_ID && typeof config.liveTelegramChatId === 'string') {
         this.liveTelegramChatId = config.liveTelegramChatId;
       }
+      if (
+        !process.env.CHANNEL_UPLOAD_DISCORD_WEBHOOK &&
+        typeof config.channelUploadDiscordWebhook === 'string'
+      ) {
+        this.channelUploadDiscordWebhook = config.channelUploadDiscordWebhook;
+      }
+      if (typeof config.channelUploadClaimId === 'string') {
+        this.channelUploadClaimId = config.channelUploadClaimId;
+      }
+      if (Array.isArray(config.channelUploadNotifiedClaimIds)) {
+        this.channelUploadNotifiedClaimIds = config.channelUploadNotifiedClaimIds;
+      }
+      if (config.channelUploadLastPublishedAt)
+        this.channelUploadLastPublishedAt = config.channelUploadLastPublishedAt;
+      if (config.channelUploadLastUrl) this.channelUploadLastUrl = config.channelUploadLastUrl;
+      if (config.channelUploadLastTitle) this.channelUploadLastTitle = config.channelUploadLastTitle;
       this.template = config.template;
 
       const persistSecrets =
@@ -203,10 +299,16 @@ class ExternalNotifications {
         !process.env.TELEGRAM_CHAT_ID &&
         !process.env.LIVE_DISCORD_WEBHOOK &&
         !process.env.LIVE_TELEGRAM_BOT_TOKEN &&
-        !process.env.LIVE_TELEGRAM_CHAT_ID;
+        !process.env.LIVE_TELEGRAM_CHAT_ID &&
+        !process.env.CHANNEL_UPLOAD_DISCORD_WEBHOOK;
       const filePayload = {
         template: this.template,
         lastTips: this.lastTips,
+        channelUploadClaimId: this.channelUploadClaimId,
+        channelUploadNotifiedClaimIds: this.channelUploadNotifiedClaimIds,
+        channelUploadLastPublishedAt: this.channelUploadLastPublishedAt,
+        channelUploadLastUrl: this.channelUploadLastUrl,
+        channelUploadLastTitle: this.channelUploadLastTitle,
       };
       if (persistSecrets) {
         filePayload.discordWebhook = this.discordWebhook;
@@ -215,6 +317,7 @@ class ExternalNotifications {
         filePayload.liveDiscordWebhook = this.liveDiscordWebhook;
         filePayload.liveTelegramBotToken = this.liveTelegramBotToken;
         filePayload.liveTelegramChatId = this.liveTelegramChatId;
+        filePayload.channelUploadDiscordWebhook = this.channelUploadDiscordWebhook;
       }
 
       fs.writeFileSync(this.configFile, JSON.stringify(filePayload, null, 2));
@@ -552,7 +655,7 @@ class ExternalNotifications {
           siteName || providerIcon
             ? { name: siteName || 'Odysee', icon_url: providerIcon || undefined }
             : undefined,
-        title: (title || ogTitle || 'We are live on Odysee! 🎬').slice(0, 150),
+        title: (title || ogTitle || 'We are live on Odysee! 📢').slice(0, 150),
         description: (description || '').slice(0, 200),
         url: channelUrl,
         color: colorFromTheme,
@@ -649,6 +752,58 @@ class ExternalNotifications {
     }
   }
 
+  async sendChannelUploadToDiscord(payload, overrideWebhook) {
+    const webhook = overrideWebhook || this.channelUploadDiscordWebhook;
+    if (!webhook) return false;
+    try {
+      const safePayload = payload || {};
+      const footerText = formatChannelUploadFooter(
+        safePayload.channelHandle,
+        safePayload.publishTimestamp
+      );
+      const contentParts = [getChannelUploadContentPrefix()];
+      if (safePayload.url) contentParts.push(safePayload.url);
+      const embed = {
+        author: { name: ODYSEE_BRAND_NAME, icon_url: ODYSEE_BRAND_ICON },
+        title: truncateDiscordText(safePayload.title || 'New upload on Odysee', 256),
+        description: truncateDiscordText(safePayload.description || '', 400) || undefined,
+        url: safePayload.url || undefined,
+        color: 0xf97316,
+        image: safePayload.thumbnailUrl ? { url: safePayload.thumbnailUrl } : undefined,
+        thumbnail: { url: ODYSEE_BRAND_ICON },
+        footer: footerText ? { text: truncateDiscordText(footerText, 2048) } : undefined,
+        timestamp: safePayload.publishTimestamp
+          ? new Date(safePayload.publishTimestamp).toISOString()
+          : undefined,
+      };
+
+      const body = {
+        username: 'getty',
+        content: contentParts.join(' ').trim(),
+        embeds: [embed],
+        allowed_mentions: { parse: [] },
+      };
+
+      const res = await axios.post(webhook, body, {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 7000,
+        validateStatus: () => true,
+      });
+      if (res.status >= 400) {
+        console.error(
+          '[ExternalNotifications] Channel upload Discord error:',
+          res.status,
+          res.data && (res.data.message || JSON.stringify(res.data)).slice(0, 200)
+        );
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.error('[ExternalNotifications] Channel upload Discord error:', e.message || e);
+      return false;
+    }
+  }
+
   async sendLiveWithConfig(cfg, payload) {
     try {
       let ok = false;
@@ -678,6 +833,41 @@ class ExternalNotifications {
 function escapeHtml(str) {
   const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
   return String(str).replace(/[&<>"']/g, (m) => map[m] || m);
+}
+
+function truncateDiscordText(text, limit) {
+  if (!text) return '';
+  const str = String(text).trim();
+  if (str.length <= limit) return str;
+  return `${str.slice(0, Math.max(0, limit - 1))}…`;
+}
+
+function formatUploadFooter(ts) {
+  try {
+    const date = typeof ts === 'number' ? new Date(ts) : new Date(String(ts));
+    if (!Number.isFinite(date.getTime())) return 'Published';
+    return `Published ${date.toUTCString()}`;
+  } catch {
+    return 'Published';
+  }
+}
+
+function normalizeFooterHandle(handle) {
+  if (!handle || typeof handle !== 'string') return '';
+  const trimmed = handle.trim();
+  if (!trimmed) return '';
+  return trimmed.startsWith('@') ? trimmed : `@${trimmed.replace(/^@/, '')}`;
+}
+
+function formatChannelUploadFooter(channelHandle, publishTs) {
+  const pieces = [];
+  const normalizedHandle = normalizeFooterHandle(channelHandle);
+  if (normalizedHandle) pieces.push(normalizedHandle);
+  if (publishTs) {
+    const published = formatUploadFooter(publishTs);
+    if (published) pieces.push(published);
+  }
+  return pieces.join(' • ');
 }
 
 module.exports = ExternalNotifications;

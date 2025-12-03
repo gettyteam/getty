@@ -58,7 +58,28 @@
         </button>
       </div>
     </OsCard>
-    <OsCard class="mt-4" :title="t('obsIntegration')">
+    <OsCard class="mt-4">
+      <template #header>
+        <div class="flex items-center gap-2">
+          <HeaderIcon>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+          </HeaderIcon>
+          <h3 class="font-semibold text-[15px]">{{ t('obsIntegration') }}</h3>
+        </div>
+      </template>
       <div class="form-group">
         <div class="flex flex-wrap items-center gap-3">
           <span class="label mb-0">{{ t('lastTipWidgetUrl') }}</span>
@@ -80,6 +101,7 @@ import { MAX_TITLE_LEN, isArweaveAddress } from '../utils/validation';
 import { useWalletSession } from '../composables/useWalletSession';
 import { usePublicToken } from '../composables/usePublicToken';
 import OsCard from './os/OsCard.vue';
+import HeaderIcon from './shared/HeaderIcon.vue';
 
 const original = reactive({ snapshot: null });
 
