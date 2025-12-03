@@ -59,6 +59,9 @@ function onClick() {
   cursor: pointer;
   background: transparent;
   border: none;
+  border-left-width: 1px;
+  border-left-style: solid;
+  border-left-color: var(--card-border, #cbd5e1);
   transition: color 0.15s ease-in-out;
 }
 .eye-toggle:hover,

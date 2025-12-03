@@ -33,7 +33,9 @@
   align-items: center;
   justify-content: center;
   gap: 0;
-  transition: background 0.15s ease, opacity 0.15s ease;
+  transition:
+    background 0.15s ease,
+    opacity 0.15s ease;
 }
 
 .notif-root .btn-icon:not(:disabled):hover {
@@ -95,7 +97,7 @@
 .notif-group-head {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding-bottom: 10px;
   margin-bottom: 8px;
   border-bottom: 1px solid var(--border, var(--border-color));
@@ -320,7 +322,9 @@
   border: 1px solid var(--border, var(--border-color, #d0d0d0));
   border-radius: 9999px;
   position: relative;
-  transition: background 0.2s ease, border-color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
   display: inline-flex;
   align-items: center;
 }
@@ -350,12 +354,18 @@
 .gif-preview-box {
   --gif-transition: 340ms;
   --gif-pos-shadow-strength: 42%;
-  transition: flex-direction var(--gif-transition) ease, height var(--gif-transition) ease,
-    width var(--gif-transition) ease, background 300ms ease, box-shadow var(--gif-transition) ease;
+  transition:
+    flex-direction var(--gif-transition) ease,
+    height var(--gif-transition) ease,
+    width var(--gif-transition) ease,
+    background 300ms ease,
+    box-shadow var(--gif-transition) ease;
 }
 .gif-preview-box .gif-media,
 .gif-preview-box .notif-demo {
-  transition: flex-basis var(--gif-transition) ease, transform var(--gif-transition) ease,
+  transition:
+    flex-basis var(--gif-transition) ease,
+    transform var(--gif-transition) ease,
     opacity calc(var(--gif-transition) - 80ms) ease;
 }
 .gif-preview-box.pos-right {
@@ -377,8 +387,8 @@
   order: 1;
 }
 .gif-preview-box.pos-left {
-  box-shadow: -4px 0 6px -3px color-mix(in srgb, var(--accent, #553fee)
-        var(--gif-pos-shadow-strength), transparent);
+  box-shadow: -4px 0 6px -3px
+    color-mix(in srgb, var(--accent, #553fee) var(--gif-pos-shadow-strength), transparent);
 }
 .gif-preview-box.pos-top,
 .gif-preview-box.pos-bottom {

@@ -14,167 +14,186 @@
       <h3 class="mb-2 font-semibold">{{ t('liveAnnouncementDiscordTitle') }}</h3>
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="label">Title</label>
-          <input class="input" v-model="form.title" :maxlength="150" />
-          <small class="small">{{ form.title.length }}/150</small>
+          <form @submit.prevent action="#">
+            <label class="label">Title</label>
+            <input class="input" v-model="form.title" :maxlength="150" />
+            <small class="small">{{ form.title.length }}/150</small>
 
-          <label class="label mt-3">Description</label>
-          <textarea class="input desc-fixed" v-model="form.description" :maxlength="200" />
-          <div class="mt-1 flex gap-2 items-center flex-wrap">
-            <small class="small">{{ form.description.length }}/200</small>
-            <select class="input max-w-[260px]" :value="''" @change="onPreset($event)">
-              <option value="" disabled>{{ t('livePresetPick') }}</option>
-              <option :value="t('livePresetLiveOnOdysee')">
-                {{ t('livePresetLiveOnOdysee') }}
-              </option>
-              <option :value="t('livePresetJoinNow')">{{ t('livePresetJoinNow') }}</option>
-              <option :value="t('livePresetNewStream')">{{ t('livePresetNewStream') }}</option>
-            </select>
-          </div>
-
-          <label class="label mt-3">Channel URL</label>
-          <input class="input" v-model="form.channelUrl" placeholder="https://odysee.com/@your" />
-          <small v-if="errors.channelUrl" class="small text-red-700">{{ errors.channelUrl }}</small>
-
-          <div class="mt-3 grid grid-cols-1 gap-2">
-            <div>
-              <label class="label">{{ t('liveClaimIdLabel') }}</label>
-              <div class="flex gap-2 items-center">
-                <input class="input" v-model="form.livePostClaimId" placeholder="b6f0a7..." />
-                <button
-                  type="button"
-                  class="btn"
-                  :disabled="!form.livePostClaimId || resolving"
-                  @click="resolveFromClaimId">
-                  {{ resolving ? t('resolving') : t('liveClaimIdFill') }}
-                </button>
-              </div>
-              <small
-                class="small"
-                :class="claimMatchState === 'mismatch' ? 'text-red-700' : 'opacity-80'">
-                <template v-if="!form.channelUrl && form.livePostClaimId">{{
-                  t('liveClaimIdNoUrlHint')
-                }}</template>
-                <template
-                  v-else-if="form.channelUrl && form.livePostClaimId && claimMatchState === 'match'"
-                  >{{ t('liveClaimIdMatch') }}</template
-                >
-                <template
-                  v-else-if="
-                    form.channelUrl && form.livePostClaimId && claimMatchState === 'mismatch'
-                  "
-                  >{{ t('liveClaimIdMismatch') }}</template
-                >
-                <template v-else>{{ t('liveClaimIdHelp') }}</template>
-              </small>
+            <label class="label mt-3">Description</label>
+            <textarea class="input desc-fixed" v-model="form.description" :maxlength="200" />
+            <div class="mt-1 flex gap-2 items-center flex-wrap">
+              <small class="small">{{ form.description.length }}/200</small>
+              <select class="input max-w-[260px]" :value="''" @change="onPreset($event)">
+                <option value="" disabled>{{ t('livePresetPick') }}</option>
+                <option :value="t('livePresetLiveOnOdysee')">
+                  {{ t('livePresetLiveOnOdysee') }}
+                </option>
+                <option :value="t('livePresetJoinNow')">{{ t('livePresetJoinNow') }}</option>
+                <option :value="t('livePresetNewStream')">{{ t('livePresetNewStream') }}</option>
+              </select>
             </div>
-          </div>
 
-          <label class="label mt-3">Signature</label>
-          <input class="input" v-model="form.signature" :maxlength="24" placeholder="@streamer" />
-          <small class="small">{{ form.signature.length }}/24</small>
+            <label class="label mt-3">Channel URL</label>
+            <input class="input" v-model="form.channelUrl" placeholder="https://odysee.com/@your" />
+            <small v-if="errors.channelUrl" class="small text-red-700">{{
+              errors.channelUrl
+            }}</small>
 
-          <label class="label mt-3">Discord Webhook URL (override)</label>
-          <div class="input-group">
+            <div class="mt-3 grid grid-cols-1 gap-2">
+              <div>
+                <label class="label">{{ t('liveClaimIdLabel') }}</label>
+                <div class="flex gap-2 items-center">
+                  <input class="input" v-model="form.livePostClaimId" placeholder="b6f0a7..." />
+                  <button
+                    type="button"
+                    class="btn"
+                    :disabled="!form.livePostClaimId || resolving"
+                    @click="resolveFromClaimId">
+                    {{ resolving ? t('resolving') : t('liveClaimIdFill') }}
+                  </button>
+                </div>
+                <small
+                  class="small"
+                  :class="claimMatchState === 'mismatch' ? 'text-red-700' : 'opacity-80'">
+                  <template v-if="!form.channelUrl && form.livePostClaimId">{{
+                    t('liveClaimIdNoUrlHint')
+                  }}</template>
+                  <template
+                    v-else-if="
+                      form.channelUrl && form.livePostClaimId && claimMatchState === 'match'
+                    "
+                    >{{ t('liveClaimIdMatch') }}</template
+                  >
+                  <template
+                    v-else-if="
+                      form.channelUrl && form.livePostClaimId && claimMatchState === 'mismatch'
+                    "
+                    >{{ t('liveClaimIdMismatch') }}</template
+                  >
+                  <template v-else>{{ t('liveClaimIdHelp') }}</template>
+                </small>
+              </div>
+            </div>
+
+            <label class="label mt-3">Signature</label>
             <input
               class="input"
-              :type="reveal.discord ? 'text' : 'password'"
-              v-model="form.discordWebhook"
-              placeholder="https://discord.com/api/webhooks/..."
+              name="signature"
+              v-model="form.signature"
+              :maxlength="24"
+              placeholder="@streamer"
               autocomplete="off" />
-            <button
-              type="button"
-              @click="onToggleRevealDiscord()"
-              :aria-pressed="reveal.discord ? 'true' : 'false'"
-              :aria-label="reveal.discord ? 'Hide' : 'Show'">
-              <svg
-                v-if="!reveal.discord"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                width="16"
-                height="16"
-                fill="none"
-                stroke="#fff"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round">
-                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-              <svg
-                v-else
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                width="16"
-                height="16"
-                fill="none"
-                stroke="#fff"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round">
-                <path
-                  d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.77 21.77 0 0 1 5.06-6.94" />
-                <path d="M1 1l22 22" />
-                <path d="M9.88 9.88A3 3 0 0 0 12 15a3 3 0 0 0 3-3 3 3 0 0 0-.24-1.17" />
-              </svg>
-            </button>
-          </div>
-          <small class="small">{{ t('liveDiscordOverrideHint') }}</small>
-          <small
-            v-if="serverHasOverride && !form.discordWebhook"
-            class="small opacity-70 block mt-1">
-            {{ t('liveOverrideSetOnServer') || 'An override is saved on the server (hidden).' }}
-          </small>
+            <small class="small">{{ form.signature.length }}/24</small>
 
-          <div class="mt-3 flex items-center gap-3 flex-wrap">
-            <div class="inline-flex items-center gap-2">
+            <label class="label mt-3">Discord Webhook URL (override)</label>
+            <div class="input-group discord-override">
+              <input
+                class="input"
+                :type="reveal.discord ? 'text' : 'password'"
+                v-model="form.discordWebhook"
+                placeholder="https://discord.com/api/webhooks/..."
+                autocomplete="new-password" />
               <button
                 type="button"
-                class="switch"
-                :aria-pressed="String(form.auto)"
-                :title="t('liveAutoPrereqClaimId')"
-                @click="form.auto = !form.auto">
-                <span class="knob"></span>
+                @click="onToggleRevealDiscord()"
+                :aria-pressed="reveal.discord ? 'true' : 'false'"
+                :aria-label="reveal.discord ? 'Hide' : 'Show'">
+                <svg
+                  v-if="!reveal.discord"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="#fff"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round">
+                  <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+                <svg
+                  v-else
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="#fff"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round">
+                  <path
+                    d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.77 21.77 0 0 1 5.06-6.94" />
+                  <path d="M1 1l22 22" />
+                  <path d="M9.88 9.88A3 3 0 0 0 12 15a3 3 0 0 0 3-3 3 3 0 0 0-.24-1.17" />
+                </svg>
               </button>
-              <span class="small">{{ t('liveAutoSendOnLive') }}</span>
             </div>
-          </div>
-          <div class="mt-2">
-            <Alert>
-              <Rocket class="h-5 w-5 alert-icon" />
-              <div class="flex-1">
-                <AlertTitle class="mb-0.5">{{ t('liveAutoAlertTitle') }}</AlertTitle>
-                <AlertDescription>{{ t('liveAutoPrereqClaimId') }}</AlertDescription>
+            <small class="small">{{ t('liveDiscordOverrideHint') }}</small>
+            <small
+              v-if="serverHasOverride && !form.discordWebhook"
+              class="small opacity-70 block mt-1">
+              {{ t('liveOverrideSetOnServer') || 'An override is saved on the server (hidden).' }}
+            </small>
+
+            <div class="mt-3 flex items-center gap-3 flex-wrap">
+              <div class="inline-flex items-center gap-2">
+                <button
+                  type="button"
+                  class="switch"
+                  :aria-pressed="String(form.auto)"
+                  :title="t('liveAutoPrereqClaimId')"
+                  @click="form.auto = !form.auto">
+                  <span class="knob"></span>
+                </button>
+                <span class="small">{{ t('liveAutoSendOnLive') }}</span>
               </div>
-            </Alert>
-          </div>
+            </div>
+            <div class="mt-2">
+              <Alert>
+                <Rocket class="h-5 w-5 alert-icon" />
+                <div class="flex-1">
+                  <AlertTitle class="mb-0.5">{{ t('liveAutoAlertTitle') }}</AlertTitle>
+                  <AlertDescription>{{ t('liveAutoPrereqClaimId') }}</AlertDescription>
+                </div>
+              </Alert>
+            </div>
 
-          <div class="mt-2 small" :class="targets.length ? 'opacity-80' : 'text-red-700'">
-            <template v-if="targets.length">
-              {{ t('liveTargetsLabel') }} {{ targets.join(', ') }}
-            </template>
-            <template v-else>
-              {{ t('liveTargetsNone') }}
-            </template>
-          </div>
+            <div class="mt-2 small" :class="targets.length ? 'opacity-80' : 'text-red-700'">
+              <template v-if="targets.length">
+                {{ t('liveTargetsLabel') }} {{ targets.join(', ') }}
+              </template>
+              <template v-else>
+                {{ t('liveTargetsNone') }}
+              </template>
+            </div>
 
-          <div class="mt-3 flex gap-2 flex-wrap">
-            <button class="btn" :disabled="sending || hasErrors" @click="send">
-              {{ sending ? t('commonSending') : t('commonSend') }}
-            </button>
-            <button class="btn" @click="genPreview">{{ t('commonPreview') }}</button>
-            <button class="btn" @click="testSend">{{ t('liveTestSendNow') }}</button>
-            <button class="btn" @click="saveServerDraft" :disabled="saving">
-              {{ saving ? t('commonSaving') : t('commonSaveDraft') }}
-            </button>
-            <button class="btn" @click="loadServerDraft">{{ t('commonLoadDraft') }}</button>
-          </div>
+            <div class="mt-3 flex gap-2 flex-wrap">
+              <button type="button" class="btn" :disabled="sending || hasErrors" @click="send">
+                {{ sending ? t('commonSending') : t('commonSend') }}
+              </button>
+              <button type="button" class="btn" @click="genPreview">
+                {{ t('commonPreview') }}
+              </button>
+              <button type="button" class="btn" @click="testSend">
+                {{ t('liveTestSendNow') }}
+              </button>
+              <button type="button" class="btn" @click="saveServerDraft" :disabled="saving">
+                {{ saving ? t('commonSaving') : t('commonSaveDraft') }}
+              </button>
+              <button type="button" class="btn" @click="loadServerDraft">
+                {{ t('commonLoadDraft') }}
+              </button>
+            </div>
+          </form>
         </div>
 
         <div>
-          <div class="label">Post Preview</div>
-          <div class="p-3 border rounded-os bg-[var(--bg-card)] text-[var(--text-primary)]">
-            <div class="text-lg font-semibold">{{ form.title || 'We are live on Odysee! 🎬' }}</div>
+          <div class="label">{{ t('livePostPreviewLabel') }}</div>
+          <div
+            class="p-3 border border-[var(--border-color)] rounded-os bg-[var(--bg-card)] text-[var(--text-primary)]">
+            <div class="text-lg font-semibold">{{ form.title || 'We are live on Odysee! 📢' }}</div>
             <div class="mt-1">{{ form.description }}</div>
             <div
               v-if="previewLoading"
@@ -590,10 +609,13 @@ async function resolveFromClaimId() {
 .switch {
   width: 38px;
   height: 22px;
-  background: var(--card-border);
+  background: var(--bg-chat, #f3f3f3);
+  border: 1px solid var(--border, var(--border-color, #d0d0d0));
   border-radius: 9999px;
   position: relative;
-  transition: background 0.2s ease;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
   display: inline-flex;
   align-items: center;
 }
@@ -606,12 +628,18 @@ async function resolveFromClaimId() {
   background: #fff;
   border-radius: 9999px;
   transition: transform 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 .switch[aria-pressed='true'] {
-  background: #553fee;
+  background: var(--switch-color, #553fee);
+  border-color: var(--switch-color, #553fee);
 }
 .switch[aria-pressed='true'] .knob {
   transform: translateX(16px);
+}
+.switch:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--switch-color, #553fee) 35%, transparent);
 }
 
 .odysee-spinner {

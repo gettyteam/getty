@@ -3,7 +3,25 @@
     <div class="ann-tab-panel">
       <div class="ann-card">
         <div class="ann-card-header">
-          <h3 class="ann-card-title">{{ t('announcementSettings') }}</h3>
+          <h3 class="ann-card-title">
+            <span class="icon-badge" aria-hidden="true">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path
+                  d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c0 .66.26 1.3.73 1.77.47.47 1.11.73 1.77.73H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"></path>
+              </svg>
+            </span>
+            {{ t('announcementSettings') }}
+          </h3>
         </div>
         <div class="ann-grid">
           <div class="ann-form-group">
@@ -90,7 +108,26 @@
 
       <div class="ann-card">
         <div class="ann-card-header">
-          <h3 class="ann-card-title">{{ t('announcementAddMessage') }}</h3>
+          <h3 class="ann-card-title">
+            <span class="icon-badge" aria-hidden="true">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+              </svg>
+            </span>
+            {{ t('announcementAddMessage') }}
+          </h3>
         </div>
         <form @submit.prevent="handleAddMessage">
           <div class="ann-section">
@@ -423,7 +460,24 @@
 
       <div class="ann-card">
         <div class="ann-card-header">
-          <h3 class="ann-card-title">{{ t('announcementBannerPreview') }}</h3>
+          <h3 class="ann-card-title">
+            <span class="icon-badge" aria-hidden="true">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12Z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </span>
+            {{ t('announcementBannerPreview') }}
+          </h3>
           <span class="ann-badge">{{ messages.length }}</span>
         </div>
         <div v-if="!messages.length" class="ann-alert info">
@@ -438,7 +492,7 @@
                   class="switch"
                   :aria-pressed="String(m.enabled)"
                   :aria-label="t('announcementEnabled')"
-                  @click="(m.enabled = !m.enabled), toggleMessageEnabled(m)">
+                  @click="((m.enabled = !m.enabled), toggleMessageEnabled(m))">
                   <span class="knob"></span>
                 </button>
                 <span class="ann-enabled-label">{{ t('announcementEnabled') }}</span>
@@ -561,7 +615,25 @@
 
       <div class="ann-card">
         <div class="ann-card-header">
-          <h3 class="ann-card-title">{{ t('obsIntegration') }}</h3>
+          <h3 class="ann-card-title">
+            <span class="icon-badge" aria-hidden="true">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+              </svg>
+            </span>
+            {{ t('obsIntegration') }}
+          </h3>
         </div>
         <div class="ann-form-group">
           <label class="ann-form-label mb-1">{{ t('announcementWidgetUrlLabel') }}</label>
@@ -1377,7 +1449,7 @@ function escapeHTML(str = '') {
         '>': '&gt;',
         '"': '&quot;',
         "'": '&#39;',
-      }[c] || c)
+      })[c] || c
   );
 }
 function stripDangerous(html) {

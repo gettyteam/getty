@@ -35,7 +35,7 @@
 .events-group-head {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding-bottom: 10px;
   margin-bottom: 8px;
   border-bottom: 1px solid var(--border, var(--border-color));
@@ -180,7 +180,9 @@
   border: 1px solid var(--border, var(--border-color, #d0d0d0));
   border-radius: 9999px;
   position: relative;
-  transition: background 0.2s ease, border-color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
   display: inline-flex;
   align-items: center;
 }

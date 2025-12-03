@@ -8,6 +8,14 @@ const GLOBAL_EXT_NOTIF_PATH = path.join(
 );
 const { isOpenTestMode } = require('../lib/test-open-mode');
 const { getStorage } = require('../lib/supabase-storage');
+const {
+  CHANNEL_UPLOAD_HISTORY_LIMIT,
+  normalizeChannelClaimId,
+  fetchRecentChannelUploads,
+  sanitizeUploadUrl,
+  buildUploadPayload,
+} = require('../services/channel-upload-utils');
+const { resolveChannelClaimId } = require('../services/channel-analytics');
 
 function registerExternalNotificationsRoutes(app, externalNotifications, limiter, options = {}) {
   const store = options.store || null;
@@ -16,6 +24,101 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
   const shouldRequireSession = (requireSessionFlag || hostedWithRedis) && !isOpenTestMode();
   const requireAdminWrites =
     (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1' || hostedWithRedis) && !isOpenTestMode();
+  const CHANNEL_UPLOAD_SET = 'getty:channel-upload:namespaces';
+
+  function mergeChannelUploadDefaults(data, snapshot) {
+    const next = data && typeof data === 'object' ? { ...data } : {};
+    if (!snapshot || typeof snapshot !== 'object') return next;
+
+    if (next.channelUploadDiscordWebhook === undefined && snapshot.channelUploadDiscordWebhook) {
+      next.channelUploadDiscordWebhook = snapshot.channelUploadDiscordWebhook;
+    }
+    if (next.channelUploadClaimId === undefined && snapshot.channelUploadClaimId) {
+      next.channelUploadClaimId = snapshot.channelUploadClaimId;
+    }
+    if (
+      !Array.isArray(next.channelUploadNotifiedClaimIds) &&
+      Array.isArray(snapshot.channelUploadNotifiedClaimIds)
+    ) {
+      next.channelUploadNotifiedClaimIds = snapshot.channelUploadNotifiedClaimIds;
+    }
+    if (next.channelUploadLastPublishedAt === undefined && snapshot.channelUploadLastPublishedAt) {
+      next.channelUploadLastPublishedAt = snapshot.channelUploadLastPublishedAt;
+    }
+    if (next.channelUploadLastUrl === undefined && snapshot.channelUploadLastUrl) {
+      next.channelUploadLastUrl = snapshot.channelUploadLastUrl;
+    }
+    if (next.channelUploadLastTitle === undefined && snapshot.channelUploadLastTitle) {
+      next.channelUploadLastTitle = snapshot.channelUploadLastTitle;
+    }
+
+    return next;
+  }
+
+  function snapshotGlobalExternalConfig() {
+    const snapshot = externalNotifications.getConfigSnapshot();
+    return {
+      discordWebhook: snapshot.discordWebhook || '',
+      telegramBotToken: snapshot.telegramBotToken || '',
+      telegramChatId: snapshot.telegramChatId || '',
+      template: snapshot.template || '',
+      liveDiscordWebhook: snapshot.liveDiscordWebhook || '',
+      liveTelegramBotToken: snapshot.liveTelegramBotToken || '',
+      liveTelegramChatId: snapshot.liveTelegramChatId || '',
+      channelUploadDiscordWebhook: snapshot.channelUploadDiscordWebhook || '',
+      channelUploadClaimId: snapshot.channelUploadClaimId || '',
+      channelUploadNotifiedClaimIds: snapshot.channelUploadNotifiedClaimIds || [],
+      channelUploadLastPublishedAt: snapshot.channelUploadLastPublishedAt || null,
+      channelUploadLastUrl: snapshot.channelUploadLastUrl || '',
+      channelUploadLastTitle: snapshot.channelUploadLastTitle || '',
+      lastTips: snapshot.lastTips || [],
+    };
+  }
+
+  async function loadExternalConfig(reqLike, explicitNs) {
+    const ns = explicitNs || reqLike?.ns?.admin || reqLike?.ns?.pub || null;
+    const snapshot = snapshotGlobalExternalConfig();
+    // Always try to load from storage/file first, as it is the source of truth
+    try {
+      const loaded = await loadTenantConfig(
+        reqLike,
+        store,
+        GLOBAL_EXT_NOTIF_PATH,
+        'external-notifications-config.json'
+      );
+      if (loaded && loaded.data) return mergeChannelUploadDefaults(loaded.data, snapshot);
+    } catch {}
+
+    if (store && ns) {
+      try {
+        const raw = await store.get(ns, 'external-notifications-config', null);
+        if (
+          raw &&
+          typeof raw === 'object' &&
+          raw.__version &&
+          raw.data &&
+          typeof raw.data === 'object'
+        ) {
+          return mergeChannelUploadDefaults(raw.data, snapshot);
+        }
+        if (raw) return mergeChannelUploadDefaults(raw, snapshot);
+      } catch {}
+    }
+    return snapshot;
+  }
+
+  function dedupeAndTrimClaims(list) {
+    const seen = new Set();
+    const out = [];
+    for (const entry of list || []) {
+      const normalized = typeof entry === 'string' ? entry.trim().toLowerCase() : '';
+      if (!normalized || seen.has(normalized)) continue;
+      seen.add(normalized);
+      out.push(normalized);
+      if (out.length >= CHANNEL_UPLOAD_HISTORY_LIMIT) break;
+    }
+    return out;
+  }
 
   app.post('/api/external-notifications', limiter, async (req, res) => {
     try {
@@ -54,13 +157,15 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       const body = req.body || {};
       const norm = (v) => (typeof v === 'string' ? v.trim() : undefined);
       const normalized = {
-        discordWebhook: norm(body.discordWebhook), // '' means clear
-        telegramBotToken: norm(body.telegramBotToken), // '' means clear
-        telegramChatId: norm(body.telegramChatId), // '' means clear
+        discordWebhook: norm(body.discordWebhook),
+        telegramBotToken: norm(body.telegramBotToken),
+        telegramChatId: norm(body.telegramChatId),
         template: typeof body.template === 'string' ? body.template : undefined,
-        liveDiscordWebhook: norm(body.liveDiscordWebhook), // '' means clear
-        liveTelegramBotToken: norm(body.liveTelegramBotToken), // '' means clear
-        liveTelegramChatId: norm(body.liveTelegramChatId), // '' means clear
+        liveDiscordWebhook: norm(body.liveDiscordWebhook),
+        liveTelegramBotToken: norm(body.liveTelegramBotToken),
+        liveTelegramChatId: norm(body.liveTelegramChatId),
+        channelUploadDiscordWebhook: norm(body.channelUploadDiscordWebhook),
+        channelUploadClaimId: norm(body.channelUploadClaimId),
       };
       const schema = z.object({
         discordWebhook: z.union([z.string().url(), z.literal('')]).optional(),
@@ -70,6 +175,8 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         liveDiscordWebhook: z.union([z.string().url(), z.literal('')]).optional(),
         liveTelegramBotToken: z.union([z.string(), z.literal('')]).optional(),
         liveTelegramChatId: z.union([z.string(), z.literal('')]).optional(),
+        channelUploadDiscordWebhook: z.union([z.string().url(), z.literal('')]).optional(),
+        channelUploadClaimId: z.string().optional(),
       });
       const parsed = schema.safeParse(normalized);
       if (!parsed.success)
@@ -82,7 +189,17 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         liveDiscordWebhook,
         liveTelegramBotToken,
         liveTelegramChatId,
+        channelUploadDiscordWebhook,
+        channelUploadClaimId,
       } = parsed.data;
+
+      let resolvedClaimId = channelUploadClaimId;
+      if (resolvedClaimId && resolvedClaimId.startsWith('@')) {
+        try {
+          const r = await resolveChannelClaimId(resolvedClaimId);
+          if (r) resolvedClaimId = r;
+        } catch {}
+      }
 
       let ns = req?.ns?.admin || req?.ns?.pub || null;
       const tenantDebug = process.env.GETTY_TENANT_DEBUG === '1';
@@ -150,6 +267,22 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
           typeof liveTelegramChatId === 'string'
             ? liveTelegramChatId
             : existingData.liveTelegramChatId || '',
+        channelUploadDiscordWebhook:
+          typeof channelUploadDiscordWebhook === 'string'
+            ? channelUploadDiscordWebhook
+            : existingData.channelUploadDiscordWebhook || '',
+        channelUploadClaimId:
+          typeof resolvedClaimId === 'string'
+            ? resolvedClaimId
+            : existingData.channelUploadClaimId || '',
+        channelUploadNotifiedClaimIds: Array.isArray(
+          existingData.channelUploadNotifiedClaimIds
+        )
+          ? existingData.channelUploadNotifiedClaimIds
+          : [],
+        channelUploadLastPublishedAt: existingData.channelUploadLastPublishedAt || null,
+        channelUploadLastUrl: existingData.channelUploadLastUrl || '',
+        channelUploadLastTitle: existingData.channelUploadLastTitle || '',
       };
 
       if (ns) {
@@ -257,6 +390,22 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
               liveDiscordWebhook: '',
               liveTelegramBotToken: '',
               liveTelegramChatId: '',
+              hasChannelUpload:
+                !!(
+                  cfg.channelUploadDiscordWebhook &&
+                  String(cfg.channelUploadDiscordWebhook).trim() &&
+                  cfg.channelUploadClaimId &&
+                  String(cfg.channelUploadClaimId).trim()
+                ),
+              channelUpload: {
+                hasDiscordWebhook: !!(
+                  cfg.channelUploadDiscordWebhook && String(cfg.channelUploadDiscordWebhook).trim()
+                ),
+                claimId: cfg.channelUploadClaimId || '',
+                lastPublishedAt: cfg.channelUploadLastPublishedAt || null,
+                lastTitle: cfg.channelUploadLastTitle || '',
+                lastUrl: cfg.channelUploadLastUrl || '',
+              },
             },
             meta: wrapperMeta,
             lastUpdated: (wrapperMeta && wrapperMeta.updatedAt) || new Date().toISOString(),
@@ -356,6 +505,35 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         liveDiscordWebhook: '',
         liveTelegramBotToken: '',
         liveTelegramChatId: '',
+        hasChannelUpload:
+          !!(
+            (status.config?.channelUploadStatus?.hasDiscord ||
+              externalNotifications.channelUploadDiscordWebhook) &&
+            (status.config?.channelUploadStatus?.claimId ||
+              externalNotifications.channelUploadClaimId)
+          ),
+        channelUpload: {
+          hasDiscordWebhook: !!(
+            externalNotifications.channelUploadDiscordWebhook ||
+            status.config?.channelUploadStatus?.hasDiscord
+          ),
+          claimId:
+            status.config?.channelUploadStatus?.claimId ||
+            externalNotifications.channelUploadClaimId ||
+            '',
+          lastPublishedAt:
+            status.config?.channelUploadStatus?.lastPublishedAt ||
+            externalNotifications.channelUploadLastPublishedAt ||
+            null,
+          lastTitle:
+            status.config?.channelUploadStatus?.lastTitle ||
+            externalNotifications.channelUploadLastTitle ||
+            '',
+          lastUrl:
+            status.config?.channelUploadStatus?.lastUrl ||
+            externalNotifications.channelUploadLastUrl ||
+            '',
+        },
       },
       lastUpdated: status.lastUpdated,
     };
@@ -375,6 +553,7 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         'liveTelegramBotToken',
         'telegramChatId',
         'liveTelegramChatId',
+        'channelUploadDiscordWebhook',
       ]);
       if (!allowed.has(field))
         return res.status(400).json({ success: false, error: 'invalid_field' });
@@ -418,6 +597,265 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       return res.json({ success: true, field, value });
     } catch {
       return res.status(500).json({ success: false, error: 'reveal_failed' });
+    }
+  });
+
+  app.get('/api/external-notifications/channel-upload', async (req, res) => {
+    try {
+      if (shouldRequireSession) {
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
+      const cfg = await loadExternalConfig(req);
+      const hasDiscord = !!(
+        cfg.channelUploadDiscordWebhook && String(cfg.channelUploadDiscordWebhook).trim()
+      );
+      const sanitized = {
+        discordWebhook: '',
+        hasDiscordWebhook: hasDiscord,
+        channelClaimId: cfg.channelUploadClaimId || '',
+        lastPublishedAt: cfg.channelUploadLastPublishedAt || null,
+        lastTitle: cfg.channelUploadLastTitle || '',
+        lastUrl: sanitizeUploadUrl(cfg.channelUploadLastUrl || ''),
+        sentCount: Array.isArray(cfg.channelUploadNotifiedClaimIds)
+          ? cfg.channelUploadNotifiedClaimIds.length
+          : 0,
+      };
+      res.json({ success: true, config: sanitized });
+    } catch (e) {
+      console.error('[channel-upload] load failed', e?.message || e);
+      res.status(500).json({ success: false, error: 'internal_error' });
+    }
+  });
+
+  app.post('/api/external-notifications/channel-upload/test', limiter, async (req, res) => {
+    try {
+      if (shouldRequireSession) {
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
+      if (requireAdminWrites) {
+        const isAdmin = !!(req?.auth && req.auth.isAdmin);
+        if (!isAdmin) return res.status(401).json({ success: false, error: 'admin_required' });
+      }
+
+      const cfg = await loadExternalConfig(req);
+      const webhook = cfg.channelUploadDiscordWebhook;
+      const claimId = cfg.channelUploadClaimId;
+
+      if (!webhook || !claimId) {
+        return res.status(400).json({ success: false, error: 'not_configured' });
+      }
+
+      const uploads = await fetchRecentChannelUploads(claimId, 1);
+      if (!uploads.length) {
+        return res.status(400).json({ success: false, error: 'no_uploads_found' });
+      }
+
+      const latest = uploads[0];
+      const payload = {
+        title: `[TEST] ${latest.title}`,
+        description: latest.description,
+        url: latest.url,
+        thumbnailUrl: latest.thumbnailUrl,
+        publishTimestamp: latest.releaseMs,
+      };
+
+      const ok = await externalNotifications.sendChannelUploadToDiscord(payload, webhook);
+      if (ok) {
+        res.json({ success: true });
+      } else {
+        res.status(500).json({ success: false, error: 'send_failed' });
+      }
+    } catch (e) {
+      console.error('[channel-upload] test failed', e?.message || e);
+      res.status(500).json({ success: false, error: 'internal_error' });
+    }
+  });
+
+  app.post('/api/external-notifications/channel-upload/replay', limiter, async (req, res) => {
+    try {
+      if (shouldRequireSession) {
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
+      if (requireAdminWrites) {
+        const isAdmin = !!(req?.auth && req.auth.isAdmin);
+        if (!isAdmin) return res.status(401).json({ success: false, error: 'admin_required' });
+      }
+
+      const body = req.body || {};
+      const forceClaimId =
+        typeof body.forceClaimId === 'string' && body.forceClaimId.trim()
+          ? body.forceClaimId.trim().toLowerCase()
+          : null;
+
+      const cfg = await loadExternalConfig(req);
+      const webhook = cfg.channelUploadDiscordWebhook;
+      const claimId = cfg.channelUploadClaimId;
+
+      if (!webhook || !claimId) {
+        return res.status(400).json({ success: false, error: 'not_configured' });
+      }
+
+      const uploads = await fetchRecentChannelUploads(claimId, 8);
+      if (!uploads.length) {
+        return res.status(400).json({ success: false, error: 'no_uploads_found' });
+      }
+
+      let target = null;
+      if (forceClaimId) {
+        target = uploads.find((upload) => upload.claimId.toLowerCase() === forceClaimId) || null;
+      }
+      if (!target) target = uploads[0];
+
+      const payload = buildUploadPayload(target);
+      if (!payload) {
+        return res.status(500).json({ success: false, error: 'invalid_payload' });
+      }
+
+      const ok = await externalNotifications.sendChannelUploadToDiscord(payload, webhook);
+      if (!ok) {
+        return res.status(500).json({ success: false, error: 'send_failed' });
+      }
+
+      const history = Array.isArray(cfg.channelUploadNotifiedClaimIds)
+        ? cfg.channelUploadNotifiedClaimIds
+        : [];
+      cfg.channelUploadNotifiedClaimIds = dedupeAndTrimClaims([target.claimId, ...history]);
+      cfg.channelUploadLastPublishedAt = target.releaseMs
+        ? new Date(target.releaseMs).toISOString()
+        : null;
+      cfg.channelUploadLastTitle = target.title || '';
+      cfg.channelUploadLastUrl = target.url || '';
+
+      if (req?.ns?.admin || req?.ns?.pub) {
+        await saveTenantConfig(
+          req,
+          store,
+          GLOBAL_EXT_NOTIF_PATH,
+          'external-notifications-config.json',
+          cfg
+        );
+      } else {
+        await externalNotifications.saveConfig(cfg);
+      }
+
+      res.json({ success: true, claimId: target.claimId, title: target.title || '' });
+    } catch (e) {
+      console.error('[channel-upload] replay failed', e?.message || e);
+      res.status(500).json({ success: false, error: 'internal_error' });
+    }
+  });
+
+  app.post('/api/external-notifications/channel-upload', limiter, async (req, res) => {
+    try {
+      if (shouldRequireSession) {
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
+      if (requireAdminWrites) {
+        const isAdmin = !!(req?.auth && req.auth.isAdmin);
+        if (!isAdmin) return res.status(401).json({ success: false, error: 'admin_required' });
+      }
+      const body = req.body || {};
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      const webhookProvided = Object.prototype.hasOwnProperty.call(body, 'discordWebhook');
+      const claimProvided = Object.prototype.hasOwnProperty.call(body, 'channelClaimId');
+
+      let nextWebhook;
+      if (webhookProvided) {
+        nextWebhook = typeof body.discordWebhook === 'string' ? body.discordWebhook.trim() : '';
+        if (nextWebhook && !/^https?:\/\//i.test(nextWebhook)) {
+          return res.status(400).json({ success: false, error: 'invalid_webhook' });
+        }
+      }
+
+      let nextClaimId;
+      if (claimProvided) {
+        nextClaimId = normalizeChannelClaimId(body.channelClaimId);
+        if (body.channelClaimId && !nextClaimId) {
+          const resolved = await resolveChannelClaimId(body.channelClaimId);
+          if (resolved) {
+            nextClaimId = resolved;
+          } else {
+            return res.status(400).json({ success: false, error: 'invalid_claim_id' });
+          }
+        }
+      }
+
+      const existingData = await loadExternalConfig(req);
+      const merged = { ...existingData };
+
+      if (webhookProvided) merged.channelUploadDiscordWebhook = nextWebhook || '';
+      if (claimProvided) merged.channelUploadClaimId = nextClaimId || '';
+
+      if (!Array.isArray(merged.channelUploadNotifiedClaimIds))
+        merged.channelUploadNotifiedClaimIds = [];
+
+      merged.channelUploadNotifiedClaimIds = dedupeAndTrimClaims(
+        merged.channelUploadNotifiedClaimIds
+      );
+
+      const currentlyActive = Boolean(
+        merged.channelUploadDiscordWebhook &&
+          merged.channelUploadClaimId &&
+          String(merged.channelUploadDiscordWebhook).trim() &&
+          String(merged.channelUploadClaimId).trim(),
+      );
+
+      if (!currentlyActive) {
+        merged.channelUploadNotifiedClaimIds = [];
+        merged.channelUploadLastPublishedAt = null;
+        merged.channelUploadLastTitle = '';
+        merged.channelUploadLastUrl = '';
+      } else {
+        const uploads = await fetchRecentChannelUploads(merged.channelUploadClaimId, 5);
+        if (uploads.length) {
+          merged.channelUploadNotifiedClaimIds = dedupeAndTrimClaims(
+            uploads.map((u) => u.claimId)
+          );
+          const latest = uploads[0];
+          if (latest) {
+            merged.channelUploadLastPublishedAt = latest.releaseMs
+              ? new Date(latest.releaseMs).toISOString()
+              : null;
+            merged.channelUploadLastTitle = latest.title || '';
+            merged.channelUploadLastUrl = latest.url || '';
+          }
+        } else {
+          merged.channelUploadNotifiedClaimIds = [];
+          merged.channelUploadLastPublishedAt = null;
+          merged.channelUploadLastTitle = '';
+          merged.channelUploadLastUrl = '';
+        }
+      }
+
+      if (merged.channelUploadLastUrl) {
+        merged.channelUploadLastUrl = sanitizeUploadUrl(merged.channelUploadLastUrl);
+      }
+
+      if (ns) {
+        await saveTenantConfig(
+          req,
+          store,
+          GLOBAL_EXT_NOTIF_PATH,
+          'external-notifications-config.json',
+          merged
+        );
+      } else {
+        await externalNotifications.saveConfig(merged);
+      }
+
+      if (store?.redis && ns) {
+        if (currentlyActive) await store.redis.sadd(CHANNEL_UPLOAD_SET, ns);
+        else await store.redis.srem(CHANNEL_UPLOAD_SET, ns);
+      }
+
+      res.json({ success: true, active: currentlyActive });
+    } catch (e) {
+      console.error('[channel-upload] save failed', e?.message || e);
+      res.status(500).json({ success: false, error: 'internal_error' });
     }
   });
 

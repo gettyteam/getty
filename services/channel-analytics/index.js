@@ -155,14 +155,6 @@ function isClaimId(value) {
   return typeof value === 'string' && /^[a-f0-9]{40}$/i.test(value.trim());
 }
 
-function chunk(array, size) {
-  const chunks = [];
-  for (let i = 0; i < array.length; i += size) {
-    chunks.push(array.slice(i, i + size));
-  }
-  return chunks;
-}
-
 function normalizePermanentUrl(rawUrl) {
   if (!rawUrl || typeof rawUrl !== 'string') return null;
   const trimmed = rawUrl.trim();
@@ -517,7 +509,7 @@ async function fetchViewCounts(authToken, claimTargets, extras = {}) {
   return map;
 }
 
-async function fetchChannelStats({ authToken, channelHandle, claimId, extras = {} }) {
+async function fetchChannelStats({ authToken, channelHandle, claimId }) {
   if (!authToken) return null;
   const hasClaimId = isClaimId(claimId);
   const payload = buildFormPayload({
@@ -620,7 +612,7 @@ async function buildChannelAnalytics({
   const [streamsResult, subscriberCount, channelStats] = await Promise.all([
     fetchChannelStreams(claimId, 200),
     fetchSubscriptionCount(authToken, claimId, authExtras),
-    fetchChannelStats({ authToken, channelHandle, claimId, extras: authExtras }),
+    fetchChannelStats({ authToken, channelHandle, claimId }),
   ]);
   const safeStreamResult = streamsResult || {};
   const streams = Array.isArray(safeStreamResult.streams) ? safeStreamResult.streams : [];
@@ -691,12 +683,16 @@ function normalizeStatNumber(value) {
 
 function buildOdyseeContentUrl(uri) {
   if (!uri || typeof uri !== 'string') return null;
-  const trimmed = uri.trim();
-  if (!trimmed) return null;
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  const [name, claim] = trimmed.split(':');
-  if (!name || !claim) return null;
-  return `https://odysee.com/${name}:${claim}`;
+  let value = uri.trim();
+  if (!value) return null;
+  if (/^https?:\/\//i.test(value)) return value;
+  if (/^lbry:\/\//i.test(value)) {
+    value = value.replace(/^lbry:\/\//i, '');
+  }
+  value = value.replace(/#/g, ':');
+  value = value.replace(/^\/+/, '');
+  if (!value) return null;
+  return `https://odysee.com/${value}`;
 }
 
 function createVideoHighlight({ uri, title, views, change }) {
@@ -746,4 +742,7 @@ module.exports = {
   SUPPORTED_RANGES,
   fetchChannelStats,
   fetchChannelIdentity,
+  fetchChannelStreams,
+  isClaimId,
+  buildOdyseeContentUrl,
 };

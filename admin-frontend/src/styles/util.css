@@ -62,7 +62,7 @@ html:not(.dark) .badge {
 }
 html.dark .input {
   background: #0f1214;
-  border-color: #1e293b;
+  border-color: var(--border-color);
   color: #e2e8f0;
 }
 html.dark .badge {
@@ -78,7 +78,11 @@ html.dark .badge {
   padding: 14px;
   color: var(--card-text);
   box-shadow: var(--card-shadow);
-  transition: background 0.25s, color 0.25s, border-color 0.25s, box-shadow 0.25s;
+  transition:
+    background 0.25s,
+    color 0.25s,
+    border-color 0.25s,
+    box-shadow 0.25s;
 }
 .card:hover {
   box-shadow: var(--card-shadow-hover);
@@ -116,7 +120,11 @@ html.dark .badge {
   width: 100%;
   background: var(--card-bg);
   color: var(--card-text);
-  transition: border-color 0.2s, box-shadow 0.2s, background 0.25s, color 0.25s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    background 0.25s,
+    color 0.25s;
 }
 .input:focus {
   outline: none;
@@ -172,7 +180,10 @@ html.dark .small {
   background: var(--card-bg);
   color: var(--card-text);
   box-shadow: var(--card-shadow);
-  transition: box-shadow 0.25s, background 0.25s, color 0.25s;
+  transition:
+    box-shadow 0.25s,
+    background 0.25s,
+    color 0.25s;
 }
 .status-tile:hover {
   box-shadow: var(--card-shadow-hover);

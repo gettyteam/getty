@@ -150,7 +150,8 @@
       "purgecss>glob": "11.1.0",
       "@ardrive/turbo-sdk>ws": "7.5.10",
       "@ardrive/turbo-sdk>elliptic": "^6.6.1",
-      "@ardrive/turbo-sdk>secp256k1": "5.0.1"
+      "@ardrive/turbo-sdk>secp256k1": "5.0.1",
+      "@modelcontextprotocol/sdk": ">=1.24.0"
     }
   },
   "resolutions": {

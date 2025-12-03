@@ -442,6 +442,7 @@ const SocialMediaModule = require('./modules/socialmedia');
 const socialMediaModule = new SocialMediaModule();
 const registerChatRoutes = require('./routes/chat');
 const registerExternalNotificationsRoutes = require('./routes/external-notifications');
+const { initChannelUploadMonitor } = require('./services/channel-upload-monitor');
 const registerGoalAudioRoutes = require('./routes/goal-audio');
 const registerAchievementsAudioRoutes = require('./routes/achievements-audio');
 const registerTipGoalRoutes = require('./routes/tip-goal');
@@ -2615,6 +2616,7 @@ registerGoalAudioRoutes(app, wss, strictLimiter, GOAL_AUDIO_UPLOADS_DIR);
 registerAchievementsAudioRoutes(app, wss, strictLimiter);
 
 registerExternalNotificationsRoutes(app, externalNotifications, strictLimiter, { store });
+initChannelUploadMonitor({ store, externalNotifications });
 registerLiveviewsRoutes(app, strictLimiter, { store });
 registerChannelAnalyticsRoutes(app, strictLimiter, { store });
 registerAnnouncementRoutes(app, announcementModule, announcementLimiters);

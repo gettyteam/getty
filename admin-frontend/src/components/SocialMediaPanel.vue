@@ -1,7 +1,27 @@
 <template>
   <section class="admin-tab active" role="form">
-    <OsCard :title="t('socialMediaTitle')">
-      <template #actions>
+    <OsCard>
+      <template #header>
+        <div class="flex items-center gap-2">
+          <span class="icon-badge" aria-hidden="true">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round">
+              <circle cx="18" cy="5" r="3" />
+              <circle cx="6" cy="12" r="3" />
+              <circle cx="18" cy="19" r="3" />
+              <path d="M8.59 13.51 15.42 17.49" />
+              <path d="m15.41 6.51-6.82 3.98" />
+            </svg>
+          </span>
+          <h3 class="font-semibold text-[15px]">{{ t('socialMediaTitle') }}</h3>
+        </div>
         <div class="flex gap-2" role="group" :aria-label="t('socialMediaTitle') + ' actions'">
           <button class="btn" @click="addItem" :aria-label="t('socialMediaAddItem')">
             {{ t('socialMediaAddItem') }}
@@ -106,7 +126,28 @@
         </div>
       </div>
     </OsCard>
-    <OsCard class="mt-3" :title="t('obsIntegration')">
+    <OsCard class="mt-3">
+      <template #header>
+        <div class="flex items-center gap-2">
+          <span class="icon-badge" aria-hidden="true">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+          </span>
+          <h3 class="font-semibold text-[15px]">{{ t('obsIntegration') }}</h3>
+        </div>
+      </template>
       <div class="form-group">
         <div class="flex flex-wrap items-center gap-3">
           <span class="label mb-0">{{ t('socialMediaWidgetUrlLabel') }}</span>
@@ -238,7 +279,7 @@ const styleForm = reactive({
 
 const wallet = useWalletSession();
 const { withToken, refresh } = usePublicToken();
-const widgetUrl = computed(() => withToken(`${location.origin}/widgets/socialmedia`));
+const widgetUrl = computed(() => withToken(`${location.origin}/widgets/social-media`));
 
 function markDirty() {
   dirty.value = true;
@@ -431,7 +472,9 @@ onMounted(async () => {
   padding: 24px;
   width: 100%;
   max-width: 400px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  box-shadow:
+    0 10px 25px -5px rgba(0, 0, 0, 0.1),
+    0 8px 10px -6px rgba(0, 0, 0, 0.1);
 }
 .sm-modal-title {
   font-size: 1.125rem;
