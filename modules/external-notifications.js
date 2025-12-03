@@ -10,6 +10,7 @@ const languageConfig = new LanguageConfig();
 const SHARED_I18N_DIR = path.join(process.cwd(), 'shared-i18n');
 const SHARED_LOCALE_CACHE = new Map();
 const DEFAULT_CHANNEL_UPLOAD_PREFIX = 'The channel has uploaded new content:';
+const MAX_NOTIFICATION_DESCRIPTION = 120;
 
 let tenantConfigLib = null;
 function ensureTenantLib() {
@@ -650,13 +651,14 @@ class ExternalNotifications {
         }
         return undefined;
       })();
+      const truncatedDescription = truncateDiscordText(description || '', MAX_NOTIFICATION_DESCRIPTION);
       const embed = {
         author:
           siteName || providerIcon
             ? { name: siteName || 'Odysee', icon_url: providerIcon || undefined }
             : undefined,
         title: (title || ogTitle || 'We are live on Odysee! 📢').slice(0, 150),
-        description: (description || '').slice(0, 200),
+        description: truncatedDescription || undefined,
         url: channelUrl,
         color: colorFromTheme,
         image: finalImage ? { url: safeImage(finalImage) } : undefined,
@@ -727,9 +729,10 @@ class ExternalNotifications {
     if (!token || !chatId) return false;
     try {
       const { title, description, channelUrl, imageUrl, signature } = payload;
+      const truncatedDescription = truncateDiscordText(description || '', MAX_NOTIFICATION_DESCRIPTION);
       const textParts = [
         title ? `<b>${escapeHtml(title.slice(0, 150))}</b>` : '<b>We are live on Odysee! 🎬</b>',
-        description ? `${escapeHtml(description.slice(0, 200))}` : '',
+        truncatedDescription ? `${escapeHtml(truncatedDescription)}` : '',
         channelUrl ? `\n<a href="${escapeHtml(channelUrl)}">${escapeHtml(channelUrl)}</a>` : '',
       ].filter(Boolean);
       if (signature) textParts.push(`\n<em>${escapeHtml(String(signature).slice(0, 80))}</em>`);
@@ -763,10 +766,14 @@ class ExternalNotifications {
       );
       const contentParts = [getChannelUploadContentPrefix()];
       if (safePayload.url) contentParts.push(safePayload.url);
+      const truncatedDescription = truncateDiscordText(
+        safePayload.description || '',
+        MAX_NOTIFICATION_DESCRIPTION
+      );
       const embed = {
         author: { name: ODYSEE_BRAND_NAME, icon_url: ODYSEE_BRAND_ICON },
         title: truncateDiscordText(safePayload.title || 'New upload on Odysee', 256),
-        description: truncateDiscordText(safePayload.description || '', 400) || undefined,
+        description: truncatedDescription || undefined,
         url: safePayload.url || undefined,
         color: 0xf97316,
         image: safePayload.thumbnailUrl ? { url: safePayload.thumbnailUrl } : undefined,

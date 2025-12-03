@@ -286,13 +286,16 @@ function renderStreamHistoryChart(
   Object.assign(tip.style, {
     position: 'absolute',
     pointerEvents: 'none',
-    padding: '4px 6px',
-    fontSize: '12px',
+    padding: '8px 12px',
+    fontSize: '13px',
+    lineHeight: '1.4',
+    minWidth: '180px',
     borderRadius: '6px',
     border: '1px solid var(--card-border)',
     background: 'var(--card-bg, #111827)',
     display: 'none',
     zIndex: 10,
+    boxShadow: '0 10px 25px rgba(15, 23, 42, 0.18)',
   });
   el.appendChild(tip);
   const getTipRect = () => {

@@ -513,8 +513,11 @@
     opacity: 0.9;
   }
   .tip-viewers {
-    opacity: 0.9;
-    color: var(--viewers-line-color, #e11d48);
+    opacity: 0.95;
+    color: var(--text-primary, #0f172a);
+  }
+  html.dark .tip-viewers {
+    color: var(--text-primary, #f8fafc);
   }
 
   .skeleton {

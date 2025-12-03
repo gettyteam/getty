@@ -5817,6 +5817,12 @@ function bindTipListener() {
         try {
           achievements.onTip(ns || null, payload);
         } catch {}
+        try {
+          const helpers = app?.locals?.streamHistoryHelpers;
+          if (helpers && typeof helpers.recordTipEvent === 'function') {
+            helpers.recordTipEvent(ns || null, payload, { source: 'wss-tip' }).catch(() => {});
+          }
+        } catch {}
       } catch {}
     });
   } catch {

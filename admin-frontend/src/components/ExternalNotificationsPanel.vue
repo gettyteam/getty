@@ -790,15 +790,21 @@ function formatChannelUploadDate(value) {
 function validateChannelUpload() {
   const next = { discordWebhook: '', channelClaimId: '' };
   const rawWebhook = (channelForm.value.discordWebhook || '').trim();
-  if (!rawWebhook && channelForm.value.discordWebhook !== MASK) {
-    next.discordWebhook = t('requiredField');
-  } else if (rawWebhook && channelForm.value.discordWebhook !== MASK && !isHttpUrl(rawWebhook)) {
-    next.discordWebhook = t('invalidUrl');
+  const webhookMasked = channelForm.value.discordWebhook === MASK;
+  const webhookProvided = !!rawWebhook && !webhookMasked;
+  const webhookActive = webhookMasked || webhookProvided;
+
+  if (!webhookMasked) {
+    if (webhookProvided && !isHttpUrl(rawWebhook)) {
+      next.discordWebhook = t('invalidUrl');
+    } else if (!webhookProvided && (channelForm.value.channelClaimId || '').trim()) {
+      next.discordWebhook = t('requiredField');
+    }
   }
 
   const rawClaim = (channelForm.value.channelClaimId || '').trim();
   if (!rawClaim) {
-    next.channelClaimId = t('requiredField');
+    if (webhookActive) next.channelClaimId = t('requiredField');
   } else if (!channelClaimRegex.test(rawClaim)) {
     next.channelClaimId = t('channelUploadInvalidClaim');
   }
