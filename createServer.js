@@ -606,8 +606,10 @@ function anonymizeIp(ip) {
 }
 
 let redisClient = null;
-try {
-  if (process.env.REDIS_URL) {
+
+function initRedisClientFromEnv() {
+  if (redisClient || !process.env.REDIS_URL) return false;
+  try {
     const Redis = require('ioredis');
     const url = process.env.REDIS_URL;
     let isTls = /^rediss:\/\//i.test(url);
@@ -680,11 +682,18 @@ try {
         } catch {}
       });
     } catch {}
+    return true;
+  } catch {
+    redisClient = null;
+    return false;
   }
-} catch {}
+}
+
+initRedisClientFromEnv();
+const SESSION_TTL_SECONDS = parseInt(process.env.SESSION_TTL_SECONDS || '259200', 10);
 const store = new NamespacedStore({
   redis: redisClient,
-  ttlSeconds: parseInt(process.env.SESSION_TTL_SECONDS || '259200', 10),
+  ttlSeconds: SESSION_TTL_SECONDS,
 });
 const historyStore = new NamespacedStore({ redis: redisClient, ttlSeconds: 0 });
 
@@ -2616,7 +2625,6 @@ registerGoalAudioRoutes(app, wss, strictLimiter, GOAL_AUDIO_UPLOADS_DIR);
 registerAchievementsAudioRoutes(app, wss, strictLimiter);
 
 registerExternalNotificationsRoutes(app, externalNotifications, strictLimiter, { store });
-initChannelUploadMonitor({ store, externalNotifications });
 registerLiveviewsRoutes(app, strictLimiter, { store });
 registerChannelAnalyticsRoutes(app, strictLimiter, { store });
 registerAnnouncementRoutes(app, announcementModule, announcementLimiters);
@@ -2624,6 +2632,20 @@ registerAchievementsRoutes(app, achievements, strictLimiter, { store });
 registerEventsSettingsRoutes(app, strictLimiter, { store });
 registerUserRoutes(app, { store });
 registerStorageRoutes(app);
+
+(async () => {
+  try {
+    if (secretsLoaded) await secretsLoaded;
+  } catch {}
+  const createdNow = initRedisClientFromEnv();
+  if (createdNow && redisClient) {
+    try {
+      store.attachRedis(redisClient, SESSION_TTL_SECONDS);
+      historyStore.attachRedis(redisClient, 0);
+    } catch {}
+  }
+  initChannelUploadMonitor({ store, externalNotifications });
+})();
 
 app.post('/api/chat/test-message', limiter, async (req, res) => {
   try {
