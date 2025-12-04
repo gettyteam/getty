@@ -1,5 +1,6 @@
 <template>
   <a href="#main" class="skip-link">Skip to main content</a>
+  <SuspendedModal :is-open="suspendedModalOpen" @close="suspendedModalOpen = false" />
   <div class="admin-container mx-auto px-6 py-4 max-w-[1330px]" :class="{ dark: isDark }">
     <header
       class="os-header flex items-center justify-between pb-5 mb-8 border-b border-border"
@@ -609,6 +610,7 @@ import { anyDirty, getDirtyLabels } from './composables/useDirtyRegistry';
 import ToastHost from './components/shared/ToastHost.vue';
 import SidebarSuggestion from './components/shared/SidebarSuggestion.vue';
 import OsConfirmDialog from './components/os/OsConfirmDialog.vue';
+import SuspendedModal from './components/SuspendedModal.vue';
 import { confirmDialog } from './services/confirm';
 import WalletLoginButton from './components/WalletLoginButton.vue';
 import WalletLogoutButton from './components/WalletLogoutButton.vue';
@@ -638,6 +640,7 @@ const menuOpen = ref(false);
 const sidebarCollapsed = ref(false);
 const mobileSidebarOpen = ref(false);
 const analyticsMenuOpen = ref(false);
+const suspendedModalOpen = ref(false);
 
 const currentLocaleLabel = computed(() => (locale.value === 'es' ? 'ES' : 'EN'));
 const analyticsActive = computed(() => route.path.startsWith('/admin/status'));
@@ -784,6 +787,10 @@ function setLocale(l) {
   } catch {}
 }
 
+function handleSuspended() {
+  suspendedModalOpen.value = true;
+}
+
 function toggleSidebar() {
   sidebarCollapsed.value = !sidebarCollapsed.value;
   try {
@@ -856,6 +863,7 @@ onMounted(() => {
   const initialDark = resolveThemePreference();
   applyTheme(initialDark, true);
   window.addEventListener('click', handleClickOutside);
+  window.addEventListener('getty:tenant-suspended', handleSuspended);
   setHeaderHeightVar();
   setContainerLeftVar();
   setSidebarWidthVar();
@@ -889,6 +897,7 @@ onMounted(() => {
 });
 onBeforeUnmount(() => {
   window.removeEventListener('click', handleClickOutside);
+  window.removeEventListener('getty:tenant-suspended', handleSuspended);
   window.removeEventListener('resize', onResize);
   window.removeEventListener('scroll', onScroll);
   if (storageHandler) {

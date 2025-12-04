@@ -7,6 +7,8 @@ const CONFIG_DIR = path.join(TMP_DIR, 'config');
 
 function ensureDir(p) { if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true }); }
 
+let originalConfigDir;
+
 beforeAll(() => {
   ensureDir(CONFIG_DIR);
 
@@ -15,6 +17,8 @@ beforeAll(() => {
     liveDiscordWebhook: 'https://discord.com/api/webhooks/TEST/ONLY_LIVE',
     template: 'Live: {from} {amount}'
   }, null, 2));
+  
+  originalConfigDir = process.env.GETTY_CONFIG_DIR;
   process.env.GETTY_CONFIG_DIR = CONFIG_DIR;
   process.env.NODE_ENV = 'test';
 
@@ -25,6 +29,11 @@ beforeAll(() => {
 });
 
 afterAll(() => {
+  if (originalConfigDir !== undefined) {
+    process.env.GETTY_CONFIG_DIR = originalConfigDir;
+  } else {
+    delete process.env.GETTY_CONFIG_DIR;
+  }
   try { fs.rmSync(TMP_DIR, { recursive: true, force: true }); } catch {}
 });
 

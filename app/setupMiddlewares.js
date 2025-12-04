@@ -1,5 +1,7 @@
 /* eslint-env node */
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 
 function setupMiddlewares(
   app,
@@ -194,6 +196,23 @@ function setupMiddlewares(
 
             if (!req.ns.admin) {
               req.ns.admin = hash;
+            }
+
+            let isSuspended = false;
+            try {
+              if (store && store.redis) {
+                const exists = await store.redis.exists(`gettycfg:${hash}:suspended`);
+                isSuspended = exists === 1;
+              } else {
+                const suspendPath = path.join(process.cwd(), 'tenant', hash, 'suspended');
+                isSuspended = fs.existsSync(suspendPath);
+              }
+            } catch {}
+
+            if (isSuspended) {
+              if (req.path.startsWith('/api/')) {
+                return _res.status(403).send('Tenant suspended');
+              }
             }
 
             if (!req.auth || !req.auth.isAdmin) {
