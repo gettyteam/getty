@@ -65,6 +65,8 @@ async function globalLogoutSequence() {
     localStorage.setItem('getty_logout', String(Date.now()));
     localStorage.removeItem('wanderWalletConnected');
     localStorage.removeItem('arweaveAddress');
+    localStorage.removeItem('getty_widget_token');
+    document.cookie = 'getty_widget_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
   } catch {}
 
   try {

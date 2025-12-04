@@ -3090,7 +3090,24 @@ try {
         try {
           const mappedHash = await store.get(widgetCookie, 'walletHash', null);
           if (mappedHash) {
-            return res.redirect(302, `/user/${encodeURIComponent(widgetCookie)}`);
+            let isSuspended = false;
+            if (store.redis) {
+              isSuspended = (await store.redis.exists(`gettycfg:${mappedHash}:suspended`)) === 1;
+            } else {
+              const suspendPath = path.join(process.cwd(), 'tenant', mappedHash, 'suspended');
+              isSuspended = fs.existsSync(suspendPath);
+            }
+
+            if (isSuspended) {
+              res.clearCookie('getty_widget_token', {
+                httpOnly: false,
+                sameSite: 'Lax',
+                secure: SECURE_COOKIE(req),
+                path: '/',
+              });
+            } else {
+              return res.redirect(302, `/user/${encodeURIComponent(widgetCookie)}`);
+            }
           }
           res.clearCookie('getty_widget_token', {
             httpOnly: false,

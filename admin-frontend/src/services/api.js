@@ -99,6 +99,14 @@ api.interceptors.response.use(
   async (err) => {
     try {
       const code = err?.response?.data?.error || err?.response?.data?.code;
+      
+      const data = err?.response?.data;
+      if (err?.response?.status === 403 && (data === 'Tenant suspended' || (typeof data === 'string' && data.includes('Tenant suspended')))) {
+        try {
+          window.dispatchEvent(new CustomEvent('getty:tenant-suspended'));
+        } catch {}
+      }
+
       if (code === 'admin_required') {
         try {
           window.dispatchEvent(new CustomEvent('getty:admin-required'));
