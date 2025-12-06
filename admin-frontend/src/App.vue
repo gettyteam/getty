@@ -145,7 +145,7 @@
         :class="{ 'w-16': sidebarCollapsed }"
         role="navigation"
         aria-label="Primary">
-        <SidebarSuggestion v-if="!sidebarCollapsed" class="mx-2 mt-2 mb-2" />
+        <SidebarSuggestion v-if="!sidebarCollapsed" class="mx-2 mt-2" />
         <div class="px-3 pt-3">
           <div class="flex items-center gap-2" :class="{ 'justify-center': sidebarCollapsed }">
             <img :src="sidebarIcon" alt="getty" class="w-7 h-7 rounded" />
