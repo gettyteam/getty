@@ -555,10 +555,17 @@
             </a>
             ·
             <a
-              href="https://opensource.org/licenses/MIT"
+              href="https://www.gnu.org/licenses/agpl-3.0.html"
               target="_blank"
               class="hover:text-primary-200 transition-colors font-bold">
-              MIT License
+              AGPL v3 License
+            </a>
+            ·
+            <a
+              href="https://github.com/gettyteam/getty"
+              target="_blank"
+              class="hover:text-primary-200 transition-colors font-bold">
+              Source Code
             </a>
           </p>
         </div>
@@ -785,7 +792,9 @@ body.landing.dark {
   height: 26px;
   border-radius: 9999px;
   font-size: 0;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .card-title-icon i {

@@ -1,3 +1,21 @@
+/*
+    getty - The platform tools for live streaming on Odysee.
+    Copyright (C) 2025 gettyteam
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
 const DASHBOARD_INLINE_STYLES = `
 body.user-dashboard-mode #main-content {
   padding-top: 1rem;
@@ -339,10 +357,11 @@ function buildLayout() {
             <path d="M8 21h8"></path>
             <path d="M12 17v4"></path>
             <path d="M7 4h10v5a5 5 0 0 1-10 0V4Z"></path>
-            <path d="M17 9a5 5 0 0 0 5-5h-5"></path>
-            <path d="M7 9a5 5 0 0 1-5-5h5"></path>
-          </svg>
-        </span>
+          <p class="font-bold" data-i18n="copyright">
+            © 2025 <a href="https://getty.sh/" target="_blank" class="hover:text-primary-200 transition-colors font-bold">λ getty</a> ·
+            <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" class="hover:text-primary-200 transition-colors font-bold">AGPL v3 License</a> ·
+            <a href="https://github.com/gettyteam/getty" target="_blank" class="hover:text-primary-200 transition-colors font-bold">Source Code</a>
+          </p>>
         <span data-i18n="achievementsTitle"></span>
       </h2>
       <div class="flex-1 flex flex-col max-h-[calc(100%-44px)] overflow-hidden">
@@ -359,7 +378,7 @@ function buildLayout() {
         <div class="mb-4 md:mb-0">
           <p class="font-bold" data-i18n="copyright">
             © 2025 <a href="https://getty.sh/" target="_blank" class="hover:text-primary-200 transition-colors font-bold">λ getty</a> ·
-            <a href="https://opensource.org/licenses/MIT" target="_blank" class="hover:text-primary-200 transition-colors font-bold">MIT License</a>
+            <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" class="hover:text-primary-200 transition-colors font-bold">AGPL v3 License</a>
           </p>
         </div>
         <div class="flex items-center gap-4">

@@ -82,28 +82,34 @@ import { RouterLink } from 'vue-router';
 
 const { t } = useI18n();
 
-const templates = [
-  { id: 'obs', to: '/admin/integrations' },
-  { id: 'notifications', to: '/admin/notifications' },
-  { id: 'chat', to: '/admin/chat' },
-  { id: 'last-tip', to: '/admin/last-tip' },
-  { id: 'goal', to: '/admin/tip-goal' },
-  { id: 'raffle', to: '/admin/raffle' },
-  { id: 'liveviews', to: '/admin/liveviews' },
-  { id: 'settings', to: '/admin/settings' },
-  { id: 'social-media', to: '/admin/social-media' },
-  { id: 'announcement', to: '/admin/announcement' },
-  { id: 'integrations', to: '/admin/integrations' },
-  { id: 'status-page', to: '/admin/status' },
-  { id: 'odysee-channel', href: 'https://odysee.com/', target: '_blank' },
-  { id: 'odysee-docs', href: 'https://odysee.com/', target: '_blank' },
-  { id: 'getty-docs', href: 'https://getty.sh/en/guide/intro/', target: '_blank' },
-].map((item) => ({
-  ...item,
-  title: t(`suggestion_${item.id.replace('-', '_')}_title`),
-  message: t(`suggestion_${item.id.replace('-', '_')}_message`),
-  cta: t(`suggestion_${item.id.replace('-', '_')}_cta`),
-}));
+const templates = computed(() =>
+  [
+    { id: 'obs', to: '/admin/integrations' },
+    { id: 'notifications', to: '/admin/notifications' },
+    { id: 'chat', to: '/admin/chat' },
+    { id: 'last-tip', to: '/admin/last-tip' },
+    { id: 'goal', to: '/admin/tip-goal' },
+    { id: 'raffle', to: '/admin/raffle' },
+    { id: 'liveviews', to: '/admin/liveviews' },
+    { id: 'settings', to: '/admin/settings' },
+    { id: 'social-media', to: '/admin/social-media' },
+    { id: 'announcement', to: '/admin/announcement' },
+    { id: 'integrations', to: '/admin/integrations' },
+    { id: 'status-page', to: '/admin/status' },
+    { id: 'events', to: '/admin/events' },
+    { id: 'user-profile', to: '/admin/user-profile' },
+    { id: 'achievements', to: '/admin/achievements' },
+    { id: 'channel-analytics', to: '/admin/status/channel' },
+    { id: 'odysee-channel', href: 'https://odysee.com/', target: '_blank' },
+    { id: 'odysee-docs', href: 'https://help.odysee.tv/', target: '_blank' },
+    { id: 'getty-docs', href: 'https://getty.sh/en/guide/intro/', target: '_blank' },
+  ].map((item) => ({
+    ...item,
+    title: t(`suggestion_${item.id.replace('-', '_')}_title`),
+    message: t(`suggestion_${item.id.replace('-', '_')}_message`),
+    cta: t(`suggestion_${item.id.replace('-', '_')}_cta`),
+  }))
+);
 
 const STORAGE = {
   DISABLED: 'admin-suggestion-disabled',
@@ -119,14 +125,14 @@ const etaLabel = ref('');
 const currentIdx = ref(0);
 const tickTimer = ref(null);
 
-const badgeText = t('suggestionBadge');
+const badgeText = computed(() => t('suggestionBadge'));
 const nextChangeTitle = computed(() => {
   const ms = msToNextHour();
   const d = new Date(Date.now() + ms);
   return `${t('suggestionNextChangeAt')} ${d.toLocaleTimeString()}`;
 });
 
-const current = computed(() => templates[currentIdx.value] || templates[0]);
+const current = computed(() => templates.value[currentIdx.value] || templates.value[0]);
 
 function safeGet(key) {
   try {
@@ -154,7 +160,7 @@ function chooseTemplateForHour() {
   const h = hourId();
   const storedHour = parseInt(safeGet(STORAGE.HOUR) || '-1', 10);
   if (storedHour !== h) {
-    const idx = Math.floor(Math.random() * templates.length);
+    const idx = Math.floor(Math.random() * templates.value.length);
     currentIdx.value = idx;
     safeSet(STORAGE.HOUR, String(h));
     safeSet(STORAGE.IDX, String(idx));

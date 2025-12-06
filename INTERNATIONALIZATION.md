@@ -34,7 +34,6 @@ This document describes the internationalization system implemented in Getty to 
 ### For Users
 
 1. **Change language from the user menu:**
-
    - Click the user icon in the top right corner
    - Select the desired language from the dropdown
    - The change is applied immediately
@@ -178,7 +177,6 @@ Use the readable file while debugging; widgets can opt into the minified one.
 - Check the browser console for errors
 
 2. **Language does not persist:**
-
    - Check localStorage permissions
    - Ensure API routes are working
 
@@ -205,4 +203,4 @@ To add translations:
 
 ## License
 
-This internationalization system is under the same MIT license as the main project.
+This internationalization system is under the same **GNU Affero General Public License v3.0** as the main project.

@@ -169,7 +169,7 @@
   "telegramChatId": "Telegram Chat ID:",
   "notificationTemplate": "Notification Template:",
   "templateVarsHint": "Available variables: {from}, {amount}, {usd}, {message}",
-  "copyright": "© 2025 <a href='https://getty.sh/' target='_blank'>getty</a> - <a href='https://opensource.org/licenses/MIT' target='_blank'>MIT License</a>",
+  "copyright": "© 2025 <a href='https://getty.sh/' target='_blank'>getty</a> - <a href='https://www.gnu.org/licenses/agpl-3.0.html' target='_blank'>AGPL v3 License</a> - <a href='https://github.com/gettyteam/getty' target='_blank'>Source Code</a>",
   "independentProject": "With love for Odysee ❤️",
   "lastTipTitle": "Last tip",
   "monthlyGoalTitle": "Monthly Goal",
