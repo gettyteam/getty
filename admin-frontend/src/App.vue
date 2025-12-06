@@ -141,12 +141,13 @@
       :class="{ 'sidebar-collapsed': sidebarCollapsed }">
       <aside
         id="admin-sidebar"
-        class="admin-sidebar os-sidebar w-56 flex-shrink-0 transition-all duration-300"
+        class="admin-sidebar os-sidebar w-56 flex-shrink-0 transition-all duration-300 rounded-l-xl"
         :class="{ 'w-16': sidebarCollapsed }"
         role="navigation"
         aria-label="Primary">
-        <div class="px-3 pt-3 pb-2">
-          <div class="flex items-center gap-2">
+        <SidebarSuggestion v-if="!sidebarCollapsed" class="mx-2 mt-2 mb-2" />
+        <div class="px-3 pt-3">
+          <div class="flex items-center gap-2" :class="{ 'justify-center': sidebarCollapsed }">
             <img :src="sidebarIcon" alt="getty" class="w-7 h-7 rounded" />
             <div class="flex flex-col gap-0.5 leading-none" v-if="!sidebarCollapsed">
               <span class="font-semibold">{{ t('administration') }}</span>
@@ -169,7 +170,7 @@
           </svg>
         </button>
         <div class="sidebar-section">
-          <h3 class="sidebar-title">Widgets</h3>
+          <h3 class="sidebar-title" v-if="!sidebarCollapsed">Widgets</h3>
           <nav class="sidebar-nav">
             <div class="sidebar-collapsible">
               <button
@@ -465,9 +466,6 @@
               <span>{{ t('settings') }}</span>
             </RouterLink>
           </nav>
-          <div v-if="!sidebarCollapsed" class="mt-3 px-2">
-            <SidebarSuggestion />
-          </div>
         </div>
       </aside>
 

@@ -160,7 +160,7 @@ Keep default values unless you need to harden production.
 
 ## License
 
-By contributing, you agree that your changes will be licensed under the same license as the project (see `LICENSE`).
+By contributing, you agree that your changes will be licensed under the **GNU Affero General Public License v3.0** (see `LICENSE`).
 
 Thanks for helping improve getty!
 
