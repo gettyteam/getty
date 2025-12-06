@@ -14,7 +14,12 @@
       <div class="flex gap-3 mb-4">
         <button
           @click="exportConfig"
-          :disabled="exporting"
+          :disabled="exporting || isGlobalBlocked"
+          :title="
+            isGlobalBlocked
+              ? t('configExportBlockedGlobal') || 'Export disabled due to global block'
+              : ''
+          "
           class="btn btn-secondary btn-compact-secondary">
           {{
             exporting
@@ -158,14 +163,17 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
+import api from '../services/api';
 
 const { t, te } = useI18n();
 
 const exporting = ref(false);
 const importResult = ref(null);
 const error = ref(null);
+const modulesStatus = ref({});
+const loadingStatus = ref(false);
 
 const moduleOrder = [
   'announcement',
@@ -178,6 +186,29 @@ const moduleOrder = [
   'liveviews',
   'external-notifications',
 ];
+
+const isGlobalBlocked = computed(() => {
+  const keys = [
+    'announcement',
+    'socialmedia',
+    'tipGoal',
+    'lastTip',
+    'raffle',
+    'achievements',
+    'chat',
+    'liveviews',
+    'externalNotifications',
+  ];
+
+  if (Object.keys(modulesStatus.value).length === 0) return false;
+
+  const allBlocked = keys.every((key) => {
+    const mod = modulesStatus.value[key];
+    return mod && (mod.blocked === true || mod.isBlocked === true);
+  });
+
+  return allBlocked;
+});
 
 const kebabToCamel = (str) => {
   return str.replace(/-([a-z])/g, (match, letter) => letter.toUpperCase());
@@ -523,6 +554,22 @@ const handleFileSelect = async (event) => {
     error.value = err.message;
   }
 };
+
+async function fetchModulesStatus() {
+  try {
+    loadingStatus.value = true;
+    const r = await api.get('/api/modules');
+    modulesStatus.value = r.data || {};
+  } catch (e) {
+    console.error('Failed to fetch module status', e);
+  } finally {
+    loadingStatus.value = false;
+  }
+}
+
+onMounted(() => {
+  fetchModulesStatus();
+});
 </script>
 
 <style scoped></style>

@@ -24,6 +24,8 @@ export function createStreamHistoryPanel(t) {
   const claimid = ref('');
   const initialClaimid = ref('');
   const saving = ref(false);
+  const isBlocked = ref(false);
+  const blockDetails = ref({});
   const showClearModal = ref(false);
   const showClaimChangeModal = ref(false);
   const clearBusy = ref(false);
@@ -289,19 +291,8 @@ export function createStreamHistoryPanel(t) {
   let nowTimer = null;
   const REFRESH_DEBOUNCE_MS = 150;
 
-  function setScrollLock(lock) {
-    try {
-      const el = document.documentElement;
-      const body = document.body;
-      if (lock) {
-        el.style.overflow = 'hidden';
-        body.style.overflow = 'hidden';
-      } else {
-        el.style.overflow = '';
-        body.style.overflow = '';
-      }
-    } catch {}
-  }
+  // setScrollLock disabled due to scroll locking issues reported by users
+
   function onKeydown(e) {
     try {
       if (e.key === 'Escape' && anyModalOpen.value && !clearBusy.value) {
@@ -311,7 +302,6 @@ export function createStreamHistoryPanel(t) {
     } catch {}
   }
   watch(anyModalOpen, (open) => {
-    setScrollLock(open);
     try {
       if (open) window.addEventListener('keydown', onKeydown);
       else window.removeEventListener('keydown', onKeydown);
@@ -319,7 +309,6 @@ export function createStreamHistoryPanel(t) {
   });
 
   onUnmounted(() => {
-    setScrollLock(false);
     try {
       window.removeEventListener('keydown', onKeydown);
     } catch {}
@@ -348,7 +337,18 @@ export function createStreamHistoryPanel(t) {
       const r = await api.get('/config/stream-history-config.json');
       claimid.value = r?.data?.claimid || '';
       initialClaimid.value = claimid.value;
-    } catch {}
+    } catch (err) {
+      if (
+        err.response &&
+        err.response.data &&
+        (err.response.data.error === 'CONFIGURATION_BLOCKED' ||
+          err.response.data.error === 'configuration_blocked')
+      ) {
+        isBlocked.value = true;
+        const details = err.response.data.details;
+        blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+      }
+    }
   }
 
   async function saveConfig() {
@@ -363,6 +363,7 @@ export function createStreamHistoryPanel(t) {
       initialClaimid.value = claimid.value;
       await refresh();
     } catch (e) {
+      if (e?.response?.data?.error === 'CONFIGURATION_BLOCKED') return;
       const msg =
         e && e.response && e.response.data && e.response.data.error === 'session_required'
           ? t('sessionRequiredToast')
@@ -884,6 +885,8 @@ function queueChartReflow() {
     filterQuickSpan,
     claimid,
     saving,
+    isBlocked,
+    blockDetails,
     showClearModal,
     showClaimChangeModal,
     clearBusy,

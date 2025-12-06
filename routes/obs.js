@@ -23,6 +23,11 @@ function registerObsRoutes(app, strictLimiter, obsWsConfig, OBS_WS_CONFIG_FILE, 
   app.get('/api/obs-ws-config', async (req, res) => {
     try {
       const ns = req?.ns?.admin || req?.ns?.pub || null;
+
+      if (store && store.isConfigBlocked && await store.isConfigBlocked(ns, STORE_KEY)) {
+        return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+      }
+
       if (multiTenant) {
         if (ns && store) {
           try {
@@ -46,6 +51,11 @@ function registerObsRoutes(app, strictLimiter, obsWsConfig, OBS_WS_CONFIG_FILE, 
   app.post('/api/obs-ws-config', strictLimiter, async (req, res) => {
     try {
       const ns = req?.ns?.admin || req?.ns?.pub || null;
+
+      if (store && store.isConfigBlocked && await store.isConfigBlocked(ns, STORE_KEY)) {
+        return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+      }
+
       if (shouldRequireSession && !ns) {
         return res.status(401).json({ success: false, error: 'session_required' });
       }

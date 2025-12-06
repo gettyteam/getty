@@ -2,6 +2,7 @@ const express = require('express');
 
 module.exports = function registerAchievementsRoutes(app, achievements, limiter, _opts = {}) {
   const router = express.Router();
+  const { store } = _opts;
 
   async function getNs(req) {
     try {
@@ -16,6 +17,13 @@ module.exports = function registerAchievementsRoutes(app, achievements, limiter,
   router.get('/config', async (req, res) => {
     try {
       const ns = await getNs(req);
+
+      if (store && store.isConfigBlocked && await store.isConfigBlocked(ns, 'achievements-config.json')) {
+        const err = new Error('CONFIGURATION_BLOCKED');
+        err.code = 'CONFIGURATION_BLOCKED';
+        throw err;
+      }
+
       const { config: cfg, meta } = await achievements.getConfigWithMeta(ns);
 
       try {
@@ -31,6 +39,9 @@ module.exports = function registerAchievementsRoutes(app, achievements, limiter,
 
       res.json({ data: cfg, meta });
     } catch (e) {
+      if (e.code === 'CONFIGURATION_BLOCKED') {
+        return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+      }
       res.status(500).json({ error: 'failed_to_read_config', details: e?.message });
     }
   });
@@ -38,6 +49,13 @@ module.exports = function registerAchievementsRoutes(app, achievements, limiter,
   router.post('/config', limiter, express.json(), async (req, res) => {
     try {
       const ns = await getNs(req);
+
+      if (store && store.isConfigBlocked && await store.isConfigBlocked(ns, 'achievements-config.json')) {
+        const err = new Error('CONFIGURATION_BLOCKED');
+        err.code = 'CONFIGURATION_BLOCKED';
+        throw err;
+      }
+
       const cfgIn = req.body || {};
       const save = await achievements.saveConfig(ns, cfgIn);
       const { config: cfg, meta } = await achievements.getConfigWithMeta(ns);
@@ -55,6 +73,9 @@ module.exports = function registerAchievementsRoutes(app, achievements, limiter,
 
       res.json({ ok: !!save.ok, data: cfg, meta: meta || save.meta || null });
     } catch (e) {
+      if (e.code === 'CONFIGURATION_BLOCKED') {
+        return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+      }
       res.status(500).json({ error: 'failed_to_save_config', details: e?.message });
     }
   });

@@ -54,8 +54,9 @@ function getChannelUploadContentPrefix() {
 }
 
 class ExternalNotifications {
-  constructor(wss) {
+  constructor(wss, opts = {}) {
     this.wss = wss;
+    this.store = opts.store || null;
     this.hosted = !!process.env.REDIS_URL;
 
     const resolvedConfigDir = process.env.GETTY_CONFIG_DIR

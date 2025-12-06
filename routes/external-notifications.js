@@ -87,10 +87,20 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         'external-notifications-config.json'
       );
       if (loaded && loaded.data) return mergeChannelUploadDefaults(loaded.data, snapshot);
-    } catch {}
+    } catch (e) {
+      if (e.code === 'CONFIGURATION_BLOCKED') throw e;
+    }
 
     if (store && ns) {
       try {
+        const blocked = await store.isConfigBlocked(ns, 'external-notifications-config.json');
+        if (blocked) {
+          const err = new Error('Configuration blocked');
+          err.code = 'CONFIGURATION_BLOCKED';
+          err.details = blocked;
+          throw err;
+        }
+
         const raw = await store.get(ns, 'external-notifications-config', null);
         if (
           raw &&
@@ -411,7 +421,16 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
             lastUpdated: (wrapperMeta && wrapperMeta.updatedAt) || new Date().toISOString(),
           });
         }
-      } catch {}
+      } catch (e) {
+        if (e.code === 'CONFIGURATION_BLOCKED') {
+          return res.status(403).json({
+            success: false,
+            error: 'CONFIGURATION_BLOCKED',
+            message: 'This configuration has been disabled by a moderator.',
+            details: e.details || {}
+          });
+        }
+      }
     }
 
     if (!hasNs && process.env.GETTY_TENANT_DEBUG === '1') {
@@ -623,6 +642,14 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       };
       res.json({ success: true, config: sanitized });
     } catch (e) {
+      if (e.code === 'CONFIGURATION_BLOCKED') {
+        return res.status(403).json({
+          success: false,
+          error: 'CONFIGURATION_BLOCKED',
+          message: 'This configuration has been disabled by a moderator.',
+          details: e.details,
+        });
+      }
       console.error('[channel-upload] load failed', e?.message || e);
       res.status(500).json({ success: false, error: 'internal_error' });
     }

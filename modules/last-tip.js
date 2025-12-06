@@ -11,8 +11,9 @@ const { tenantEnabled } = (() => {
 const { buildGatewayList } = require('../lib/arweave-gateways');
 
 class LastTipModule {
-  constructor(wss) {
+  constructor(wss, opts = {}) {
     this.wss = wss;
+    this.store = opts.store || null;
 
     this.ARWEAVE_GATEWAYS = buildGatewayList({});
 

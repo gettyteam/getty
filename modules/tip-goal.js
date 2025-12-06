@@ -52,12 +52,13 @@ const { tenantEnabled } = (() => {
 })();
 
 class TipGoalModule {
-  constructor(wss) {
+  constructor(wss, opts = {}) {
     if (!wss) {
       throw new Error('WebSocketServer instance is required');
     }
 
     this.wss = wss;
+    this.store = opts.store || null;
     this.walletAddress = '';
     this.monthlyGoalAR = 10;
     this.currentTipsAR = 0;

@@ -1,6 +1,8 @@
 <template>
   <div class="user-profile-panel">
-    <OsCard class="user-profile-card">
+    <BlockedState v-if="isBlocked" :module-name="t('userProfileModule')" :details="blockDetails" />
+
+    <OsCard v-else class="user-profile-card">
       <div v-if="configError" class="status status-error">
         {{ t('userProfileConfigLoadFailed') }}
       </div>
@@ -314,10 +316,13 @@ import OsCard from '../os/OsCard.vue';
 import CopyField from '../shared/CopyField.vue';
 import ChannelPerformanceChart from './ChannelPerformanceChart.vue';
 import SkeletonLoader from '../SkeletonLoader.vue';
-import { fetchJson } from '../../services/api';
+import api from '../../services/api';
 import { pushToast } from '../../services/toast';
 import odyseeLogo from '../../assets/odysee.svg?url';
+import BlockedState from '../shared/BlockedState.vue';
 const { t, locale } = useI18n();
+const isBlocked = ref(false);
+const blockDetails = ref({});
 
 const defaultSections = Object.freeze({
   header: true,
@@ -529,18 +534,28 @@ function applyConfig(payload = {}) {
   config.shareSlug = typeof payload.shareSlug === 'string' ? payload.shareSlug : null;
   config.shareUrl = typeof payload.shareUrl === 'string' ? payload.shareUrl : null;
   const normalized = normalizeSections(payload.sections);
-  for (const key of sectionKeys) {
-    config.sections[key] = normalized[key];
-  }
+  Object.assign(config.sections, normalized);
 }
 
 async function loadConfig() {
   loadingConfig.value = true;
   configError.value = '';
+  isBlocked.value = false;
   try {
-    const data = await fetchJson('/config/user-profile-config.json');
+    const { data } = await api.get('/config/user-profile-config.json');
     applyConfig(data || {});
   } catch (err) {
+    if (
+      err.response &&
+      err.response.data &&
+      (err.response.data.error === 'CONFIGURATION_BLOCKED' ||
+        err.response.data.error === 'configuration_blocked')
+    ) {
+      isBlocked.value = true;
+      const details = err.response.data.details;
+      blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+      return;
+    }
     configError.value = err?.message || 'failed_to_load';
     pushToast({ type: 'error', message: t('userProfileConfigLoadFailed') });
   } finally {
@@ -558,37 +573,54 @@ async function loadOverview() {
       span: String(Math.max(1, span.value || 1)),
       tz: String(Math.max(-840, Math.min(840, Number(tzOffset.value || 0)))),
     });
-    const data = await fetchJson(`/api/user-profile/overview?${params.toString()}`);
+    const { data } = await api.get(`/api/user-profile/overview?${params.toString()}`);
     if (overviewReqId !== localId) return;
     overview.value = data || null;
     lastUpdatedAt.value = data?.generatedAt ? new Date(data.generatedAt) : new Date();
   } catch (err) {
     if (overviewReqId !== localId) return;
+    if (
+      err.response &&
+      err.response.data &&
+      (err.response.data.error === 'CONFIGURATION_BLOCKED' ||
+        err.response.data.error === 'configuration_blocked')
+    ) {
+      isBlocked.value = true;
+      const details = err.response.data.details;
+      blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+      return;
+    }
     loadError.value = err?.message || 'failed_to_load';
     pushToast({ type: 'error', message: t('userProfileLoadFailed') });
   } finally {
-    if (overviewReqId === localId) {
-      loadingOverview.value = false;
-    }
+    loadingOverview.value = false;
   }
 }
 
-async function saveConfig(options = {}) {
+async function saveConfig() {
   savingConfig.value = true;
   try {
     const payload = {
       shareEnabled: config.shareEnabled,
       sections: { ...config.sections },
     };
-    const res = await fetchJson('/config/user-profile-config.json', {
-      method: 'POST',
-      body: payload,
-    });
+    const { data: res } = await api.post('/config/user-profile-config.json', payload);
     if (res?.config) {
       applyConfig(res.config);
     }
-    if (options.refreshOverview) await loadOverview();
-    return true;
+  } catch (err) {
+    if (
+      err.response &&
+      err.response.data &&
+      (err.response.data.error === 'CONFIGURATION_BLOCKED' ||
+        err.response.data.error === 'configuration_blocked')
+    ) {
+      isBlocked.value = true;
+      const details = err.response.data.details;
+      blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+      return false;
+    }
+    throw err;
   } finally {
     savingConfig.value = false;
   }
@@ -679,10 +711,10 @@ function formatSpanLabel(option) {
     period.value === 'day'
       ? 'userProfileUnitDay'
       : period.value === 'week'
-      ? 'userProfileUnitWeek'
-      : period.value === 'month'
-      ? 'userProfileUnitMonth'
-      : 'userProfileUnitYear';
+        ? 'userProfileUnitWeek'
+        : period.value === 'month'
+          ? 'userProfileUnitMonth'
+          : 'userProfileUnitYear';
   return `${option} ${t(unitKey)}`;
 }
 
@@ -796,7 +828,9 @@ watch(
   border-radius: 999px;
   border: 1px solid var(--card-border);
   background: var(--bg-chat);
-  transition: background 0.2s ease, border-color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
   padding: 2px;
   display: inline-flex;
   align-items: center;
@@ -866,7 +900,9 @@ watch(
   border-radius: 999px;
   border: 1px solid var(--card-border);
   background: var(--bg-chat);
-  transition: background 0.2s ease, border-color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
   padding: 2px;
   display: inline-flex;
   align-items: center;
@@ -1024,7 +1060,10 @@ watch(
   font-size: 0.85rem;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
 }
 .channel-share-btn:hover,
 .channel-share-btn:focus-visible {
@@ -1299,7 +1338,9 @@ watch(
   font-size: 0.85rem;
   font-weight: 600;
   text-decoration: none;
-  transition: background 0.18s ease, border-color 0.18s ease;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease;
 }
 .share-modal-open:hover,
 .share-modal-open:focus-visible {

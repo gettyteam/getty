@@ -218,14 +218,29 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
   app.get('/api/announcement', getLimiter('config'), async (req, res) => {
     try {
       const ns = await resolveNsFromReq(req);
-      const cfg = await announcementModule.getPublicConfig(ns);
+      
+      if (store && ns) {
+        try {
+          const blocked = await store.isConfigBlocked(ns, 'announcement-config.json');
+          if (blocked) {
+            return res.status(403).json({
+              success: false,
+              error: 'CONFIGURATION_BLOCKED',
+              message: 'This configuration has been disabled by a moderator.',
+              details: blocked
+            });
+          }
+        } catch {}
+      }
+
+      const { config: cfg, meta } = await announcementModule.getConfigWithMeta(ns);
       if (!isOpenTestMode() && (hostedWithRedis || requireSessionFlag)) {
         const isAdmin = await isAdminRequest(req);
         if (!isAdmin) {
-          return res.json({ success: true, config: maskedDefaults() });
+          return res.json({ success: true, config: maskedDefaults(), meta });
         }
       }
-      return res.json({ success: true, config: cfg });
+      return res.json({ success: true, config: cfg, meta });
     } catch {
       res.status(500).json({ success: false, error: 'Internal error' });
     }
@@ -233,9 +248,13 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
 
   app.get('/api/announcement/image-library', getLimiter('config'), async (req, res) => {
     try {
+      const ns = await resolveNsFromReq(req);
+      if (store && store.isConfigBlocked && await store.isConfigBlocked(ns, 'announcement-image-library.json')) {
+        return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+      }
+
       if (!isOpenTestMode() && shouldRequireSession) {
-        const nsTest = await resolveNsFromReq(req);
-        if (!nsTest) return res.status(401).json({ error: 'session_required' });
+        if (!ns) return res.status(401).json({ error: 'session_required' });
       }
       const items = await loadLibrary(req);
       res.json({ items });
@@ -247,11 +266,14 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
 
   app.delete('/api/announcement/image-library/:id', getLimiter('config'), async (req, res) => {
     try {
-      if (!isOpenTestMode() && shouldRequireSession) {
-        const nsCheck = await resolveNsFromReq(req);
-        if (!nsCheck) return res.status(401).json({ error: 'session_required' });
-      }
       const ns = await resolveNsFromReq(req);
+      if (store && store.isConfigBlocked && await store.isConfigBlocked(ns, 'announcement-image-library.json')) {
+        return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+      }
+
+      if (!isOpenTestMode() && shouldRequireSession) {
+        if (!ns) return res.status(401).json({ error: 'session_required' });
+      }
       const entryId = typeof req.params?.id === 'string' ? req.params.id.trim() : '';
       if (!entryId) return res.status(400).json({ error: 'invalid_library_id' });
       const items = await loadLibrary(req);
@@ -343,10 +365,18 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
     upload.single('image'),
     async (req, res) => {
       try {
+        const ns = await resolveNsFromReq(req);
         if (!isOpenTestMode() && shouldRequireSession) {
-          const ns = await resolveNsFromReq(req);
           if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
         }
+
+        const incomingMeta = sanitizeIncomingImageMeta(req.body);
+        const involvesLibrary = !!req.file || !!incomingMeta.libraryId || !!incomingMeta.url;
+
+        if (involvesLibrary && store && store.isConfigBlocked && await store.isConfigBlocked(ns, 'announcement-image-library.json')) {
+          return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+        }
+
         const colorRegex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
         const schema = z.object({
           text: z.string().trim().max(90).optional(),
@@ -374,8 +404,8 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
         const parsed = schema.safeParse(req.body);
         if (!parsed.success)
           return res.status(400).json({ success: false, error: parsed.error.issues[0].message });
-        const ns = await resolveNsFromReq(req);
-        const incomingMeta = sanitizeIncomingImageMeta(req.body);
+        // const ns = await resolveNsFromReq(req); // Removed redeclaration
+
         let imagePayload = null;
         let libraryItem = null;
         let duplicateDetected = false;

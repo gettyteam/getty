@@ -1,489 +1,500 @@
 <template>
   <section class="admin-tab active relative notif-root" role="form">
-    <div
-      v-if="masked"
-      class="absolute inset-0 z-10 flex items-center justify-center backdrop-blur bg-black/35">
-      <div
-        class="p-5 rounded-os bg-[var(--bg-card)] border border-[var(--card-border)] shadow-lg max-w-md text-center">
-        <div class="mb-2 text-lg font-semibold">{{ t('externalSessionRequiredTitle') }}</div>
-        <p class="mb-4 text-sm">{{ t('externalSessionRequiredBody') }}</p>
-        <a href="/" class="btn" aria-label="wallet-login-redirect">{{ t('createSession') }}</a>
-      </div>
-    </div>
-    <div class="notif-groups-grid">
-      <div class="notif-group-box" aria-labelledby="notif-gif-title">
-        <div class="notif-group-head">
-          <HeaderIcon>
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <circle cx="8.5" cy="8.5" r="1.5" />
-              <path d="M21 15l-5-5L5 21" />
-            </svg>
-          </HeaderIcon>
-          <h3 id="notif-gif-title" class="notif-group-title">{{ t('notificationGifTitle') }}</h3>
-        </div>
-        <div class="notif-setting-item">
-          <div class="notif-setting-text">
-            <div class="notif-setting-title">{{ t('notificationGifPositionLabel') }}</div>
-            <div class="notif-setting-desc">{{ t('notificationGifHint') }}</div>
-          </div>
-          <div class="notif-setting-control">
-            <select class="input select" v-model="gif.position" aria-label="GIF position">
-              <option value="right">{{ t('positionRight') }}</option>
-              <option value="left">{{ t('positionLeft') }}</option>
-              <option value="top">{{ t('positionTop') }}</option>
-              <option value="bottom">{{ t('positionBottom') }}</option>
-            </select>
-          </div>
-        </div>
-        <div class="notif-setting-item">
-          <div class="notif-setting-text">
-            <div class="notif-setting-title flex items-center gap-2">
-              <span>{{ t('storageProviderLabel') }}</span>
-              <i
-                v-if="hasTurboOption"
-                class="pi pi-info-circle text-[13px] text-emerald-400 cursor-help"
-                :title="t('storageProviderArweaveTooltip')"
-                :aria-label="t('storageProviderArweaveTooltip')"
-                role="note"
-                tabindex="0"></i>
-            </div>
-            <div class="notif-setting-desc">{{ t('storageProviderDesc') }}</div>
-          </div>
-          <div class="notif-setting-control flex flex-col gap-1">
-            <QuickSelect
-              v-model="gifStorageSelection"
-              :options="
-                storageOptions.map((opt) => ({
-                  label:
-                    opt.label + (opt.searchOnly ? ' · ' + t('wuzzyProviderSearchOnlyLabel') : ''),
-                  value: opt.id,
-                  disabled: !opt.available && opt.id !== gifStorageSelection,
-                }))
-              "
-              :aria-label="t('storageProviderLabel')" />
-            <div v-if="providerStatus && !providerStatus.available" class="small text-amber-500">
-              {{ t('storageProviderUnavailable') }}
-            </div>
-          </div>
-        </div>
-        <div class="notif-setting-item is-vertical" aria-label="GIF file controls">
-          <input
-            ref="gifInput"
-            type="file"
-            accept="image/gif"
-            class="hidden"
-            @change="onGifChange"
-            aria-hidden="true" />
-          <div
-            class="gif-preview-box"
-            :class="[`pos-${gif.position}`, { 'is-empty': !gif.gifPath, 'pos-pulse': posPulse }]"
-            aria-live="off">
-            <span class="gif-pos-label" aria-hidden="true">{{ t(posKeyMap[gif.position]) }}</span>
-            <div class="gif-media" v-if="gif.gifPath">
-              <img :src="gif.gifPath" :alt="gif.fileName" />
-            </div>
-            <div class="gif-media placeholder" v-else>
-              <span class="placeholder-text">{{ t('notificationGifUnifiedHint') }}</span>
-            </div>
+    <BlockedState
+      v-if="isBlocked"
+      :module-name="t('tipNotificationsTitle')"
+      :details="blockDetails" />
 
-            <div class="notif-demo" aria-hidden="true">
-              <div class="nd-left" v-if="gif.position === 'left' || gif.position === 'top'"></div>
-              <div class="nd-body">
-                <div class="nd-line nd-amount">+ 0.25 AR</div>
-                <div
-                  class="nd-line nd-user"
-                  :class="{ inline: gif.position === 'top' || gif.position === 'bottom' }">
-                  Spaceman
-                </div>
-                <div
-                  class="nd-line nd-msg"
-                  :class="{ centered: gif.position === 'top' || gif.position === 'bottom' }">
-                  Thanks for the stream!
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="notif-actions-row">
-            <button
-              class="btn-secondary btn-compact-secondary"
-              type="button"
-              @click="handleChooseGifClick"
-              :disabled="!sessionActive && hostedSupported"
-              :aria-busy="savingGif ? 'true' : 'false'">
-              <i v-if="isWuzzyMode" class="pi pi-search-plus" aria-hidden="true"></i>
-              <i v-else class="pi pi-image" aria-hidden="true"></i>
-              {{ isWuzzyMode ? t('wuzzyOpenDrawerBtn') : t('notificationGifChooseBtn') }}
-            </button>
-            <button
-              class="btn-secondary btn-compact-secondary"
-              type="button"
-              @click="openGifLibrary"
-              :disabled="gifLibrary.loading || (!sessionActive && hostedSupported)"
-              :aria-busy="gifLibrary.loading ? 'true' : 'false'">
-              <i class="pi pi-address-book" aria-hidden="true"></i>
-              {{ t('notificationGifLibraryBtn') }}
-            </button>
-            <button
-              v-if="gif.gifPath"
-              class="btn-danger btn-icon"
-              type="button"
-              @click="removeGif"
-              :disabled="!sessionActive && hostedSupported"
-              :title="t('notificationGifRemoveBtn')"
-              :aria-label="t('notificationGifRemoveBtn')">
-              <i class="pi pi-trash" aria-hidden="true"></i>
-            </button>
-            <button
-              class="btn-secondary btn-compact-secondary btn-save-style"
-              type="button"
-              :disabled="savingGif || (!sessionActive && hostedSupported)"
-              @click="saveGif"
-              :aria-busy="savingGif ? 'true' : 'false'">
-              {{ savingGif ? t('commonSaving') : t('saveGif') }}
-            </button>
-          </div>
+    <div v-else>
+      <div class="notif-groups-grid">
+        <div
+          v-if="masked"
+          class="absolute inset-0 z-10 flex items-center justify-center backdrop-blur bg-black/35">
           <div
-            v-if="isWuzzyMode && hasWuzzySelection"
-            class="border border-[var(--card-border)] rounded-os p-3 bg-[var(--bg-card)] flex flex-col gap-2 mt-3">
-            <div class="flex flex-col gap-1">
-              <div class="font-semibold text-sm flex items-center gap-1">
-                <i class="pi pi-user" aria-hidden="true"></i>
-                <span class="break-all">{{ wuzzySelection.originalName }}</span>
-              </div>
-              <div class="text-xs opacity-80 flex items-center gap-1" v-if="wuzzySelectionMeta">
-                <i class="pi pi-image" aria-hidden="true"></i>
-                <span>{{ wuzzySelectionMeta }}</span>
-              </div>
-            </div>
-            <div class="flex flex-wrap gap-2">
-              <button
-                class="btn-secondary btn-compact-secondary"
-                type="button"
-                @click="openWuzzySelectionUrl">
-                {{ t('wuzzySelectionOpen') }}
-              </button>
-              <button
-                class="btn-secondary btn-compact-secondary"
-                type="button"
-                @click="copyWuzzySelectionUrl">
-                {{ t('wuzzySelectionCopy') }}
-              </button>
-              <button
-                class="btn-danger btn-compact-secondary"
-                type="button"
-                @click="clearWuzzySelection">
-                {{ t('wuzzySelectionClear') }}
-              </button>
-            </div>
+            class="p-5 rounded-os bg-[var(--bg-card)] border border-[var(--card-border)] shadow-lg max-w-md text-center">
+            <div class="mb-2 text-lg font-semibold">{{ t('externalSessionRequiredTitle') }}</div>
+            <p class="mb-4 text-sm">{{ t('externalSessionRequiredBody') }}</p>
+            <a href="/" class="btn" aria-label="wallet-login-redirect">{{ t('createSession') }}</a>
           </div>
-          <div
-            v-if="gif.fileName && !gif.gifPath"
-            class="small mt-2 text-green-700 flex items-center gap-2">
-            <svg width="16" height="16" fill="none" class="shrink-0">
-              <circle cx="8" cy="8" r="8" fill="#22c55e" />
-              <path
-                d="M6.5 8.5l1.5 1.5L10.5 7"
-                stroke="#ffffff"
-                stroke-width="1.5"
+        </div>
+        <div class="notif-group-box" aria-labelledby="notif-gif-title">
+          <div class="notif-group-head">
+            <HeaderIcon>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
                 stroke-linecap="round"
-                stroke-linejoin="round" />
-            </svg>
-            {{ t('fileSelectedForUpload', { fileName: gif.fileName }) }}
+                stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <path d="M21 15l-5-5L5 21" />
+              </svg>
+            </HeaderIcon>
+            <h3 id="notif-gif-title" class="notif-group-title">{{ t('notificationGifTitle') }}</h3>
           </div>
-          <div v-if="errors.gif" class="small mt-2 text-red-700 flex items-center gap-2">
-            <svg width="16" height="16" fill="none" class="shrink-0">
-              <circle cx="8" cy="8" r="8" fill="#ef4444" />
-              <path d="M8 4v4m0 4h.01" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" />
-            </svg>
-            {{ errors.gif }}
-          </div>
-        </div>
-      </div>
-
-      <div class="notif-group-box" aria-labelledby="notif-tts-title">
-        <div class="notif-group-head">
-          <HeaderIcon>
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round">
-              <path
-                d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8.5 8.5Z" />
-            </svg>
-          </HeaderIcon>
-          <h3 id="notif-tts-title" class="notif-group-title">{{ t('ttsSectionTitle') }}</h3>
-        </div>
-        <div class="notif-setting-item">
-          <div class="notif-setting-text">
-            <div class="notif-setting-title">{{ t('enableTextToSpeech') }}</div>
-            <div class="notif-setting-desc">
-              {{ tts.ttsAllChat ? t('ttsDisabledDueToGlobal') : t('ttsHint') }}
+          <div class="notif-setting-item">
+            <div class="notif-setting-text">
+              <div class="notif-setting-title">{{ t('notificationGifPositionLabel') }}</div>
+              <div class="notif-setting-desc">{{ t('notificationGifHint') }}</div>
+            </div>
+            <div class="notif-setting-control">
+              <select class="input select" v-model="gif.position" aria-label="GIF position">
+                <option value="right">{{ t('positionRight') }}</option>
+                <option value="left">{{ t('positionLeft') }}</option>
+                <option value="top">{{ t('positionTop') }}</option>
+                <option value="bottom">{{ t('positionBottom') }}</option>
+              </select>
             </div>
           </div>
-          <div class="notif-setting-control">
-            <button
-              type="button"
-              class="switch"
-              :aria-pressed="String(tts.enabled)"
-              :disabled="tts.ttsAllChat"
-              @click="tts.enabled = !tts.enabled">
-              <span class="knob"></span>
-            </button>
+          <div class="notif-setting-item">
+            <div class="notif-setting-text">
+              <div class="notif-setting-title flex items-center gap-2">
+                <span>{{ t('storageProviderLabel') }}</span>
+                <i
+                  v-if="hasTurboOption"
+                  class="pi pi-info-circle text-[13px] text-emerald-400 cursor-help"
+                  :title="t('storageProviderArweaveTooltip')"
+                  :aria-label="t('storageProviderArweaveTooltip')"
+                  role="note"
+                  tabindex="0"></i>
+              </div>
+              <div class="notif-setting-desc">{{ t('storageProviderDesc') }}</div>
+            </div>
+            <div class="notif-setting-control flex flex-col gap-1">
+              <QuickSelect
+                v-model="gifStorageSelection"
+                :options="
+                  storageOptions.map((opt) => ({
+                    label:
+                      opt.label + (opt.searchOnly ? ' · ' + t('wuzzyProviderSearchOnlyLabel') : ''),
+                    value: opt.id,
+                    disabled: !opt.available && opt.id !== gifStorageSelection,
+                  }))
+                "
+                :aria-label="t('storageProviderLabel')" />
+              <div v-if="providerStatus && !providerStatus.available" class="small text-amber-500">
+                {{ t('storageProviderUnavailable') }}
+              </div>
+            </div>
           </div>
-        </div>
-        <div class="notif-setting-item">
-          <div class="notif-setting-text">
-            <div class="notif-setting-title">{{ t('ttsLanguage') }}</div>
-            <div class="notif-setting-desc">{{ t('ttsLanguage') }}</div>
-          </div>
-          <div class="notif-setting-control">
-            <select class="input select" v-model="tts.language">
-              <option value="en">{{ t('english') }}</option>
-              <option value="es">{{ t('spanish') }}</option>
-            </select>
-            <button
-              class="btn-save"
-              type="button"
-              :disabled="savingTts || (!sessionActive && hostedSupported)"
-              @click="saveTts"
-              :aria-busy="savingTts ? 'true' : 'false'">
-              {{ savingTts ? t('commonSaving') : t('saveAudioButton') }}
-            </button>
-          </div>
-        </div>
-        <div class="notif-setting-item is-vertical">
-          <div class="notif-setting-text">
-            <div class="notif-setting-title">{{ t('notificationWidgetUrl') }}</div>
-            <div class="notif-setting-desc">{{ t('tipWidgetObsHint') }}</div>
-          </div>
-          <div class="copy-field-row">
-            <CopyField :value="widgetUrl" :aria-label="t('notificationWidgetUrl')" secret />
-          </div>
-        </div>
-      </div>
+          <div class="notif-setting-item is-vertical" aria-label="GIF file controls">
+            <input
+              ref="gifInput"
+              type="file"
+              accept="image/gif"
+              class="hidden"
+              @change="onGifChange"
+              aria-hidden="true" />
+            <div
+              class="gif-preview-box"
+              :class="[`pos-${gif.position}`, { 'is-empty': !gif.gifPath, 'pos-pulse': posPulse }]"
+              aria-live="off">
+              <span class="gif-pos-label" aria-hidden="true">{{ t(posKeyMap[gif.position]) }}</span>
+              <div class="gif-media" v-if="gif.gifPath">
+                <img :src="gif.gifPath" :alt="gif.fileName" />
+              </div>
+              <div class="gif-media placeholder" v-else>
+                <span class="placeholder-text">{{ t('notificationGifUnifiedHint') }}</span>
+              </div>
 
-      <div class="notif-group-box" aria-labelledby="notif-audio-title">
-        <div class="notif-group-head">
-          <span class="icon-badge" aria-hidden="true">
-            <svg
-              class="os-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round">
-              <path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6l-5 4H4a1 1 0 0 0-1 1Z"></path>
-              <path d="M16 12h2"></path>
-              <path d="M16 8h2"></path>
-              <path d="M16 16h2"></path>
-            </svg>
-          </span>
-          <h3 id="notif-audio-title" class="notif-group-title">{{ t('customAudioTitle') }}</h3>
-        </div>
-        <div class="notif-setting-item is-vertical">
-          <LegacyAudioControls
-            :enabled="audioCfg.enabled"
-            :volume="audioCfg.volume"
-            :audio-source="audio.audioSource"
-            :has-custom-audio="audioState.hasCustomAudio"
-            :audio-file-name="audioState.audioFileName"
-            :audio-file-size="audioState.audioFileSize"
-            :audio-library-id="audioState.audioLibraryId"
-            :library-enabled="true"
-            :storage-provider="audioStorageProvider"
-            :storage-providers="storageOptions"
-            :storage-loading="storageLoading"
-            force-stack
-            compact
-            @update:enabled="(v) => (audioCfg.enabled = v)"
-            @update:volume="(v) => (audioCfg.volume = v)"
-            @update:audio-source="(v) => (audio.audioSource = v)"
-            @audio-saved="onAudioSaved"
-            @audio-deleted="onAudioDeleted"
-            @update:storage-provider="handleAudioStorageProviderChange"
-            @toast="handleAudioToast" />
-          <div class="notif-actions-row mt-3">
-            <button
-              class="btn-save"
-              type="button"
-              :disabled="savingAudio || (!sessionActive && hostedSupported)"
-              @click="persistAudioCfg">
-              {{ savingAudio ? t('commonSaving') : t('saveSettings') }}
-            </button>
-            <button
-              class="btn-secondary btn-compact-secondary"
-              type="button"
-              @click="testRandomNotification"
-              :disabled="!sessionActive && hostedSupported">
-              {{ t('achievementsTestNotificationBtn') }}
-            </button>
+              <div class="notif-demo" aria-hidden="true">
+                <div class="nd-left" v-if="gif.position === 'left' || gif.position === 'top'"></div>
+                <div class="nd-body">
+                  <div class="nd-line nd-amount">+ 0.25 AR</div>
+                  <div
+                    class="nd-line nd-user"
+                    :class="{ inline: gif.position === 'top' || gif.position === 'bottom' }">
+                    Spaceman
+                  </div>
+                  <div
+                    class="nd-line nd-msg"
+                    :class="{ centered: gif.position === 'top' || gif.position === 'bottom' }">
+                    Thanks for the stream!
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="notif-actions-row">
+              <button
+                class="btn-secondary btn-compact-secondary"
+                type="button"
+                @click="handleChooseGifClick"
+                :disabled="!sessionActive && hostedSupported"
+                :aria-busy="savingGif ? 'true' : 'false'">
+                <i v-if="isWuzzyMode" class="pi pi-search-plus" aria-hidden="true"></i>
+                <i v-else class="pi pi-image" aria-hidden="true"></i>
+                {{ isWuzzyMode ? t('wuzzyOpenDrawerBtn') : t('notificationGifChooseBtn') }}
+              </button>
+              <button
+                class="btn-secondary btn-compact-secondary"
+                type="button"
+                @click="openGifLibrary"
+                :disabled="gifLibrary.loading || (!sessionActive && hostedSupported)"
+                :aria-busy="gifLibrary.loading ? 'true' : 'false'">
+                <i class="pi pi-address-book" aria-hidden="true"></i>
+                {{ t('notificationGifLibraryBtn') }}
+              </button>
+              <button
+                v-if="gif.gifPath"
+                class="btn-danger btn-icon"
+                type="button"
+                @click="removeGif"
+                :disabled="!sessionActive && hostedSupported"
+                :title="t('notificationGifRemoveBtn')"
+                :aria-label="t('notificationGifRemoveBtn')">
+                <i class="pi pi-trash" aria-hidden="true"></i>
+              </button>
+              <button
+                class="btn-secondary btn-compact-secondary btn-save-style"
+                type="button"
+                :disabled="savingGif || (!sessionActive && hostedSupported)"
+                @click="saveGif"
+                :aria-busy="savingGif ? 'true' : 'false'">
+                {{ savingGif ? t('commonSaving') : t('saveGif') }}
+              </button>
+            </div>
+            <div
+              v-if="isWuzzyMode && hasWuzzySelection"
+              class="border border-[var(--card-border)] rounded-os p-3 bg-[var(--bg-card)] flex flex-col gap-2 mt-3">
+              <div class="flex flex-col gap-1">
+                <div class="font-semibold text-sm flex items-center gap-1">
+                  <i class="pi pi-user" aria-hidden="true"></i>
+                  <span class="break-all">{{ wuzzySelection.originalName }}</span>
+                </div>
+                <div class="text-xs opacity-80 flex items-center gap-1" v-if="wuzzySelectionMeta">
+                  <i class="pi pi-image" aria-hidden="true"></i>
+                  <span>{{ wuzzySelectionMeta }}</span>
+                </div>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  class="btn-secondary btn-compact-secondary"
+                  type="button"
+                  @click="openWuzzySelectionUrl">
+                  {{ t('wuzzySelectionOpen') }}
+                </button>
+                <button
+                  class="btn-secondary btn-compact-secondary"
+                  type="button"
+                  @click="copyWuzzySelectionUrl">
+                  {{ t('wuzzySelectionCopy') }}
+                </button>
+                <button
+                  class="btn-danger btn-compact-secondary"
+                  type="button"
+                  @click="clearWuzzySelection">
+                  {{ t('wuzzySelectionClear') }}
+                </button>
+              </div>
+            </div>
+            <div
+              v-if="gif.fileName && !gif.gifPath"
+              class="small mt-2 text-green-700 flex items-center gap-2">
+              <svg width="16" height="16" fill="none" class="shrink-0">
+                <circle cx="8" cy="8" r="8" fill="#22c55e" />
+                <path
+                  d="M6.5 8.5l1.5 1.5L10.5 7"
+                  stroke="#ffffff"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+              {{ t('fileSelectedForUpload', { fileName: gif.fileName }) }}
+            </div>
+            <div v-if="errors.gif" class="small mt-2 text-red-700 flex items-center gap-2">
+              <svg width="16" height="16" fill="none" class="shrink-0">
+                <circle cx="8" cy="8" r="8" fill="#ef4444" />
+                <path
+                  d="M8 4v4m0 4h.01"
+                  stroke="#ffffff"
+                  stroke-width="1.5"
+                  stroke-linecap="round" />
+              </svg>
+              {{ errors.gif }}
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="notif-group-box" aria-labelledby="notif-colors-title">
-        <div class="notif-group-head">
-          <span class="icon-badge" aria-hidden="true">
-            <svg
-              class="os-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <path d="M14.31 8l5.74 9.94"></path>
-              <path d="M9.69 8h11.48"></path>
-              <path d="M7.38 12l5.74-9.94"></path>
-              <path d="M9.69 16L3.95 6.06"></path>
-              <path d="M14.31 16H2.83"></path>
-            </svg>
-          </span>
-          <h3 id="notif-colors-title" class="notif-group-title">
-            {{ t('colorCustomizationTitle') }}
-          </h3>
-        </div>
-        <div class="notif-setting-item is-vertical">
-          <div class="flex flex-wrap gap-2 colors-section">
-            <ColorInput v-model="colors.bg" :label="t('colorBg')" />
-            <ColorInput v-model="colors.font" :label="t('colorFont')" />
-            <ColorInput v-model="colors.border" :label="t('colorBorder')" />
-            <ColorInput v-model="colors.amount" :label="t('colorAmount')" />
-            <ColorInput v-model="colors.from" :label="t('colorFrom')" />
+        <div class="notif-group-box" aria-labelledby="notif-tts-title">
+          <div class="notif-group-head">
+            <HeaderIcon>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+                <path
+                  d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8.5 8.5Z" />
+              </svg>
+            </HeaderIcon>
+            <h3 id="notif-tts-title" class="notif-group-title">{{ t('ttsSectionTitle') }}</h3>
           </div>
-          <div class="notif-actions-row mt-3">
-            <button
-              class="btn"
-              type="button"
-              :disabled="savingColors || (!sessionActive && hostedSupported)"
-              @click="saveColors">
-              {{ savingColors ? t('commonSaving') : t('saveSettings') }}
-            </button>
-            <button
-              class="btn-secondary btn-compact-secondary ml-2"
-              type="button"
-              @click="resetColors">
-              {{ t('resetColors') }}
-            </button>
+          <div class="notif-setting-item">
+            <div class="notif-setting-text">
+              <div class="notif-setting-title">{{ t('enableTextToSpeech') }}</div>
+              <div class="notif-setting-desc">
+                {{ tts.ttsAllChat ? t('ttsDisabledDueToGlobal') : t('ttsHint') }}
+              </div>
+            </div>
+            <div class="notif-setting-control">
+              <button
+                type="button"
+                class="switch"
+                :aria-pressed="String(tts.enabled)"
+                :disabled="tts.ttsAllChat"
+                @click="tts.enabled = !tts.enabled">
+                <span class="knob"></span>
+              </button>
+            </div>
+          </div>
+          <div class="notif-setting-item">
+            <div class="notif-setting-text">
+              <div class="notif-setting-title">{{ t('ttsLanguage') }}</div>
+              <div class="notif-setting-desc">{{ t('ttsLanguage') }}</div>
+            </div>
+            <div class="notif-setting-control">
+              <select class="input select" v-model="tts.language">
+                <option value="en">{{ t('english') }}</option>
+                <option value="es">{{ t('spanish') }}</option>
+              </select>
+              <button
+                class="btn-save"
+                type="button"
+                :disabled="savingTts || (!sessionActive && hostedSupported)"
+                @click="saveTts"
+                :aria-busy="savingTts ? 'true' : 'false'">
+                {{ savingTts ? t('commonSaving') : t('saveAudioButton') }}
+              </button>
+            </div>
+          </div>
+          <div class="notif-setting-item is-vertical">
+            <div class="notif-setting-text">
+              <div class="notif-setting-title">{{ t('notificationWidgetUrl') }}</div>
+              <div class="notif-setting-desc">{{ t('tipWidgetObsHint') }}</div>
+            </div>
+            <div class="copy-field-row">
+              <CopyField :value="widgetUrl" :aria-label="t('notificationWidgetUrl')" secret />
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="notif-group-box notif-full" aria-labelledby="notif-theme-title">
-        <div class="notif-group-head">
-          <HeaderIcon>
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round">
-              <rect x="3" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="14" width="7" height="7" rx="1" />
-              <rect x="3" y="14" width="7" height="7" rx="1" />
-            </svg>
-          </HeaderIcon>
-          <h3 id="notif-theme-title" class="notif-group-title">
-            {{ t('tipWidgetThemeTitle') }}
-          </h3>
-        </div>
-        <div class="notif-setting-item is-vertical">
-          <div class="notif-theme-config">
-            <label class="notif-theme-label" for="tip-widget-theme-select">
-              <span class="notif-setting-title">{{ t('tipWidgetThemeLabel') }}</span>
-              <span class="notif-setting-desc">{{ t('tipWidgetThemeDesc') }}</span>
-            </label>
-            <select
-              id="tip-widget-theme-select"
-              class="input select"
-              v-model="widgetTheme"
-              aria-label="widget-theme-select">
-              <option v-for="opt in widgetThemeOptions" :key="opt.value" :value="opt.value">
-                {{ t(opt.labelKey) }}
-              </option>
-            </select>
+        <div class="notif-group-box" aria-labelledby="notif-audio-title">
+          <div class="notif-group-head">
+            <span class="icon-badge" aria-hidden="true">
+              <svg
+                class="os-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+                <path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6l-5 4H4a1 1 0 0 0-1 1Z"></path>
+                <path d="M16 12h2"></path>
+                <path d="M16 8h2"></path>
+                <path d="M16 16h2"></path>
+              </svg>
+            </span>
+            <h3 id="notif-audio-title" class="notif-group-title">{{ t('customAudioTitle') }}</h3>
           </div>
-          <TipWidgetThemePreview
-            :theme="widgetTheme"
-            :colors="previewColors"
-            :gif-position="gif.position"
-            :gif-url="gif.gifPath" />
-          <div class="notif-actions-row">
-            <button
-              class="btn"
-              type="button"
-              :disabled="savingColors || (!sessionActive && hostedSupported)"
-              @click="saveColors">
-              {{ savingColors ? t('commonSaving') : t('saveSettings') }}
-            </button>
-            <button
-              class="btn-secondary btn-compact-secondary theme-refresh-btn"
-              type="button"
-              @click="refreshPreview">
-              {{ t('refresh') }}
-            </button>
+          <div class="notif-setting-item is-vertical">
+            <LegacyAudioControls
+              :enabled="audioCfg.enabled"
+              :volume="audioCfg.volume"
+              :audio-source="audio.audioSource"
+              :has-custom-audio="audioState.hasCustomAudio"
+              :audio-file-name="audioState.audioFileName"
+              :audio-file-size="audioState.audioFileSize"
+              :audio-library-id="audioState.audioLibraryId"
+              :library-enabled="true"
+              :storage-provider="audioStorageProvider"
+              :storage-providers="storageOptions"
+              :storage-loading="storageLoading"
+              force-stack
+              compact
+              @update:enabled="(v) => (audioCfg.enabled = v)"
+              @update:volume="(v) => (audioCfg.volume = v)"
+              @update:audio-source="(v) => (audio.audioSource = v)"
+              @audio-saved="onAudioSaved"
+              @audio-deleted="onAudioDeleted"
+              @update:storage-provider="handleAudioStorageProviderChange"
+              @toast="handleAudioToast" />
+            <div class="notif-actions-row mt-3">
+              <button
+                class="btn-save"
+                type="button"
+                :disabled="savingAudio || (!sessionActive && hostedSupported)"
+                @click="persistAudioCfg">
+                {{ savingAudio ? t('commonSaving') : t('saveSettings') }}
+              </button>
+              <button
+                class="btn-secondary btn-compact-secondary"
+                type="button"
+                @click="testRandomNotification"
+                :disabled="!sessionActive && hostedSupported">
+                {{ t('achievementsTestNotificationBtn') }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="notif-group-box" aria-labelledby="notif-colors-title">
+          <div class="notif-group-head">
+            <span class="icon-badge" aria-hidden="true">
+              <svg
+                class="os-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M14.31 8l5.74 9.94"></path>
+                <path d="M9.69 8h11.48"></path>
+                <path d="M7.38 12l5.74-9.94"></path>
+                <path d="M9.69 16L3.95 6.06"></path>
+                <path d="M14.31 16H2.83"></path>
+              </svg>
+            </span>
+            <h3 id="notif-colors-title" class="notif-group-title">
+              {{ t('colorCustomizationTitle') }}
+            </h3>
+          </div>
+          <div class="notif-setting-item is-vertical">
+            <div class="flex flex-wrap gap-2 colors-section">
+              <ColorInput v-model="colors.bg" :label="t('colorBg')" />
+              <ColorInput v-model="colors.font" :label="t('colorFont')" />
+              <ColorInput v-model="colors.border" :label="t('colorBorder')" />
+              <ColorInput v-model="colors.amount" :label="t('colorAmount')" />
+              <ColorInput v-model="colors.from" :label="t('colorFrom')" />
+            </div>
+            <div class="notif-actions-row mt-3">
+              <button
+                class="btn"
+                type="button"
+                :disabled="savingColors || (!sessionActive && hostedSupported)"
+                @click="saveColors">
+                {{ savingColors ? t('commonSaving') : t('saveSettings') }}
+              </button>
+              <button
+                class="btn-secondary btn-compact-secondary ml-2"
+                type="button"
+                @click="resetColors">
+                {{ t('resetColors') }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="notif-group-box notif-full" aria-labelledby="notif-theme-title">
+          <div class="notif-group-head">
+            <HeaderIcon>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="14" width="7" height="7" rx="1" />
+                <rect x="3" y="14" width="7" height="7" rx="1" />
+              </svg>
+            </HeaderIcon>
+            <h3 id="notif-theme-title" class="notif-group-title">
+              {{ t('tipWidgetThemeTitle') }}
+            </h3>
+          </div>
+          <div class="notif-setting-item is-vertical">
+            <div class="notif-theme-config">
+              <label class="notif-theme-label" for="tip-widget-theme-select">
+                <span class="notif-setting-title">{{ t('tipWidgetThemeLabel') }}</span>
+                <span class="notif-setting-desc">{{ t('tipWidgetThemeDesc') }}</span>
+              </label>
+              <select
+                id="tip-widget-theme-select"
+                class="input select"
+                v-model="widgetTheme"
+                aria-label="widget-theme-select">
+                <option v-for="opt in widgetThemeOptions" :key="opt.value" :value="opt.value">
+                  {{ t(opt.labelKey) }}
+                </option>
+              </select>
+            </div>
+            <TipWidgetThemePreview
+              :theme="widgetTheme"
+              :colors="previewColors"
+              :gif-position="gif.position"
+              :gif-url="gif.gifPath" />
+            <div class="notif-actions-row">
+              <button
+                class="btn"
+                type="button"
+                :disabled="savingColors || (!sessionActive && hostedSupported)"
+                @click="saveColors">
+                {{ savingColors ? t('commonSaving') : t('saveSettings') }}
+              </button>
+              <button
+                class="btn-secondary btn-compact-secondary theme-refresh-btn"
+                type="button"
+                @click="refreshPreview">
+                {{ t('refresh') }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
+      <TipGifLibraryDrawer
+        :open="gifLibrary.open"
+        :items="gifLibrary.items"
+        :loading="gifLibrary.loading"
+        :error="gifLibrary.error"
+        :deleting-id="gifLibrary.deletingId"
+        @close="gifLibrary.open = false"
+        @refresh="fetchGifLibrary(true)"
+        @select="onLibrarySelect"
+        @delete="onLibraryDelete" />
+      <WuzzyGifDrawer
+        :open="wuzzyDrawerOpen"
+        @close="closeWuzzyDrawer()"
+        @select="handleWuzzySelect" />
+      <AlertDialog v-model:open="uploadErrorDialog.open">
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{{ uploadErrorDialog.title }}</AlertDialogTitle>
+            <AlertDialogDescription>{{ uploadErrorDialog.message }}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel @click="uploadErrorDialog.open = false"> OK </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog v-model:open="gifProviderWarning.open">
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{{ gifProviderWarning.title }}</AlertDialogTitle>
+            <AlertDialogDescription>{{ gifProviderWarning.message }}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel @click="gifProviderWarning.open = false">
+              {{ t('commonClose') }}
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
-    <TipGifLibraryDrawer
-      :open="gifLibrary.open"
-      :items="gifLibrary.items"
-      :loading="gifLibrary.loading"
-      :error="gifLibrary.error"
-      :deleting-id="gifLibrary.deletingId"
-      @close="gifLibrary.open = false"
-      @refresh="fetchGifLibrary(true)"
-      @select="onLibrarySelect"
-      @delete="onLibraryDelete" />
-    <WuzzyGifDrawer
-      :open="wuzzyDrawerOpen"
-      @close="closeWuzzyDrawer()"
-      @select="handleWuzzySelect" />
-    <AlertDialog v-model:open="uploadErrorDialog.open">
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{{ uploadErrorDialog.title }}</AlertDialogTitle>
-          <AlertDialogDescription>{{ uploadErrorDialog.message }}</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel @click="uploadErrorDialog.open = false"> OK </AlertDialogCancel>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-    <AlertDialog v-model:open="gifProviderWarning.open">
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{{ gifProviderWarning.title }}</AlertDialogTitle>
-          <AlertDialogDescription>{{ gifProviderWarning.message }}</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel @click="gifProviderWarning.open = false">
-            {{ t('commonClose') }}
-          </AlertDialogCancel>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
   </section>
 </template>
 <script setup>
@@ -515,8 +526,12 @@ import {
   AlertDialogFooter,
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
+import BlockedState from './shared/BlockedState.vue';
 
 const { t } = useI18n();
+
+const isBlocked = ref(false);
+const blockDetails = ref({});
 
 const gifInput = ref(null);
 
@@ -767,6 +782,7 @@ function resolveStorageSelection(preferred = '') {
 }
 
 function isDirty() {
+  if (isBlocked.value) return false;
   const gifState = JSON.stringify({ p: gif.position, path: gif.gifPath, sid: gif.selectedId });
   return (
     gifState !== gif.original ||
@@ -1217,7 +1233,18 @@ async function loadGif() {
       );
     }
     resolveStorageSelection();
-  } catch {}
+  } catch (e) {
+    if (
+      e.response &&
+      e.response.data &&
+      (e.response.data.error === 'CONFIGURATION_BLOCKED' ||
+        e.response.data.error === 'configuration_blocked')
+    ) {
+      isBlocked.value = true;
+      const details = e.response.data.details;
+      blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+    }
+  }
 }
 
 async function loadColors() {
@@ -1376,6 +1403,17 @@ async function saveGif() {
     }
     pushToast({ type: 'success', message: t('savedNotifications') });
   } catch (error) {
+    if (
+      error.response &&
+      error.response.data &&
+      (error.response.data.error === 'CONFIGURATION_BLOCKED' ||
+        error.response.data.error === 'configuration_blocked')
+    ) {
+      isBlocked.value = true;
+      const details = error.response.data.details;
+      blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+      return;
+    }
     const errorMsg = error?.response?.data?.error;
     if (errorMsg?.includes('File too large') || errorMsg?.includes('Insufficient balance')) {
       showUploadErrorDialog(t('uploadErrorTitle'), errorMsg);

@@ -326,6 +326,11 @@ function registerTipGoalRoutes(
     try {
       let cfg = null;
       const ns = req?.ns?.admin || req?.ns?.pub || null;
+
+      if (store && store.isConfigBlocked && await store.isConfigBlocked(ns, 'tip-goal-config.json')) {
+        return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+      }
+
       try {
         const { ensureWalletSession } = require('../lib/wallet-session');
         ensureWalletSession(req);
@@ -374,6 +379,7 @@ function registerTipGoalRoutes(
             };
           }
         } catch (e) {
+          if (e.code === 'CONFIGURATION_BLOCKED') throw e;
           if (process.env.GETTY_TENANT_DEBUG === '1')
             console.warn('[tip-goal][tenant_load_error]', e.message);
         }
@@ -383,7 +389,17 @@ function registerTipGoalRoutes(
           (await store.get(ns, 'tip-goal-config', null));
         if (wrapped) {
           cfg = wrapped.data ? wrapped.data : wrapped;
-          meta = wrapped.data ? { __version: wrapped.__version, checksum: wrapped.checksum } : null;
+
+          if (wrapped.__version || wrapped.checksum) {
+            meta = {
+              __version: wrapped.__version,
+              checksum: wrapped.checksum,
+              updatedAt: wrapped.updatedAt,
+              source: 'redis',
+            };
+          } else if (wrapped.data) {
+             meta = { source: 'redis' };
+          }
         }
       }
 
@@ -456,6 +472,14 @@ function registerTipGoalRoutes(
         return res.json({ success: true, ...(meta ? { meta } : {}), ...out });
       }
     } catch (e) {
+      if (e.code === 'CONFIGURATION_BLOCKED') {
+        return res.status(403).json({
+          success: false,
+          error: 'CONFIGURATION_BLOCKED',
+          message: 'This configuration has been disabled by a moderator.',
+          details: e.details || {}
+        });
+      }
       res.status(500).json({ error: 'Error loading tip goal config', details: e.message });
     }
   });
@@ -508,6 +532,10 @@ function registerTipGoalRoutes(
         const requestedStorageProvider = normalizeProviderValue(requestedStorageProviderRaw);
         const wuzzySelection = normalizeWuzzySelection(req.body);
         const ns = req?.ns?.admin || req?.ns?.pub || null;
+
+        if (store && store.isConfigBlocked && await store.isConfigBlocked(ns, 'tip-goal-config.json')) {
+          return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+        }
 
         let prevCfg = null;
         if (tenant && tenant.tenantEnabled(req)) {

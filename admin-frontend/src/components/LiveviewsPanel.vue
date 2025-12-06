@@ -1,6 +1,8 @@
 <template>
   <section class="admin-tab active" role="form">
-    <OsCard>
+    <BlockedState v-if="isBlocked" :module-name="t('liveviewsModule')" :details="blockDetails" />
+
+    <OsCard v-else>
       <div class="grid [grid-template-columns:repeat(auto-fill,minmax(200px,1fr))] gap-3">
         <div class="form-group [grid-column:1/-1]">
           <label class="label">{{ t('liveviewsClaimId') }}</label>
@@ -141,10 +143,13 @@ import { pushToast } from '../services/toast';
 import { useDirty } from '../composables/useDirtyRegistry';
 import CopyField from './shared/CopyField.vue';
 import OsCard from './os/OsCard.vue';
+import BlockedState from './shared/BlockedState.vue';
 import { useWalletSession } from '../composables/useWalletSession';
 import { usePublicToken } from '../composables/usePublicToken';
 
 const { t, locale } = useI18n();
+const isBlocked = ref(false);
+const blockDetails = ref({});
 
 const form = ref({
   bg: '#222222',
@@ -195,21 +200,31 @@ function applyCustomFont() {
     form.value.font = customFont.value || 'custom';
   }
 }
-
-function validate() {
-  errors.value.claimid = form.value.claimid.trim() ? '' : t('requiredField');
-}
-
 async function load() {
+  isBlocked.value = false;
   try {
     const r = await api.get('/config/liveviews-config.json');
     Object.assign(form.value, r.data);
-    if (!locallyClearedIcon.value) displayIcon.value = form.value.icon || '';
     initial.value = JSON.stringify(form.value);
     dirty.value = false;
-  } catch {
+  } catch (e) {
+    if (
+      e.response &&
+      e.response.data &&
+      (e.response.data.error === 'CONFIGURATION_BLOCKED' ||
+        e.response.data.error === 'configuration_blocked')
+    ) {
+      isBlocked.value = true;
+      const details = e.response.data.details;
+      blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+      return;
+    }
     pushToast({ type: 'error', message: t('liveviewsSaveFailed') });
   }
+}
+
+function validate() {
+  errors.value.claimid = form.value.claimid ? '' : t('required');
 }
 
 async function save() {
@@ -223,16 +238,26 @@ async function save() {
     const r = await fetch('/config/liveviews-config.json', { method: 'POST', body: fd });
     const data = await r.json();
     if (data.success) {
-      pushToast({ type: 'success', message: t('liveviewsSaved') });
       Object.assign(form.value, data.config);
-      if (!locallyClearedIcon.value) displayIcon.value = form.value.icon || '';
       initial.value = JSON.stringify(form.value);
       dirty.value = false;
+      pushToast({ type: 'success', message: t('liveviewsSaved') });
       removingIcon.value = false;
     } else {
       pushToast({ type: 'error', message: t('liveviewsSaveFailed') });
     }
-  } catch {
+  } catch (e) {
+    if (
+      e.response &&
+      e.response.data &&
+      (e.response.data.error === 'CONFIGURATION_BLOCKED' ||
+        e.response.data.error === 'configuration_blocked')
+    ) {
+      isBlocked.value = true;
+      const details = e.response.data.details;
+      blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+      return;
+    }
     pushToast({ type: 'error', message: t('liveviewsSaveFailed') });
   } finally {
     saving.value = false;
@@ -249,6 +274,12 @@ function onIconFileChange(e) {
   fetch('/config/liveviews-config.json', { method: 'POST', body: fd })
     .then((r) => r.json())
     .then((data) => {
+      if (data.error === 'CONFIGURATION_BLOCKED' || data.error === 'configuration_blocked') {
+        isBlocked.value = true;
+        const details = data.details;
+        blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+        return;
+      }
       if (data.success) {
         Object.assign(form.value, data.config);
         displayIcon.value = form.value.icon || '';

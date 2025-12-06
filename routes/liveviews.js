@@ -92,6 +92,10 @@ function registerLiveviewsRoutes(app, strictLimiter, options = {}) {
         const removeIcon = body.removeIcon === '1';
         const ns = req?.ns?.admin || req?.ns?.pub || null;
 
+        if (store && store.isConfigBlocked && await store.isConfigBlocked(ns, LIVEVIEWS_FILENAME)) {
+          return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+        }
+
         let prevWrapped = await loadTenantConfig(
           req,
           store,
@@ -170,6 +174,11 @@ function registerLiveviewsRoutes(app, strictLimiter, options = {}) {
   app.get('/config/liveviews-config.json', async (req, res) => {
     try {
       const ns = req?.ns?.admin || req?.ns?.pub || null;
+
+      if (store && store.isConfigBlocked && await store.isConfigBlocked(ns, LIVEVIEWS_FILENAME)) {
+        return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+      }
+
       let loaded = await loadTenantConfig(
         req,
         store,
@@ -211,6 +220,11 @@ function registerLiveviewsRoutes(app, strictLimiter, options = {}) {
       if (!nsCheck) return res.status(401).json({ error: 'session_required' });
     }
     const ns = req?.ns?.admin || req?.ns?.pub || null;
+
+    if (store && store.isConfigBlocked && await store.isConfigBlocked(ns, LIVEVIEWS_FILENAME)) {
+      return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+    }
+
     if (store && ns) {
       try {
         const current = (await store.get(ns, 'liveviews-config', null)) || {};

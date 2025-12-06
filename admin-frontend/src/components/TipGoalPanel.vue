@@ -1,260 +1,266 @@
 <template>
   <section class="admin-tab active tip-goal-root" role="form">
-    <div class="tip-goal-grid">
-      <div class="tip-goal-box" aria-labelledby="tip-goal-basics-title">
-        <div class="tip-goal-head">
-          <HeaderIcon>
-            <i class="pi pi-bullseye" aria-hidden="true"></i>
-          </HeaderIcon>
-          <h3 id="tip-goal-basics-title" class="tip-goal-title">{{ t('tipGoalBasicsTitle') }}</h3>
-        </div>
+    <BlockedState v-if="isBlocked" :module-name="t('tipGoalModule')" :details="blockDetails" />
 
-        <div class="tip-setting-item is-vertical" aria-live="polite">
-          <div class="tip-setting-text">
-            <div class="tip-setting-title">{{ t('tipGoalCustomTitleLabel') }}</div>
-            <div class="tip-setting-desc">{{ t('tipGoalCustomTitleHint') }}</div>
+    <div v-else>
+      <div class="tip-goal-grid">
+        <div class="tip-goal-box" aria-labelledby="tip-goal-basics-title">
+          <div class="tip-goal-head">
+            <HeaderIcon>
+              <i class="pi pi-bullseye" aria-hidden="true"></i>
+            </HeaderIcon>
+            <h3 id="tip-goal-basics-title" class="tip-goal-title">{{ t('tipGoalBasicsTitle') }}</h3>
           </div>
-          <div class="tip-setting-control full-width">
-            <input
-              class="input"
-              :aria-invalid="!!errors.title"
-              :class="{ 'input-error': errors.title }"
-              id="tip-goal-title"
-              v-model="form.title"
-              type="text"
-              maxlength="120"
-              :placeholder="t('tipGoalCustomTitlePlaceholder')" />
-            <div class="tip-field-foot">
-              <span :class="errors.title ? 'error' : ''">{{
-                errors.title || t('tipGoalCustomTitleHint')
-              }}</span>
-              <span aria-live="polite" aria-atomic="true">{{
-                t('charsUsed', { used: form.title.length, max: 120 })
-              }}</span>
+
+          <div class="tip-setting-item is-vertical" aria-live="polite">
+            <div class="tip-setting-text">
+              <div class="tip-setting-title">{{ t('tipGoalCustomTitleLabel') }}</div>
+              <div class="tip-setting-desc">{{ t('tipGoalCustomTitleHint') }}</div>
+            </div>
+            <div class="tip-setting-control full-width">
+              <input
+                class="input"
+                :aria-invalid="!!errors.title"
+                :class="{ 'input-error': errors.title }"
+                id="tip-goal-title"
+                v-model="form.title"
+                type="text"
+                maxlength="120"
+                :placeholder="t('tipGoalCustomTitlePlaceholder')" />
+              <div class="tip-field-foot">
+                <span :class="errors.title ? 'error' : ''">{{
+                  errors.title || t('tipGoalCustomTitleHint')
+                }}</span>
+                <span aria-live="polite" aria-atomic="true">{{
+                  t('charsUsed', { used: form.title.length, max: 120 })
+                }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="tip-setting-item">
+            <div class="tip-setting-text">
+              <div class="tip-setting-title">{{ t('tipGoalThemeLabel') }}</div>
+              <div class="tip-setting-desc">{{ t('tipWidgetThemeDesc') }}</div>
+            </div>
+            <div class="tip-setting-control">
+              <select id="tip-goal-theme" v-model="form.theme" class="input select">
+                <option value="classic">{{ t('tipGoalThemeClassic') }}</option>
+                <option value="modern-list">{{ t('tipGoalThemeModern') }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="tip-setting-item">
+            <div class="tip-setting-text">
+              <div class="tip-setting-title">{{ t('monthlyGoal') }}</div>
+              <div class="tip-setting-desc">{{ t('tipGoalAmountHint') }}</div>
+            </div>
+            <div class="tip-setting-control">
+              <input
+                id="tip-goal-target"
+                class="input"
+                type="number"
+                min="1"
+                v-model.number="form.goalAmount"
+                :aria-invalid="!!errors.goalAmount"
+                :class="{ 'input-error': errors.goalAmount }" />
+              <div class="tip-field-foot">
+                <span :class="errors.goalAmount ? 'error' : ''">{{ errors.goalAmount }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="tip-setting-item">
+            <div class="tip-setting-text">
+              <div class="tip-setting-title">{{ t('initialAmount') }}</div>
+              <div class="tip-setting-desc">{{ t('tipGoalStartingHint') }}</div>
+            </div>
+            <div class="tip-setting-control">
+              <input
+                id="tip-goal-current"
+                class="input"
+                type="number"
+                min="0"
+                v-model.number="form.startingAmount"
+                :aria-invalid="!!errors.startingAmount"
+                :class="{ 'input-error': errors.startingAmount }" />
+              <div class="tip-field-foot">
+                <span :class="errors.startingAmount ? 'error' : ''">{{
+                  errors.startingAmount
+                }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="tip-setting-item is-vertical">
+            <div class="tip-setting-text">
+              <div class="tip-setting-title">{{ t('arWalletAddress') }}</div>
+              <div class="tip-setting-desc">{{ walletHint }}</div>
+            </div>
+            <div class="tip-setting-control full-width">
+              <input
+                id="tip-goal-wallet"
+                class="input"
+                type="text"
+                v-model="form.walletAddress"
+                :disabled="!walletEditable"
+                :aria-invalid="!!errors.walletAddress"
+                :class="{ 'input-error': errors.walletAddress }" />
+              <div class="tip-field-foot">
+                <span :class="errors.walletAddress ? 'error' : ''">{{
+                  errors.walletAddress || walletHint
+                }}</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="tip-setting-item">
-          <div class="tip-setting-text">
-            <div class="tip-setting-title">{{ t('tipGoalThemeLabel') }}</div>
-            <div class="tip-setting-desc">{{ t('tipWidgetThemeDesc') }}</div>
+        <div class="tip-goal-box" aria-labelledby="tip-goal-colors-title">
+          <div class="tip-goal-head">
+            <HeaderIcon>
+              <svg
+                class="os-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M14.31 8l5.74 9.94" />
+                <path d="M9.69 8h11.48" />
+                <path d="M7.38 12l5.74-9.94" />
+                <path d="M9.69 16L3.95 6.06" />
+                <path d="M14.31 16H2.83" />
+              </svg>
+            </HeaderIcon>
+            <h3 id="tip-goal-colors-title" class="tip-goal-title">
+              {{ t('colorCustomizationTitle') }}
+            </h3>
           </div>
-          <div class="tip-setting-control">
-            <select id="tip-goal-theme" v-model="form.theme" class="input select">
-              <option value="classic">{{ t('tipGoalThemeClassic') }}</option>
-              <option value="modern-list">{{ t('tipGoalThemeModern') }}</option>
-            </select>
+          <div class="tip-setting-title mb-2">{{ t('colorCustomizationTitle') }}</div>
+          <div class="tip-colors-grid">
+            <ColorInput v-model="form.colors.bg" :label="t('colorBg')" />
+            <ColorInput v-model="form.colors.font" :label="t('colorFont')" />
+            <ColorInput v-model="form.colors.border" :label="t('colorBorder')" />
+            <ColorInput v-model="form.colors.progress" :label="t('colorProgress')" />
           </div>
-        </div>
-
-        <div class="tip-setting-item">
-          <div class="tip-setting-text">
-            <div class="tip-setting-title">{{ t('monthlyGoal') }}</div>
-            <div class="tip-setting-desc">{{ t('tipGoalAmountHint') }}</div>
+          <div class="tip-colors-actions">
+            <button type="button" class="btn-secondary btn-compact-secondary" @click="resetColors">
+              {{ t('resetColors') }}
+            </button>
           </div>
-          <div class="tip-setting-control">
-            <input
-              id="tip-goal-target"
-              class="input"
-              type="number"
-              min="1"
-              v-model.number="form.goalAmount"
-              :aria-invalid="!!errors.goalAmount"
-              :class="{ 'input-error': errors.goalAmount }" />
-            <div class="tip-field-foot">
-              <span :class="errors.goalAmount ? 'error' : ''">{{ errors.goalAmount }}</span>
+          <div class="tip-preview-wrapper">
+            <div class="tip-preview-card" :style="previewStyles">
+              <div class="tp-title">{{ previewTitle }}</div>
+              <div class="tp-amount-row">
+                <span class="tp-amount">{{ formattedCurrent }} AR</span>
+                <span class="tp-goal-label">/ {{ formattedGoal }} AR</span>
+              </div>
+              <div class="tp-remaining">{{ remainingLabel }}</div>
+              <div class="tp-progress-track">
+                <div class="tp-progress-fill" :style="{ width: `${progressPercent}%` }"></div>
+              </div>
+              <div class="tp-desc">{{ t('tipGoalPreviewHint') }}</div>
             </div>
           </div>
         </div>
 
-        <div class="tip-setting-item">
-          <div class="tip-setting-text">
-            <div class="tip-setting-title">{{ t('initialAmount') }}</div>
-            <div class="tip-setting-desc">{{ t('tipGoalStartingHint') }}</div>
+        <div class="tip-goal-box" aria-labelledby="tip-goal-audio-title">
+          <div class="tip-goal-head">
+            <HeaderIcon>
+              <svg
+                class="os-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+                <path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6l-5 4H4a1 1 0 0 0-1 1Z" />
+                <path d="M16 12h2" />
+                <path d="M16 8h2" />
+                <path d="M16 16h2" />
+              </svg>
+            </HeaderIcon>
+            <h3 id="tip-goal-audio-title" class="tip-goal-title">{{ t('customAudioTitle') }}</h3>
           </div>
-          <div class="tip-setting-control">
-            <input
-              id="tip-goal-current"
-              class="input"
-              type="number"
-              min="0"
-              v-model.number="form.startingAmount"
-              :aria-invalid="!!errors.startingAmount"
-              :class="{ 'input-error': errors.startingAmount }" />
-            <div class="tip-field-foot">
-              <span :class="errors.startingAmount ? 'error' : ''">{{ errors.startingAmount }}</span>
+          <div class="tip-setting-item is-vertical">
+            <div class="tip-setting-text">
+              <div class="tip-setting-title">{{ t('audioSourceLabel') }}</div>
+              <div class="tip-setting-desc">{{ t('tipGoalAudioHint') }}</div>
             </div>
+            <LegacyAudioControls
+              compact
+              force-stack
+              :show-label="false"
+              :enabled="audioCfg.enabled"
+              :volume="audioCfg.volume"
+              :audio-source="audio.audioSource"
+              :has-custom-audio="audioState.hasCustomAudio"
+              :audio-file-name="audioState.audioFileName"
+              :audio-file-size="audioState.audioFileSize"
+              :audio-library-id="audioState.audioLibraryId"
+              :library-enabled="true"
+              :storage-provider="audioStorageProvider"
+              :storage-providers="storageOptions"
+              :storage-loading="storageLoading"
+              save-endpoint="/api/goal-audio-settings"
+              delete-endpoint="/api/goal-audio-settings"
+              custom-audio-endpoint="/api/goal-custom-audio"
+              @update:enabled="(val) => (audioCfg.enabled = val)"
+              @update:volume="(val) => (audioCfg.volume = val)"
+              @update:audio-source="(val) => (audio.audioSource = val)"
+              @update:storage-provider="handleAudioStorageProviderChange"
+              @audio-saved="handleAudioSaved"
+              @audio-deleted="handleAudioDeleted"
+              @toast="handleAudioToast" />
           </div>
         </div>
 
-        <div class="tip-setting-item is-vertical">
-          <div class="tip-setting-text">
-            <div class="tip-setting-title">{{ t('arWalletAddress') }}</div>
-            <div class="tip-setting-desc">{{ walletHint }}</div>
+        <div class="tip-goal-box" aria-labelledby="tip-goal-widget-title">
+          <div class="tip-goal-head">
+            <HeaderIcon>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+              </svg>
+            </HeaderIcon>
+            <h3 id="tip-goal-widget-title" class="tip-goal-title">{{ t('obsIntegration') }}</h3>
           </div>
-          <div class="tip-setting-control full-width">
-            <input
-              id="tip-goal-wallet"
-              class="input"
-              type="text"
-              v-model="form.walletAddress"
-              :disabled="!walletEditable"
-              :aria-invalid="!!errors.walletAddress"
-              :class="{ 'input-error': errors.walletAddress }" />
-            <div class="tip-field-foot">
-              <span :class="errors.walletAddress ? 'error' : ''">{{
-                errors.walletAddress || walletHint
-              }}</span>
+          <div class="tip-setting-item is-vertical">
+            <div class="tip-setting-text">
+              <div class="tip-setting-title">{{ t('tipGoalWidgetUrl') }}</div>
+              <div class="tip-setting-desc">{{ t('tipWidgetObsHint') }}</div>
+            </div>
+            <div class="copy-field-row">
+              <CopyField :value="widgetUrl" :aria-label="t('tipGoalWidgetUrl')" secret />
             </div>
           </div>
         </div>
       </div>
 
-      <div class="tip-goal-box" aria-labelledby="tip-goal-colors-title">
-        <div class="tip-goal-head">
-          <HeaderIcon>
-            <svg
-              class="os-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M14.31 8l5.74 9.94" />
-              <path d="M9.69 8h11.48" />
-              <path d="M7.38 12l5.74-9.94" />
-              <path d="M9.69 16L3.95 6.06" />
-              <path d="M14.31 16H2.83" />
-            </svg>
-          </HeaderIcon>
-          <h3 id="tip-goal-colors-title" class="tip-goal-title">
-            {{ t('colorCustomizationTitle') }}
-          </h3>
-        </div>
-        <div class="tip-setting-title mb-2">{{ t('colorCustomizationTitle') }}</div>
-        <div class="tip-colors-grid">
-          <ColorInput v-model="form.colors.bg" :label="t('colorBg')" />
-          <ColorInput v-model="form.colors.font" :label="t('colorFont')" />
-          <ColorInput v-model="form.colors.border" :label="t('colorBorder')" />
-          <ColorInput v-model="form.colors.progress" :label="t('colorProgress')" />
-        </div>
-        <div class="tip-colors-actions">
-          <button type="button" class="btn-secondary btn-compact-secondary" @click="resetColors">
-            {{ t('resetColors') }}
-          </button>
-        </div>
-        <div class="tip-preview-wrapper">
-          <div class="tip-preview-card" :style="previewStyles">
-            <div class="tp-title">{{ previewTitle }}</div>
-            <div class="tp-amount-row">
-              <span class="tp-amount">{{ formattedCurrent }} AR</span>
-              <span class="tp-goal-label">/ {{ formattedGoal }} AR</span>
-            </div>
-            <div class="tp-remaining">{{ remainingLabel }}</div>
-            <div class="tp-progress-track">
-              <div class="tp-progress-fill" :style="{ width: `${progressPercent}%` }"></div>
-            </div>
-            <div class="tp-desc">{{ t('tipGoalPreviewHint') }}</div>
-          </div>
-        </div>
+      <div class="tip-actions">
+        <button
+          class="btn"
+          type="button"
+          :disabled="saving"
+          @click="save"
+          :aria-busy="saving ? 'true' : 'false'">
+          {{ saving ? t('commonSaving') : t('saveSettings') }}
+        </button>
       </div>
-
-      <div class="tip-goal-box" aria-labelledby="tip-goal-audio-title">
-        <div class="tip-goal-head">
-          <HeaderIcon>
-            <svg
-              class="os-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round">
-              <path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6l-5 4H4a1 1 0 0 0-1 1Z" />
-              <path d="M16 12h2" />
-              <path d="M16 8h2" />
-              <path d="M16 16h2" />
-            </svg>
-          </HeaderIcon>
-          <h3 id="tip-goal-audio-title" class="tip-goal-title">{{ t('customAudioTitle') }}</h3>
-        </div>
-        <div class="tip-setting-item is-vertical">
-          <div class="tip-setting-text">
-            <div class="tip-setting-title">{{ t('audioSourceLabel') }}</div>
-            <div class="tip-setting-desc">{{ t('tipGoalAudioHint') }}</div>
-          </div>
-          <LegacyAudioControls
-            compact
-            force-stack
-            :show-label="false"
-            :enabled="audioCfg.enabled"
-            :volume="audioCfg.volume"
-            :audio-source="audio.audioSource"
-            :has-custom-audio="audioState.hasCustomAudio"
-            :audio-file-name="audioState.audioFileName"
-            :audio-file-size="audioState.audioFileSize"
-            :audio-library-id="audioState.audioLibraryId"
-            :library-enabled="true"
-            :storage-provider="audioStorageProvider"
-            :storage-providers="storageOptions"
-            :storage-loading="storageLoading"
-            save-endpoint="/api/goal-audio-settings"
-            delete-endpoint="/api/goal-audio-settings"
-            custom-audio-endpoint="/api/goal-custom-audio"
-            @update:enabled="(val) => (audioCfg.enabled = val)"
-            @update:volume="(val) => (audioCfg.volume = val)"
-            @update:audio-source="(val) => (audio.audioSource = val)"
-            @update:storage-provider="handleAudioStorageProviderChange"
-            @audio-saved="handleAudioSaved"
-            @audio-deleted="handleAudioDeleted"
-            @toast="handleAudioToast" />
-        </div>
-      </div>
-
-      <div class="tip-goal-box" aria-labelledby="tip-goal-widget-title">
-        <div class="tip-goal-head">
-          <HeaderIcon>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round">
-              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-              <line x1="8" y1="21" x2="16" y2="21"></line>
-              <line x1="12" y1="17" x2="12" y2="21"></line>
-            </svg>
-          </HeaderIcon>
-          <h3 id="tip-goal-widget-title" class="tip-goal-title">{{ t('obsIntegration') }}</h3>
-        </div>
-        <div class="tip-setting-item is-vertical">
-          <div class="tip-setting-text">
-            <div class="tip-setting-title">{{ t('tipGoalWidgetUrl') }}</div>
-            <div class="tip-setting-desc">{{ t('tipWidgetObsHint') }}</div>
-          </div>
-          <div class="copy-field-row">
-            <CopyField :value="widgetUrl" :aria-label="t('tipGoalWidgetUrl')" secret />
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="tip-actions">
-      <button
-        class="btn"
-        type="button"
-        :disabled="saving"
-        @click="save"
-        :aria-busy="saving ? 'true' : 'false'">
-        {{ saving ? t('commonSaving') : t('saveSettings') }}
-      </button>
     </div>
   </section>
 </template>
@@ -272,9 +278,12 @@ import CopyField from './shared/CopyField.vue';
 import ColorInput from './shared/ColorInput.vue';
 import LegacyAudioControls from './shared/LegacyAudioControls.vue';
 import HeaderIcon from './shared/HeaderIcon.vue';
+import BlockedState from './shared/BlockedState.vue';
 
 const { t } = useI18n();
 const WUZZY_PROVIDER_ID = 'wuzzy';
+const isBlocked = ref(false);
+const blockDetails = ref({});
 
 const form = reactive({
   title: '',
@@ -386,12 +395,15 @@ function serializeSnapshot() {
     goalAmount: form.goalAmount,
     startingAmount: form.startingAmount,
     theme: form.theme,
-    colors: { ...form.colors },
+    colors: form.colors,
     audioSource: audio.audioSource,
+    audioEnabled: audioCfg.enabled,
+    audioVolume: audioCfg.volume,
   });
 }
 
 async function loadTipGoal() {
+  isBlocked.value = false;
   try {
     hostedSupported.value = true;
     sessionActive.value = true;
@@ -440,8 +452,6 @@ async function loadTipGoal() {
       if (typeof data.bgColor === 'string') form.colors.bg = data.bgColor;
       if (typeof data.fontColor === 'string') form.colors.font = data.fontColor;
       if (typeof data.borderColor === 'string') form.colors.border = data.borderColor;
-      if (typeof data.progressColor === 'string') form.colors.progress = data.progressColor;
-      if (typeof data.audioSource === 'string') audio.audioSource = data.audioSource;
       if (typeof data.storageProvider === 'string') {
         audioState.storageProvider = data.storageProvider;
         if (data.storageProvider && data.storageProvider !== WUZZY_PROVIDER_ID) {
@@ -450,7 +460,16 @@ async function loadTipGoal() {
       }
     }
   } catch (e) {
-    if (!(e?.response?.status === 404)) {
+    if (
+      e.response &&
+      e.response.data &&
+      (e.response.data.error === 'CONFIGURATION_BLOCKED' ||
+        e.response.data.error === 'configuration_blocked')
+    ) {
+      isBlocked.value = true;
+      const details = e.response.data.details;
+      blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+    } else if (!(e?.response?.status === 404)) {
       pushToast({ type: 'error', message: t('loadFailedTipGoal') });
     }
   }
@@ -480,7 +499,16 @@ async function loadAudioState() {
       storage.registerProvider(audioState.storageProvider);
     }
   } catch (e) {
-    if (!(e?.response?.status === 404)) {
+    if (
+      e.response &&
+      e.response.data &&
+      (e.response.data.error === 'CONFIGURATION_BLOCKED' ||
+        e.response.data.error === 'configuration_blocked')
+    ) {
+      isBlocked.value = true;
+      const details = e.response.data.details;
+      blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+    } else if (!(e?.response?.status === 404)) {
       console.warn('[tip-goal] failed to load audio settings', e);
     }
   }
@@ -509,24 +537,35 @@ async function save() {
       theme: form.theme,
       bgColor: form.colors.bg,
       fontColor: form.colors.font,
-      borderColor: form.colors.border,
-      progressColor: form.colors.progress,
       title: form.title,
       audioSource: audio.audioSource,
       storageProvider: audio.audioSource === 'custom' ? providerSelection : '',
       audioEnabled: audioCfg.enabled,
       audioVolume: audioCfg.volume,
     };
-    if (walletEditable.value) payload.walletAddress = form.walletAddress;
+
+    if (form.walletAddress) {
+      payload.walletAddress = form.walletAddress;
+    }
 
     const res = await api.post('/api/tip-goal', payload);
+
     if (res?.data?.success) {
-      pushToast({ type: 'success', message: t('savedTipGoal') });
-      await loadAll();
-    } else {
-      pushToast({ type: 'error', message: t('saveFailedTipGoal') });
+      originalSnapshot.value = serializeSnapshot();
+      pushToast({ type: 'success', message: t('saveSuccessTipGoal') });
     }
-  } catch {
+  } catch (e) {
+    if (
+      e.response &&
+      e.response.data &&
+      (e.response.data.error === 'CONFIGURATION_BLOCKED' ||
+        e.response.data.error === 'configuration_blocked')
+    ) {
+      isBlocked.value = true;
+      const details = e.response.data.details;
+      blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+      return;
+    }
     pushToast({ type: 'error', message: t('saveFailedTipGoal') });
   } finally {
     saving.value = false;
@@ -535,14 +574,15 @@ async function save() {
 
 function validate() {
   errors.title = form.title.length > MAX_TITLE_LEN ? t('valMax120') : '';
+
   if (form.walletAddress && !isArweaveAddress(form.walletAddress)) {
-    errors.walletAddress = t('valArweaveOnly');
+    errors.walletAddress = t('valInvalid');
   } else {
     errors.walletAddress = '';
   }
+
   errors.goalAmount = (form.goalAmount || 0) < 1 ? t('valMin1') : '';
-  errors.startingAmount = (form.startingAmount || 0) < 0 ? t('valInvalid') : '';
-  return !errors.title && !errors.walletAddress && !errors.goalAmount && !errors.startingAmount;
+  return !errors.title && !errors.walletAddress && !errors.goalAmount;
 }
 
 async function handleAudioSaved() {
@@ -571,7 +611,10 @@ function handleAudioStorageProviderChange(val) {
   }
 }
 
-useDirty(() => originalSnapshot.value !== serializeSnapshot(), t('tipGoalModule') || 'Tip Goal');
+useDirty(
+  () => !isBlocked.value && originalSnapshot.value !== serializeSnapshot(),
+  t('tipGoalModule') || 'Tip Goal'
+);
 
 watch(storageOptions, () => resolveStorageSelection());
 

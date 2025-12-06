@@ -264,7 +264,12 @@ async function save() {
     pushToast({ type: 'success', message: t('channelConfigSaved') });
     form.authToken = '';
     form.clearAuthToken = false;
-  } catch (err) {
+  } catch (err: any) {
+    if (
+      err?.response?.data?.error === 'CONFIGURATION_BLOCKED' ||
+      err?.response?.data?.error === 'configuration_blocked'
+    )
+      return;
     pushToast({ type: 'error', message: t('channelConfigSaveFailed') });
     console.error(err);
   } finally {

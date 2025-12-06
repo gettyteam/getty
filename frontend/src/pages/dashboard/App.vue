@@ -75,12 +75,22 @@
         id="main-content"
         class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8 user-dashboard-grid"
         role="main">
-        <LastTipCard />
-        <TipGoalCard />
-        <NotificationCard />
-        <ChatCard />
-        <RaffleCard />
-        <AchievementsCard />
+        <div
+          v-if="loadingStatus"
+          class="col-span-1 md:col-span-2 lg:col-span-3 flex justify-center py-12">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+        <div v-else-if="isGlobalBlocked" class="col-span-1 md:col-span-2 lg:col-span-3">
+          <BlockedState module-name="All Modules" />
+        </div>
+        <template v-else>
+          <LastTipCard :is-blocked="modulesStatus.lastTip?.blocked" />
+          <TipGoalCard :is-blocked="modulesStatus.tipGoal?.blocked" />
+          <NotificationCard :is-blocked="modulesStatus.externalNotifications?.blocked" />
+          <ChatCard :is-blocked="modulesStatus.chat?.blocked" />
+          <RaffleCard :is-blocked="modulesStatus.raffle?.blocked" />
+          <AchievementsCard :is-blocked="modulesStatus.achievements?.blocked" />
+        </template>
       </main>
     </div>
     <DashboardFooter />
@@ -93,8 +103,9 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, onMounted } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, nextTick, watch } from 'vue';
 import AchievementsCard from './components/AchievementsCard.vue';
+import BlockedState from './components/BlockedState.vue';
 import ChatCard from './components/ChatCard.vue';
 import DashboardFooter from './components/DashboardFooter.vue';
 import LastTipCard from './components/LastTipCard.vue';
@@ -110,8 +121,95 @@ const bodyClasses = [
   'landing',
 ];
 
+const modulesStatus = ref({});
+const loadingStatus = ref(true);
+const isTenantSuspended = ref(false);
+
+watch(
+  modulesStatus,
+  async () => {
+    await nextTick();
+    setTimeout(() => {
+      if (window.getty && typeof window.getty.scanForWidgets === 'function') {
+        window.getty.scanForWidgets();
+      }
+    }, 500);
+  },
+  { deep: true }
+);
+
+const isGlobalBlocked = computed(() => {
+  if (isTenantSuspended.value) return true;
+
+  const keys = [
+    'announcement',
+    'socialmedia',
+    'tipGoal',
+    'lastTip',
+    'raffle',
+    'achievements',
+    'chat',
+    'liveviews',
+    'externalNotifications',
+  ];
+
+  if (Object.keys(modulesStatus.value).length === 0) return false;
+
+  const allBlocked = keys.every((key) => {
+    const mod = modulesStatus.value[key];
+
+    if (!mod) return false;
+    return mod.blocked === true;
+  });
+
+  return allBlocked;
+});
+
+async function fetchModulesStatus() {
+  try {
+    let token = '';
+    try {
+      const urlObj = new URL(window.location.href);
+      const match = urlObj.pathname.match(/^\/user\/([A-Za-z0-9_-]+)/);
+      if (match) {
+        token = match[1];
+      }
+    } catch (e) {
+      console.warn('[dashboard] failed to parse url', e);
+    }
+
+    const url = token ? `/api/modules?widgetToken=${encodeURIComponent(token)}` : '/api/modules';
+
+    const res = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      modulesStatus.value = data || {};
+    } else if (res.status === 403) {
+      isTenantSuspended.value = true;
+      console.warn('[dashboard] /api/modules returned 403, treating as suspended');
+    } else if (res.status === 401) {
+      console.warn('[dashboard] /api/modules returned', res.status);
+    }
+  } catch (e) {
+    console.warn('[dashboard] failed to fetch module status', e);
+  } finally {
+    loadingStatus.value = false;
+
+    await nextTick();
+
+    setTimeout(() => {
+      notifyLegacyBridge();
+    }, 1000);
+  }
+}
+
 function notifyLegacyBridge() {
   const root = document.getElementById('app-root');
+  window.__GETTY_VUE_IS_READY = true;
   window.dispatchEvent(
     new CustomEvent('getty-dashboard-vue-ready', {
       detail: { root },
@@ -132,7 +230,7 @@ onMounted(() => {
       document.body.classList.add(className);
     }
   });
-  notifyLegacyBridge();
+  fetchModulesStatus();
 });
 
 onBeforeUnmount(() => {

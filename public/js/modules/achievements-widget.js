@@ -1,4 +1,4 @@
-const root = document.getElementById('ach-root') || document.querySelector('[data-ach-embed]');
+let root = document.getElementById('ach-root') || document.querySelector('[data-ach-embed]');
 const isEmbed = !!(root && root.hasAttribute('data-ach-embed'));
 const embedMaxItems = (() => {
   try {
@@ -358,6 +358,16 @@ function fadeOutAndRemoveLast() {
 }
 
 async function boot() {
+
+  root =
+    document.getElementById('achievements-panel') ||
+    document.getElementById('achievements-embed') ||
+    document.querySelector('[data-ach-embed]');
+    
+  if (!root || !document.body.contains(root)) {
+    return;
+  }
+
   await loadLang();
   try {
     const response = await getJson('/api/achievements/config');
@@ -500,4 +510,22 @@ async function connectWebSocket() {
   } catch {}
 }
 
-boot();
+(async function () {
+  const root = document.getElementById('app-root');
+  const isVueDashboard = !!(
+    root &&
+    root.hasAttribute &&
+    root.hasAttribute('data-dashboard-vue')
+  );
+
+  if (isVueDashboard && !window.__GETTY_VUE_IS_READY) {
+    await new Promise((resolve) => {
+      const onReady = () => {
+        window.removeEventListener('getty-dashboard-vue-ready', onReady);
+        resolve();
+      };
+      window.addEventListener('getty-dashboard-vue-ready', onReady, { once: true });
+    });
+  }
+  boot();
+})();

@@ -16,7 +16,8 @@
         {{ t('streamHistoryTitle') }}
       </h3>
     </template>
-    <div class="status-row" v-if="!settingsCollapsed">
+    <BlockedState v-if="isBlocked" :module-name="t('streamHistoryTitle')" :details="blockDetails" />
+    <div class="status-row" v-else-if="!settingsCollapsed">
       <span class="badge" :class="status.connected ? 'ok' : 'err'">
         {{ status.connected ? t('connected') : t('disconnected') }}
       </span>
@@ -53,7 +54,7 @@
     </div>
     <div
       class="grid [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))] gap-3"
-      v-if="!settingsCollapsed">
+      v-if="!isBlocked && !settingsCollapsed">
       <span v-if="samplingCaption" class="text-[0.72rem] opacity-90 italic sampling-caption">
         {{ samplingCaption }}
       </span>
@@ -222,7 +223,7 @@
       </div>
     </div>
 
-    <div class="flex flex-wrap items-center justify-between -m-2">
+    <div class="flex flex-wrap items-center justify-between -m-2" v-if="!isBlocked">
       <div class="w-auto p-2 flex items-center gap-2">
         <h3 class="font-heading text-lg font-semibold">{{ t('activity') }}</h3>
         <button
@@ -525,7 +526,7 @@
       </div>
     </div>
 
-    <div class="mt-4">
+    <div class="mt-4" v-if="!isBlocked">
       <div
         v-if="tzChangeVisible"
         class="mb-3 p-3 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs flex flex-col gap-2">
@@ -811,6 +812,7 @@ import { useI18n } from 'vue-i18n';
 import { createStreamHistoryPanel } from './createStreamHistoryPanel.js';
 import { ref, watch, computed, onMounted, onBeforeUnmount, reactive } from 'vue';
 import { metrics } from '../../stores/metricsStore.js';
+import BlockedState from '../shared/BlockedState.vue';
 
 const { t, locale } = useI18n();
 const EARLIEST_ANALYTICS_YEAR = 2020;
@@ -823,6 +825,8 @@ const {
   status,
   claimid,
   saving,
+  isBlocked,
+  blockDetails,
   saveConfig,
   refresh,
   clearHistory,

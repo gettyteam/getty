@@ -78,6 +78,11 @@ module.exports = function registerEventsSettingsRoutes(app, strictLimiter, { sto
       }
       (async () => {
         try {
+          const ns = req?.ns?.admin || req?.ns?.pub || null;
+          if (store && store.isConfigBlocked && await store.isConfigBlocked(ns, CONFIG_FILENAME)) {
+            return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+          }
+
           if (store && hasNs) {
             try {
               const ns = req.ns.admin || req.ns.pub;
@@ -123,6 +128,10 @@ module.exports = function registerEventsSettingsRoutes(app, strictLimiter, { sto
       const ns = req.ns?.admin || req.ns?.pub || null;
       (async () => {
         try {
+          if (store && store.isConfigBlocked && await store.isConfigBlocked(ns, CONFIG_FILENAME)) {
+            return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+          }
+
           if (store && ns) {
             try {
               const current = await store.get(ns, 'events-settings', {});

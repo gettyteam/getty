@@ -103,8 +103,11 @@ export function useAnnouncementPanel(t) {
   const { withToken, refresh } = usePublicToken();
   const widgetUrl = computed(() => withToken(`${location.origin}/widgets/announcement`));
   const activeTab = ref('settings');
+  const isBlocked = ref(false);
+  const blockDetails = ref({});
 
   async function load() {
+    isBlocked.value = false;
     try {
       const r = await api.get('/api/announcement');
       if (r.data && r.data.success) {
@@ -112,7 +115,20 @@ export function useAnnouncementPanel(t) {
         Object.assign(settings.value, cfg);
         messages.value = r.data.config?.messages || r.data.messages || [];
       }
-    } catch {}
+    } catch (e) {
+      if (
+        e.response &&
+        e.response.data &&
+        (e.response.data.error === 'CONFIGURATION_BLOCKED' ||
+          e.response.data.error === 'configuration_blocked')
+      ) {
+        isBlocked.value = true;
+        const details = e.response.data.details;
+        blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+      } else {
+        console.error('[AnnouncementPanel] Load failed', e);
+      }
+    }
   }
 
   async function saveSettings() {
@@ -126,7 +142,18 @@ export function useAnnouncementPanel(t) {
       } else {
         pushToast({ type: 'error', message: t('announcementSaveSettingsFailed') });
       }
-    } catch {
+    } catch (e) {
+      if (
+        e.response &&
+        e.response.data &&
+        (e.response.data.error === 'CONFIGURATION_BLOCKED' ||
+          e.response.data.error === 'configuration_blocked')
+      ) {
+        isBlocked.value = true;
+        const details = e.response.data.details;
+        blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+        return;
+      }
       pushToast({ type: 'error', message: t('announcementSaveSettingsFailed') });
     } finally {
       savingSettings.value = false;
@@ -275,6 +302,11 @@ export function useAnnouncementPanel(t) {
         }
       }
     } catch (error) {
+      if (error?.response?.data?.error === 'CONFIGURATION_BLOCKED') {
+        isBlocked.value = true;
+        blockDetails.value = error.response.data.details || {};
+        throw error;
+      }
       const errorMsg = error?.response?.data?.error;
       if (errorMsg?.includes('File too large') || errorMsg?.includes('Insufficient balance')) {
         throw error;
@@ -296,7 +328,11 @@ export function useAnnouncementPanel(t) {
       } else {
         throw new Error(r.data?.error || 'failed');
       }
-    } catch {
+    } catch (e) {
+      if (e?.response?.data?.error === 'CONFIGURATION_BLOCKED') {
+        isBlocked.value = true;
+        blockDetails.value = e.response.data.details || {};
+      }
       m.enabled = !desired;
       pushToast({ type: 'error', message: t('announcementSaveSettingsFailed') });
     }
@@ -348,7 +384,11 @@ export function useAnnouncementPanel(t) {
       } else {
         pushToast({ type: 'error', message: r.data.error });
       }
-    } catch {
+    } catch (e) {
+      if (e?.response?.data?.error === 'CONFIGURATION_BLOCKED') {
+        isBlocked.value = true;
+        blockDetails.value = e.response.data.details || {};
+      }
       pushToast({ type: 'error', message: t('announcementSaveSettingsFailed') });
     }
   }
@@ -468,7 +508,11 @@ export function useAnnouncementPanel(t) {
       } else {
         pushToast({ type: 'error', message: r.data.error });
       }
-    } catch {
+    } catch (e) {
+      if (e?.response?.data?.error === 'CONFIGURATION_BLOCKED') {
+        isBlocked.value = true;
+        blockDetails.value = e.response.data.details || {};
+      }
       pushToast({ type: 'error', message: t('announcementSaveSettingsFailed') });
     } finally {
       updating.value = false;
@@ -517,6 +561,11 @@ export function useAnnouncementPanel(t) {
       }
       return data || null;
     } catch (error) {
+      if (error?.response?.data?.error === 'CONFIGURATION_BLOCKED') {
+        isBlocked.value = true;
+        blockDetails.value = error.response.data.details || {};
+        return null;
+      }
       const errorMsg = error?.response?.data?.error;
       if (errorMsg?.includes('File too large') || errorMsg?.includes('Insufficient balance')) {
         throw error;
@@ -545,7 +594,11 @@ export function useAnnouncementPanel(t) {
       } else {
         pushToast({ type: 'error', message: r.data.error || t('announcementMsgDeleteFailed') });
       }
-    } catch {
+    } catch (e) {
+      if (e?.response?.data?.error === 'CONFIGURATION_BLOCKED') {
+        isBlocked.value = true;
+        blockDetails.value = e.response.data.details || {};
+      }
       pushToast({ type: 'error', message: t('announcementMsgDeleteFailed') });
     }
   }
@@ -559,7 +612,11 @@ export function useAnnouncementPanel(t) {
       } else {
         pushToast({ type: 'error', message: t('announcementClearFailed') });
       }
-    } catch {
+    } catch (e) {
+      if (e?.response?.data?.error === 'CONFIGURATION_BLOCKED') {
+        isBlocked.value = true;
+        blockDetails.value = e.response.data.details || {};
+      }
       pushToast({ type: 'error', message: t('announcementClearFailed') });
     }
   }
@@ -620,5 +677,7 @@ export function useAnnouncementPanel(t) {
     deleteMessage,
     clearAll,
     onEditImage,
+    isBlocked,
+    blockDetails,
   };
 }

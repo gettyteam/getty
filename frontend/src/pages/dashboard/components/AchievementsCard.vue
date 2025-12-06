@@ -19,9 +19,21 @@
       <span data-i18n="achievementsTitle"></span>
     </h2>
     <div class="flex-1 flex flex-col max-h-[calc(100%-44px)] overflow-hidden">
-      <div id="achievements-embed" class="h-full" aria-live="polite" aria-atomic="true">
+      <BlockedState v-if="isBlocked" module-name="Achievements" />
+      <div v-else id="achievements-embed" class="h-full" aria-live="polite" aria-atomic="true">
         <div data-ach-embed data-ach-max="4" class="ach-root ach-embed"></div>
       </div>
     </div>
   </section>
 </template>
+
+<script setup>
+import BlockedState from './BlockedState.vue';
+
+defineProps({
+  isBlocked: {
+    type: Boolean,
+    default: false,
+  },
+});
+</script>

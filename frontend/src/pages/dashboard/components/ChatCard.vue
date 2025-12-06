@@ -10,8 +10,22 @@
       <span data-i18n="liveChatTitle"></span>
     </h2>
     <div class="flex-1 flex flex-col max-h-[calc(100%-44px)] overflow-hidden">
-      <div class="skeleton h-[240px] m-3" data-skeleton="chat"></div>
-      <div id="chat-container" aria-busy="true"></div>
+      <BlockedState v-if="isBlocked" module-name="Chat" />
+      <template v-else>
+        <div class="skeleton h-[240px] m-3" data-skeleton="chat"></div>
+        <div id="chat-container" aria-busy="true"></div>
+      </template>
     </div>
   </section>
 </template>
+
+<script setup>
+import BlockedState from './BlockedState.vue';
+
+defineProps({
+  isBlocked: {
+    type: Boolean,
+    default: false,
+  },
+});
+</script>

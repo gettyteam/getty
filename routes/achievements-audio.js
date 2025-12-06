@@ -448,6 +448,11 @@ function registerAchievementsAudioRoutes(app, wss, strictLimiter) {
         return res.json({ audioSource: 'remote', hasCustomAudio: false });
       }
 
+      const store = resolveStore();
+      if (store && store.isConfigBlocked && await store.isConfigBlocked(req?.ns?.admin || req?.ns?.pub, SETTINGS_FILENAME)) {
+        return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+      }
+
       try {
         const loaded = await loadTenantConfig(req, resolveStore(), GLOBAL_SETTINGS_PATH, SETTINGS_FILENAME);
         const raw = loaded.data;
@@ -479,6 +484,12 @@ function registerAchievementsAudioRoutes(app, wss, strictLimiter) {
         if (!isOpenTestMode() && (requireSessionFlag || hosted) && !hasNs) {
           return res.status(401).json({ error: 'no_session' });
         }
+
+        const store = resolveStore();
+        if (store && store.isConfigBlocked && await store.isConfigBlocked(req?.ns?.admin || req?.ns?.pub, SETTINGS_FILENAME)) {
+          return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+        }
+
         const requireAdminWrites = process.env.GETTY_REQUIRE_ADMIN_WRITE === '1' || hosted;
         if (requireAdminWrites) {
           const isAdmin = !!(req?.auth && req.auth.isAdmin);

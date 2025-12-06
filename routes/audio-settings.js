@@ -213,6 +213,14 @@ function registerAudioSettingsRoutes(
       }
 
       let settings = ensureSettingsShape({});
+
+      if (store && store.isConfigBlocked) {
+        const ns = req?.ns?.admin || req?.ns?.pub;
+        if (await store.isConfigBlocked(ns, 'audio-settings.json')) {
+          return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+        }
+      }
+
       try {
         const loaded = await loadTenantConfig(req, store, AUDIO_CONFIG_FILE, 'audio-settings.json');
         const data = loaded.data;
@@ -262,6 +270,11 @@ function registerAudioSettingsRoutes(
         if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
       }
       const ns = req?.ns?.admin || req?.ns?.pub || null;
+
+      if (store && store.isConfigBlocked && await store.isConfigBlocked(ns, 'audio-settings.json')) {
+        return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+      }
+
       const { audioSource } = req.body;
       const selectedAudioIdRaw = req.body.selectedAudioId;
       const selectedAudioId =

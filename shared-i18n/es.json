@@ -421,6 +421,7 @@
   "commonOn": "Activado",
   "commonOff": "Desactivado",
   "commonConfigured": "Configurado",
+  "commonBlocked": "Bloqueado",
   "commonInactive": "Inactivo",
   "modulesTipWidgetTitle": "Notificaciones",
   "tipGoalCardStatusCompleted": "Completado",

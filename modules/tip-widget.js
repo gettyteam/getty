@@ -75,8 +75,9 @@ class Logger {
 }
 
 class TipWidgetModule {
-  constructor(wss) {
+  constructor(wss, opts = {}) {
     this.wss = wss;
+    this.store = opts.store || null;
     this.ttsEnabled = true; // Default value
     this.ARWEAVE_GATEWAYS = buildGatewayList({});
     try {

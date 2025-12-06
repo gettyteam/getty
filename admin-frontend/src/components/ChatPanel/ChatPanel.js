@@ -40,6 +40,8 @@ export function createChatPanel(t) {
   });
   const testSending = ref(false);
   const testKind = ref('');
+  const isBlocked = ref(false);
+  const blockDetails = ref({});
 
   const publicToken = ref('');
   const { withToken, refresh } = usePublicToken();
@@ -82,6 +84,7 @@ export function createChatPanel(t) {
   async function load() {
     try {
       const { data } = await api.get('/api/chat-config');
+      isBlocked.value = false;
       if (data) {
         const raw = data.chatUrl || '';
         let extracted = '';
@@ -117,8 +120,19 @@ export function createChatPanel(t) {
         if (typeof data.avatarRandomBg === 'boolean') avatarRandomBg.value = !!data.avatarRandomBg;
         original.snapshot = JSON.stringify(form);
       }
-    } catch {
-      pushToast({ type: 'error', message: t('loadFailedChat') });
+    } catch (e) {
+      if (
+        e.response &&
+        e.response.data &&
+        (e.response.data.error === 'CONFIGURATION_BLOCKED' ||
+          e.response.data.error === 'configuration_blocked')
+      ) {
+        isBlocked.value = true;
+        const details = e.response.data.details;
+        blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+      } else if (e?.response?.status !== 404) {
+        pushToast({ type: 'error', message: t('loadFailedChat') });
+      }
     }
     try {
       const { data } = await api.get('/api/tts-setting');
@@ -142,16 +156,25 @@ export function createChatPanel(t) {
         usernameBgColor: overrideUsername.value ? form.colors.usernameBg : '',
         donationColor: form.colors.donation,
         donationBgColor: form.colors.donationBg,
-        themeCSS: clearedThemeCSS.value
-          ? ''
-          : localStorage.getItem('chatLiveThemeCSS') || undefined,
         avatarRandomBg: avatarRandomBg.value,
       };
       await api.post('/api/chat', payload);
       original.snapshot = JSON.stringify(form);
       pushToast({ type: 'success', message: t('savedChat') });
-    } catch {
-      pushToast({ type: 'error', message: t('saveFailedChat') });
+      isBlocked.value = false;
+    } catch (e) {
+      if (
+        e.response &&
+        e.response.data &&
+        (e.response.data.error === 'CONFIGURATION_BLOCKED' ||
+          e.response.data.error === 'configuration_blocked')
+      ) {
+        isBlocked.value = true;
+        const details = e.response.data.details;
+        blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+      } else {
+        pushToast({ type: 'error', message: t('saveFailedChat') });
+      }
     } finally {
       saving.value = false;
       clearedThemeCSS.value = false;
@@ -163,8 +186,19 @@ export function createChatPanel(t) {
       savingTts.value = true;
       await api.post('/api/tts-setting', { ttsAllChat: ttsAllChat.value });
       pushToast({ type: 'success', message: t('savedChat') });
-    } catch {
-      pushToast({ type: 'error', message: t('saveFailedChat') });
+    } catch (e) {
+      if (
+        e.response &&
+        e.response.data &&
+        (e.response.data.error === 'CONFIGURATION_BLOCKED' ||
+          e.response.data.error === 'configuration_blocked')
+      ) {
+        isBlocked.value = true;
+        const details = e.response.data.details;
+        blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+      } else {
+        pushToast({ type: 'error', message: t('saveFailedChat') });
+      }
     } finally {
       savingTts.value = false;
     }
@@ -190,11 +224,29 @@ export function createChatPanel(t) {
   }
   useDirty(isChatDirty, t('chatModule') || 'Chat');
   watch(form, () => {}, { deep: true });
+
+  function handleConfigBlocked(e) {
+    if (
+      e.detail &&
+      (e.detail.filename === 'chat-config.json' ||
+        e.detail.filename === 'chat-config' ||
+        e.detail.filename === 'chat')
+    ) {
+      isBlocked.value = true;
+      blockDetails.value = e.detail;
+    }
+  }
+
   onMounted(async () => {
+    window.addEventListener('getty:config-blocked', handleConfigBlocked);
     try {
       await refresh();
     } catch {}
     load();
+  });
+
+  onUnmounted(() => {
+    window.removeEventListener('getty:config-blocked', handleConfigBlocked);
   });
 
   const autoSaveTimer = ref(null);
@@ -224,6 +276,10 @@ export function createChatPanel(t) {
   }
 
   onMounted(() => {
+    isBlocked.value = false;
+    load();
+    refresh();
+    window.addEventListener('getty:config-blocked', handleConfigBlocked);
     pollStatus();
     const id = setInterval(pollStatus, 5000);
     window.addEventListener('visibilitychange', () => {
@@ -231,7 +287,10 @@ export function createChatPanel(t) {
     });
 
     try {
-      onUnmounted(() => clearInterval(id));
+      onUnmounted(() => {
+        clearInterval(id);
+        window.removeEventListener('getty:config-blocked', handleConfigBlocked);
+      });
     } catch {}
   });
 
@@ -342,6 +401,8 @@ export function createChatPanel(t) {
     extractClaimId,
     validate,
     sendTest,
+    isBlocked,
+    blockDetails,
     price,
     refreshPrice,
   };

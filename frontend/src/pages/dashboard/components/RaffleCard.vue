@@ -13,10 +13,22 @@
       <span data-i18n="raffleTitle"></span>
     </h2>
     <div class="flex-1 flex flex-col justify-center p-4">
-      <div class="raffle-embed bg-[#080c10] rounded-[6px] p-3 h-full" aria-busy="true">
+      <BlockedState v-if="isBlocked" module-name="Raffle" />
+      <div v-else class="raffle-embed bg-[#080c10] rounded-[6px] p-3 h-full" aria-busy="true">
         <div class="skeleton h-[120px]" data-skeleton="raffle"></div>
         <div id="raffleContentContainer" class="-mt-0"></div>
       </div>
     </div>
   </section>
 </template>
+
+<script setup>
+import BlockedState from './BlockedState.vue';
+
+defineProps({
+  isBlocked: {
+    type: Boolean,
+    default: false,
+  },
+});
+</script>

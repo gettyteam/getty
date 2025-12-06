@@ -10,10 +10,22 @@
       <span data-i18n="monthlyGoalTitle"></span>
     </h2>
     <div class="flex-1 flex flex-col justify-center">
-      <div id="goal-widget" class="p-4" aria-busy="true">
+      <BlockedState v-if="isBlocked" module-name="Tip Goal" />
+      <div v-else id="goal-widget" class="p-4" aria-busy="true">
         <div class="skeleton skeleton-lg mb-2" data-skeleton="goal"></div>
         <div class="goal-container goal-container-initial"></div>
       </div>
     </div>
   </section>
 </template>
+
+<script setup>
+import BlockedState from './BlockedState.vue';
+
+defineProps({
+  isBlocked: {
+    type: Boolean,
+    default: false,
+  },
+});
+</script>

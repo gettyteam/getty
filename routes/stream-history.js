@@ -2008,6 +2008,12 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
 
   app.get('/config/stream-history-config.json', async (req, res) => {
     try {
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+
+      if (store && store.isConfigBlocked && await store.isConfigBlocked(ns, 'stream-history-config.json')) {
+        return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+      }
+
       let cfg = await loadConfigNS(req);
 
       if (!cfg.claimid) {
@@ -2040,9 +2046,14 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
 
   app.post('/config/stream-history-config.json', limiter, async (req, res) => {
     try {
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+
+      if (store && store.isConfigBlocked && await store.isConfigBlocked(ns, 'stream-history-config.json')) {
+        return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+      }
+
       if ((store && store.redis) || requireSessionFlag) {
-        const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
-        if (!nsCheck) return res.status(401).json({ error: 'session_required' });
+        if (!ns) return res.status(401).json({ error: 'session_required' });
       }
       try {
         const { canWriteConfig } = require('../lib/authz');

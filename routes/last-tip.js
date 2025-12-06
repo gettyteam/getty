@@ -204,6 +204,11 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
     try {
       let cfg = null;
       const ns = req?.ns?.admin || req?.ns?.pub || null;
+
+      if (store && store.isConfigBlocked && await store.isConfigBlocked(ns, 'last-tip-config.json')) {
+        return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+      }
+
       let meta = null;
 
       if (tenant && tenant.tenantEnabled(req)) {
@@ -353,6 +358,11 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
   app.get('/api/last-tip/earnings', async (req, res) => {
     try {
       const ns = req?.ns?.admin || req?.ns?.pub || null;
+
+      if (store && store.isConfigBlocked && await store.isConfigBlocked(ns, 'last-tip-config.json')) {
+        return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+      }
+
       if (__shouldRequireSession() && !(req?.ns?.admin || req?.ns?.pub)) {
         return res.status(401).json({ error: 'no_session' });
       }
@@ -534,6 +544,12 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
 
   app.post('/api/last-tip', async (req, res) => {
     try {
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+
+      if (store && store.isConfigBlocked && await store.isConfigBlocked(ns, 'last-tip-config.json')) {
+        return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+      }
+
       if (__shouldRequireSession() && !(req?.ns?.admin || req?.ns?.pub)) {
         return res.status(401).json({ error: 'no_session' });
       }
@@ -568,7 +584,6 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
         title,
       } = parsed.data;
       let config = {};
-      const ns = req?.ns?.admin || req?.ns?.pub || null;
       if (tenant && tenant.tenantEnabled(req)) {
         try {
           const storeInst = req.app && req.app.get ? req.app.get('store') : store;

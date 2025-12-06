@@ -1,6 +1,11 @@
 <template>
   <section class="announcement-admin" role="form">
-    <div class="ann-tab-panel">
+    <BlockedState
+      v-if="isBlocked"
+      :module-name="t('announcementSettings')"
+      :details="blockDetails" />
+
+    <div v-else class="ann-tab-panel">
       <div class="ann-card">
         <div class="ann-card-header">
           <h3 class="ann-card-title">
@@ -998,6 +1003,7 @@ import { useStorageProviders } from '../../composables/useStorageProviders.js';
 import api from '../../services/api.js';
 import { pushToast } from '../../services/toast';
 import { confirmDialog } from '../../services/confirm.js';
+import BlockedState from '../shared/BlockedState.vue';
 import './AnnouncementPanel.css';
 
 const { t } = useI18n();
@@ -1023,6 +1029,8 @@ const {
   deleteMessage,
   submitEdit,
   closeEdit,
+  isBlocked,
+  blockDetails,
 } = state;
 const storage = useStorageProviders();
 const providerStatus = computed(() => {

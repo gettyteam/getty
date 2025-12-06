@@ -112,6 +112,17 @@ api.interceptors.response.use(
           window.dispatchEvent(new CustomEvent('getty:admin-required'));
         } catch {}
       }
+      if (code === 'CONFIGURATION_BLOCKED' || code === 'configuration_blocked') {
+        try {
+          window.dispatchEvent(new CustomEvent('getty:config-blocked', { 
+            detail: { 
+              filename: err.config?.url?.split('/').pop() || 'Configuration',
+              reason: typeof data.details === 'string' ? data.details : data.details?.reason,
+              blockedAt: data.details?.blockedAt
+            } 
+          }));
+        } catch {}
+      }
       if (code === 'invalid_csrf') {
         const originalConfig = err.config || {};
         if (!originalConfig.__csrfRetried) {
@@ -130,6 +141,8 @@ api.interceptors.response.use(
     const errorData = err?.response?.data;
     const shouldSkipLog = errorData?.code === 'TURBO_FILE_TOO_LARGE' || 
                           errorData?.code === 'TURBO_INSUFFICIENT_BALANCE' ||
+                          errorData?.error === 'CONFIGURATION_BLOCKED' ||
+                          errorData?.error === 'configuration_blocked' ||
                           (errorData?.error && (
                             errorData.error.includes('File too large') || 
                             errorData.error.includes('Insufficient balance')

@@ -25,6 +25,11 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
   app.get('/api/chat-config', async (req, res) => {
     try {
       const ns = req.ns && (req.ns.admin || req.ns.pub) ? req.ns.admin || req.ns.pub : null;
+
+      if (store && store.isConfigBlocked && await store.isConfigBlocked(ns, 'chat-config.json')) {
+        return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+      }
+
       let loaded = null;
       let meta = null;
       let source = 'global';
@@ -91,6 +96,11 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
 
   app.post('/api/chat', limiter, async (req, res) => {
     try {
+      const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
+      if (store && store.isConfigBlocked && await store.isConfigBlocked(nsCheck, 'chat-config.json')) {
+        return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+      }
+
       if (!isOpenTestMode() && __shouldRequireSession()) {
         const ns = req?.ns?.admin || req?.ns?.pub || null;
         if (!ns) return res.status(401).json({ error: 'session_required' });

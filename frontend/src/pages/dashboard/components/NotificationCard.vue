@@ -10,8 +10,22 @@
       <span data-i18n="notificationsTitle"></span>
     </h2>
     <div class="flex-1 flex flex-col justify-center">
-      <div class="skeleton skeleton-line mx-4 mb-2" data-skeleton="notification"></div>
-      <div id="notification" class="mb-2" role="status" aria-live="polite" aria-busy="true"></div>
+      <BlockedState v-if="isBlocked" module-name="Notifications" />
+      <template v-else>
+        <div class="skeleton skeleton-line mx-4 mb-2" data-skeleton="notification"></div>
+        <div id="notification" class="mb-2" role="status" aria-live="polite" aria-busy="true"></div>
+      </template>
     </div>
   </section>
 </template>
+
+<script setup>
+import BlockedState from './BlockedState.vue';
+
+defineProps({
+  isBlocked: {
+    type: Boolean,
+    default: false,
+  },
+});
+</script>

@@ -25,8 +25,9 @@ function resolveWsFromClaimId(claimId) {
 }
 
 class ChatModule {
-  constructor(wss) {
+  constructor(wss, opts = {}) {
     this.wss = wss;
+    this.store = opts.store || null;
     this.API_ENDPOINT = 'https://api.na-backend.odysee.com/api/v1/proxy';
     this.chatUrl = process.env.ODYSEE_WS_URL;
     this.ws = null;

@@ -5,7 +5,7 @@
         <p class="eyebrow">{{ t('channelAnalyticsEyebrow') }}</p>
         <p class="muted">{{ t('channelAnalyticsSubtitle') }}</p>
       </div>
-      <div class="actions">
+      <div class="actions" v-if="!isBlocked">
         <ChannelRangeFilter v-model="range" />
         <button
           class="ghost-btn"
@@ -26,7 +26,12 @@
       </div>
     </header>
 
-    <section class="layout-grid" :class="{ 'layout-single': !configVisible }">
+    <BlockedState
+      v-if="isBlocked"
+      :module-name="t('channelAnalyticsEyebrow')"
+      :details="blockDetails" />
+
+    <section v-else class="layout-grid" :class="{ 'layout-single': !configVisible }">
       <article class="overview-card">
         <div class="totals">
           <div class="total-card" v-for="card in totalCards" :key="card.key">
@@ -284,6 +289,7 @@ import ChannelRangeFilter from './ChannelRangeFilter.vue';
 import ChannelBarChart from './ChannelBarChart.vue';
 import ChannelAnalyticsConfig from './ChannelAnalyticsConfig.vue';
 import MiniTrendChart from './MiniTrendChart.vue';
+import BlockedState from '../shared/BlockedState.vue';
 import {
   fetchChannelAnalytics,
   fetchChannelAnalyticsConfig,
@@ -296,7 +302,7 @@ import { pushToast } from '../../services/toast';
 import { useWalletSession } from '../../composables/useWalletSession';
 
 const { t, locale } = useI18n();
-// Toggle back to true once the access token issue affecting views is resolved.
+
 const contentViewsSeriesEnabled = true;
 const wallet = useWalletSession();
 const range = ref<ChannelAnalyticsRange>('week');
@@ -309,6 +315,8 @@ const configState = reactive<{ loading: boolean; data: ChannelAnalyticsConfigRes
   loading: false,
   data: null,
 });
+const isBlocked = ref(false);
+const blockDetails = ref({});
 const numberFormatter = computed(() => createNumberFormatter());
 const analyticsReady = computed(() => {
   const cfg = configState.data;
@@ -323,9 +331,19 @@ async function ensureSession() {
 
 async function loadConfig() {
   configState.loading = true;
+  isBlocked.value = false;
   try {
     configState.data = await fetchChannelAnalyticsConfig();
   } catch (err: any) {
+    if (
+      err?.response?.data?.error === 'CONFIGURATION_BLOCKED' ||
+      err?.response?.data?.error === 'configuration_blocked'
+    ) {
+      isBlocked.value = true;
+      const details = err.response.data.details;
+      blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+      return;
+    }
     pushToast({ type: 'error', message: t('channelConfigLoadFailed') });
     console.error(err);
   } finally {
@@ -1012,7 +1030,9 @@ function recordRefreshAttempt(rangeKey: ChannelAnalyticsRange) {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
 }
 .refresh-btn:hover:not(:disabled) {
   background: rgba(148, 163, 184, 0.1);

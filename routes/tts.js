@@ -47,6 +47,12 @@ function registerTtsRoutes(app, wss, limiter, options = {}) {
   const requireAdminWrites = process.env.GETTY_REQUIRE_ADMIN_WRITE === '1' || hostedWithRedis;
   app.get('/api/tts-setting', async (req, res) => {
     const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
+    const ns = req?.ns?.admin || req?.ns?.pub || null;
+
+    if (store && store.isConfigBlocked && await store.isConfigBlocked(ns, 'tts-settings.json')) {
+      return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+    }
+
     if (!isOpenTestMode() && shouldRequireSession && !hasNs) {
       return res.json({ ttsEnabled: true, ttsAllChat: false });
     }
@@ -63,8 +69,13 @@ function registerTtsRoutes(app, wss, limiter, options = {}) {
   });
 
   app.post('/api/tts-setting', limiter, async (req, res) => {
+    const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
+
+    if (store && store.isConfigBlocked && await store.isConfigBlocked(nsCheck, 'tts-settings.json')) {
+      return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+    }
+
     if (!isOpenTestMode() && shouldRequireSession) {
-      const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
       if (!nsCheck) return res.status(401).json({ success: false, error: 'session_required' });
     }
     if (!isOpenTestMode() && requireAdminWrites) {

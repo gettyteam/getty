@@ -86,6 +86,11 @@ module.exports = function registerTipNotificationRoutes(app, strictLimiter, { ws
       }
       (async () => {
         try {
+          const ns = req?.ns?.admin || req?.ns?.pub || null;
+          if (store && store.isConfigBlocked && await store.isConfigBlocked(ns, CONFIG_FILENAME)) {
+            return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+          }
+
           const loaded = await loadTenantConfig(req, store, CONFIG_FILE, CONFIG_FILENAME);
           const data = loaded.data?.data ? loaded.data.data : loaded.data;
           const meta =
@@ -120,7 +125,14 @@ module.exports = function registerTipNotificationRoutes(app, strictLimiter, { ws
         return res.status(400).json({ error: 'Invalid colors' });
       }
       const ns = req.ns?.admin || req.ns?.pub || null;
-      const doBroadcast = (data, meta) => {
+
+      (async () => {
+        try {
+          if (store && store.isConfigBlocked && await store.isConfigBlocked(ns, CONFIG_FILENAME)) {
+            return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+          }
+
+          const doBroadcast = (data, meta) => {
         try {
           const payloadData = { ...data, ...(meta ? { meta } : {}) };
           if (typeof wss?.broadcast === 'function' && ns) {
@@ -130,9 +142,9 @@ module.exports = function registerTipNotificationRoutes(app, strictLimiter, { ws
           }
         } catch {}
       };
-      (async () => {
-        try {
-          if (store && ns) {
+
+      try {
+        if (store && ns) {
             try {
               const current = await store.get(ns, 'tip-notification-config', {});
               const merged = { ...(current || {}), ...parsed.data };
@@ -167,6 +179,9 @@ module.exports = function registerTipNotificationRoutes(app, strictLimiter, { ws
             return res.json({ success: true, ...norm });
           } catch {}
           return res.status(500).json({ error: 'Internal server error' });
+          }
+        } catch {
+          if (!res.headersSent) res.status(500).json({ error: 'Internal server error' });
         }
       })();
     } catch {

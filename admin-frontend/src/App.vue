@@ -1,6 +1,11 @@
 <template>
   <a href="#main" class="skip-link">Skip to main content</a>
   <SuspendedModal :is-open="suspendedModalOpen" @close="suspendedModalOpen = false" />
+  <ConfigBlockedModal
+    :is-open="configBlockedModalOpen"
+    :filename="configBlockedFilename"
+    :details="configBlockedDetails"
+    @close="configBlockedModalOpen = false" />
   <div class="admin-container mx-auto px-6 py-4 max-w-[1330px]" :class="{ dark: isDark }">
     <header
       class="os-header flex items-center justify-between pb-5 mb-8 border-b border-border"
@@ -611,6 +616,7 @@ import ToastHost from './components/shared/ToastHost.vue';
 import SidebarSuggestion from './components/shared/SidebarSuggestion.vue';
 import OsConfirmDialog from './components/os/OsConfirmDialog.vue';
 import SuspendedModal from './components/SuspendedModal.vue';
+import ConfigBlockedModal from './components/ConfigBlockedModal.vue';
 import { confirmDialog } from './services/confirm';
 import WalletLoginButton from './components/WalletLoginButton.vue';
 import WalletLogoutButton from './components/WalletLogoutButton.vue';
@@ -641,6 +647,9 @@ const sidebarCollapsed = ref(false);
 const mobileSidebarOpen = ref(false);
 const analyticsMenuOpen = ref(false);
 const suspendedModalOpen = ref(false);
+const configBlockedModalOpen = ref(false);
+const configBlockedFilename = ref('');
+const configBlockedDetails = ref(null);
 
 const currentLocaleLabel = computed(() => (locale.value === 'es' ? 'ES' : 'EN'));
 const analyticsActive = computed(() => route.path.startsWith('/admin/status'));
@@ -864,6 +873,14 @@ onMounted(() => {
   applyTheme(initialDark, true);
   window.addEventListener('click', handleClickOutside);
   window.addEventListener('getty:tenant-suspended', handleSuspended);
+  window.addEventListener('getty:config-blocked', (e) => {
+    configBlockedFilename.value = e.detail?.filename || 'Configuration';
+    configBlockedDetails.value = {
+      reason: e.detail?.reason,
+      blockedAt: e.detail?.blockedAt,
+    };
+    configBlockedModalOpen.value = true;
+  });
   setHeaderHeightVar();
   setContainerLeftVar();
   setSidebarWidthVar();

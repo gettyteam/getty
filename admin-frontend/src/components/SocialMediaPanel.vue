@@ -1,160 +1,164 @@
 <template>
   <section class="admin-tab active" role="form">
-    <OsCard>
-      <template #header>
-        <div class="flex items-center gap-2">
-          <span class="icon-badge" aria-hidden="true">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round">
-              <circle cx="18" cy="5" r="3" />
-              <circle cx="6" cy="12" r="3" />
-              <circle cx="18" cy="19" r="3" />
-              <path d="M8.59 13.51 15.42 17.49" />
-              <path d="m15.41 6.51-6.82 3.98" />
-            </svg>
-          </span>
-          <h3 class="font-semibold text-[15px]">{{ t('socialMediaTitle') }}</h3>
-        </div>
-        <div class="flex gap-2" role="group" :aria-label="t('socialMediaTitle') + ' actions'">
-          <button class="btn" @click="addItem" :aria-label="t('socialMediaAddItem')">
-            {{ t('socialMediaAddItem') }}
-          </button>
-          <button
-            class="btn"
-            :disabled="!dirty || saving"
-            @click="save"
-            :aria-busy="saving ? 'true' : 'false'">
-            {{ saving ? t('commonSaving') : t('socialMediaSave') }}
-          </button>
-        </div>
-      </template>
+    <BlockedState v-if="isBlocked" :module-name="t('socialMediaTitle')" :details="blockDetails" />
 
-      <div class="os-table social-media" :aria-label="t('socialMediaTitle') + ' table'">
-        <div class="os-tr py-2">
-          <div class="os-th num">#</div>
-          <div class="os-th text-left">{{ t('socialMediaName') }}</div>
-          <div class="os-th text-left">{{ t('socialMediaLink') }}</div>
-          <div class="os-th text-left">{{ t('socialMediaPlatform') }}</div>
-          <div class="os-th text-left">{{ t('socialMediaCustomIcon') }}</div>
-          <div class="os-th"></div>
-        </div>
+    <div v-else>
+      <OsCard>
+        <template #header>
+          <div class="flex items-center gap-2">
+            <span class="icon-badge" aria-hidden="true">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+                <circle cx="18" cy="5" r="3" />
+                <circle cx="6" cy="12" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <path d="M8.59 13.51 15.42 17.49" />
+                <path d="m15.41 6.51-6.82 3.98" />
+              </svg>
+            </span>
+            <h3 class="font-semibold text-[15px]">{{ t('socialMediaTitle') }}</h3>
+          </div>
+          <div class="flex gap-2" role="group" :aria-label="t('socialMediaTitle') + ' actions'">
+            <button class="btn" @click="addItem" :aria-label="t('socialMediaAddItem')">
+              {{ t('socialMediaAddItem') }}
+            </button>
+            <button
+              class="btn"
+              :disabled="!dirty || saving"
+              @click="save"
+              :aria-busy="saving ? 'true' : 'false'">
+              {{ saving ? t('commonSaving') : t('socialMediaSave') }}
+            </button>
+          </div>
+        </template>
 
-        <div v-for="(item, idx) in items" :key="idx" class="os-tr py-2">
-          <div class="os-td num">{{ idx + 1 }}</div>
-          <div class="os-td">
-            <input
-              class="input w-full"
-              :aria-label="t('socialMediaName') + ' ' + (idx + 1)"
-              :class="{ 'input-error': fieldError(idx, 'name') }"
-              v-model="item.name"
-              @input="validateRow(idx)"
-              :aria-invalid="!!fieldError(idx, 'name')" />
-            <div v-if="fieldError(idx, 'name')" class="small text-red-700">
-              {{ fieldError(idx, 'name') }}
-            </div>
+        <div class="os-table social-media" :aria-label="t('socialMediaTitle') + ' table'">
+          <div class="os-tr py-2">
+            <div class="os-th num">#</div>
+            <div class="os-th text-left">{{ t('socialMediaName') }}</div>
+            <div class="os-th text-left">{{ t('socialMediaLink') }}</div>
+            <div class="os-th text-left">{{ t('socialMediaPlatform') }}</div>
+            <div class="os-th text-left">{{ t('socialMediaCustomIcon') }}</div>
+            <div class="os-th"></div>
           </div>
-          <div class="os-td">
-            <input
-              class="input w-full"
-              :aria-label="t('socialMediaLink') + ' ' + (idx + 1)"
-              :class="{ 'input-error': fieldError(idx, 'link') }"
-              v-model="item.link"
-              @input="validateRow(idx)"
-              :aria-invalid="!!fieldError(idx, 'link')" />
-            <div v-if="fieldError(idx, 'link')" class="small text-red-700">
-              {{ fieldError(idx, 'link') }}
-            </div>
-          </div>
-          <div class="os-td">
-            <select
-              class="input w-full"
-              v-model="item.icon"
-              @change="onIconChange(item, idx)"
-              :aria-label="t('socialMediaIcon') + ' ' + (idx + 1)">
-              <option value="x">{{ t('socialMediaIconX') }}</option>
-              <option value="instagram">{{ t('socialMediaIconInstagram') }}</option>
-              <option value="youtube">{{ t('socialMediaIconYoutube') }}</option>
-              <option value="telegram">{{ t('socialMediaIconTelegram') }}</option>
-              <option value="discord">{{ t('socialMediaIconDiscord') }}</option>
-              <option value="odysee">{{ t('socialMediaIconOdysee') }}</option>
-              <option value="rumble">{{ t('socialMediaIconRumble') }}</option>
-              <option value="custom">{{ t('socialMediaIconCustom') }}</option>
-            </select>
-          </div>
-          <div class="os-td">
-            <div v-if="item.icon === 'custom'">
+
+          <div v-for="(item, idx) in items" :key="idx" class="os-tr py-2">
+            <div class="os-td num">{{ idx + 1 }}</div>
+            <div class="os-td">
               <input
-                type="file"
-                accept="image/*"
-                class="sr-only"
-                :id="'custom-icon-' + idx"
-                @change="(e) => selectCustomIcon(e, item)"
-                :aria-label="t('socialMediaCustomIcon')" />
-              <label
-                :for="'custom-icon-' + idx"
-                class="btn-secondary cursor-pointer inline-flex items-center gap-2">
-                <i class="pi pi-images" aria-hidden="true"></i>
-                Upload icon
-              </label>
-              <div v-if="item.customIcon" class="mt-1">
-                <img :src="item.customIcon" alt="custom" class="max-h-10 object-contain" />
+                class="input w-full"
+                :aria-label="t('socialMediaName') + ' ' + (idx + 1)"
+                :class="{ 'input-error': fieldError(idx, 'name') }"
+                v-model="item.name"
+                @input="validateRow(idx)"
+                :aria-invalid="!!fieldError(idx, 'name')" />
+              <div v-if="fieldError(idx, 'name')" class="small text-red-700">
+                {{ fieldError(idx, 'name') }}
               </div>
             </div>
+            <div class="os-td">
+              <input
+                class="input w-full"
+                :aria-label="t('socialMediaLink') + ' ' + (idx + 1)"
+                :class="{ 'input-error': fieldError(idx, 'link') }"
+                v-model="item.link"
+                @input="validateRow(idx)"
+                :aria-invalid="!!fieldError(idx, 'link')" />
+              <div v-if="fieldError(idx, 'link')" class="small text-red-700">
+                {{ fieldError(idx, 'link') }}
+              </div>
+            </div>
+            <div class="os-td">
+              <select
+                class="input w-full"
+                v-model="item.icon"
+                @change="onIconChange(item, idx)"
+                :aria-label="t('socialMediaIcon') + ' ' + (idx + 1)">
+                <option value="x">{{ t('socialMediaIconX') }}</option>
+                <option value="instagram">{{ t('socialMediaIconInstagram') }}</option>
+                <option value="youtube">{{ t('socialMediaIconYoutube') }}</option>
+                <option value="telegram">{{ t('socialMediaIconTelegram') }}</option>
+                <option value="discord">{{ t('socialMediaIconDiscord') }}</option>
+                <option value="odysee">{{ t('socialMediaIconOdysee') }}</option>
+                <option value="rumble">{{ t('socialMediaIconRumble') }}</option>
+                <option value="custom">{{ t('socialMediaIconCustom') }}</option>
+              </select>
+            </div>
+            <div class="os-td">
+              <div v-if="item.icon === 'custom'">
+                <input
+                  type="file"
+                  accept="image/*"
+                  class="sr-only"
+                  :id="'custom-icon-' + idx"
+                  @change="(e) => selectCustomIcon(e, item)"
+                  :aria-label="t('socialMediaCustomIcon')" />
+                <label
+                  :for="'custom-icon-' + idx"
+                  class="btn-secondary cursor-pointer inline-flex items-center gap-2">
+                  <i class="pi pi-images" aria-hidden="true"></i>
+                  Upload icon
+                </label>
+                <div v-if="item.customIcon" class="mt-1">
+                  <img :src="item.customIcon" alt="custom" class="max-h-10 object-contain" />
+                </div>
+              </div>
+            </div>
+            <div class="os-td actions flex gap-2 justify-end items-center">
+              <button
+                class="btn-secondary flex items-center gap-2"
+                @click="openStyleEditor(idx)"
+                :title="t('socialMediaStyleTitle')">
+                <i class="pi pi-palette"></i>
+                <span>Color</span>
+              </button>
+              <button
+                class="btn danger"
+                @click="remove(idx)"
+                :aria-label="t('socialMediaDelete') + ' ' + (idx + 1)">
+                {{ t('socialMediaDelete') }}
+              </button>
+            </div>
           </div>
-          <div class="os-td actions flex gap-2 justify-end items-center">
-            <button
-              class="btn-secondary flex items-center gap-2"
-              @click="openStyleEditor(idx)"
-              :title="t('socialMediaStyleTitle')">
-              <i class="pi pi-palette"></i>
-              <span>Color</span>
-            </button>
-            <button
-              class="btn danger"
-              @click="remove(idx)"
-              :aria-label="t('socialMediaDelete') + ' ' + (idx + 1)">
-              {{ t('socialMediaDelete') }}
-            </button>
+        </div>
+      </OsCard>
+      <OsCard class="mt-3">
+        <template #header>
+          <div class="flex items-center gap-2">
+            <span class="icon-badge" aria-hidden="true">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+              </svg>
+            </span>
+            <h3 class="font-semibold text-[15px]">{{ t('obsIntegration') }}</h3>
+          </div>
+        </template>
+        <div class="form-group">
+          <div class="flex flex-wrap items-center gap-3">
+            <span class="label mb-0">{{ t('socialMediaWidgetUrlLabel') }}</span>
+            <CopyField :value="widgetUrl" :aria-label="t('socialMediaWidgetUrlLabel')" secret />
           </div>
         </div>
-      </div>
-    </OsCard>
-    <OsCard class="mt-3">
-      <template #header>
-        <div class="flex items-center gap-2">
-          <span class="icon-badge" aria-hidden="true">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round">
-              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-              <line x1="8" y1="21" x2="16" y2="21"></line>
-              <line x1="12" y1="17" x2="12" y2="21"></line>
-            </svg>
-          </span>
-          <h3 class="font-semibold text-[15px]">{{ t('obsIntegration') }}</h3>
-        </div>
-      </template>
-      <div class="form-group">
-        <div class="flex flex-wrap items-center gap-3">
-          <span class="label mb-0">{{ t('socialMediaWidgetUrlLabel') }}</span>
-          <CopyField :value="widgetUrl" :aria-label="t('socialMediaWidgetUrlLabel')" secret />
-        </div>
-      </div>
-    </OsCard>
+      </OsCard>
+    </div>
 
     <div v-if="editingStyleIndex !== null" class="sm-modal-overlay" role="dialog" aria-modal="true">
       <div class="sm-modal">
@@ -256,6 +260,7 @@ import { pushToast } from '../services/toast';
 import { useDirty } from '../composables/useDirtyRegistry';
 import CopyField from './shared/CopyField.vue';
 import OsCard from './os/OsCard.vue';
+import BlockedState from './shared/BlockedState.vue';
 import { isHttpUrl, MAX_CUSTOM_ICON_SIZE } from '../utils/validation';
 import { useWalletSession } from '../composables/useWalletSession';
 import { usePublicToken } from '../composables/usePublicToken';
@@ -266,6 +271,8 @@ const items = ref([]);
 const rowErrors = ref({});
 const dirty = ref(false);
 const saving = ref(false);
+const isBlocked = ref(false);
+const blockDetails = ref({});
 
 const editingStyleIndex = ref(null);
 const styleForm = reactive({
@@ -279,7 +286,7 @@ const styleForm = reactive({
 
 const wallet = useWalletSession();
 const { withToken, refresh } = usePublicToken();
-const widgetUrl = computed(() => withToken(`${location.origin}/widgets/social-media`));
+const widgetUrl = computed(() => withToken(`${location.origin}/widgets/socialmedia`));
 
 function markDirty() {
   dirty.value = true;
@@ -292,11 +299,29 @@ async function load() {
     if (r.data.success) {
       items.value = r.data.config.map((c) => ({ ...c }));
       dirty.value = false;
+      isBlocked.value = false;
     } else {
       pushToast({ type: 'error', message: t('socialMediaLoadFailed') });
     }
-  } catch {
-    pushToast({ type: 'error', message: t('socialMediaLoadFailed') });
+  } catch (e) {
+    if (
+      e.response &&
+      e.response.data &&
+      (e.response.data.error === 'CONFIGURATION_BLOCKED' ||
+        e.response.data.error === 'configuration_blocked')
+    ) {
+      isBlocked.value = true;
+      const details = e.response.data.details;
+      blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+      return;
+    }
+
+    if (
+      e.response?.data?.error !== 'CONFIGURATION_BLOCKED' &&
+      e.response?.data?.error !== 'configuration_blocked'
+    ) {
+      pushToast({ type: 'error', message: t('socialMediaLoadFailed') });
+    }
   }
 }
 
@@ -438,8 +463,21 @@ async function save() {
       pushToast({ type: 'error', message: mapBackendError(r.data.error) });
     }
   } catch (e) {
+    if (
+      e.response &&
+      e.response.data &&
+      (e.response.data.error === 'CONFIGURATION_BLOCKED' ||
+        e.response.data.error === 'configuration_blocked')
+    ) {
+      isBlocked.value = true;
+      const details = e.response.data.details;
+      blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+      return;
+    }
     const msg = e.response?.data?.error;
-    pushToast({ type: 'error', message: mapBackendError(msg) });
+    if (msg !== 'CONFIGURATION_BLOCKED' && msg !== 'configuration_blocked') {
+      pushToast({ type: 'error', message: mapBackendError(msg) });
+    }
   } finally {
     saving.value = false;
   }

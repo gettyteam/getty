@@ -1,9 +1,8 @@
 <template>
   <section class="admin-tab active chat-root" role="form" aria-labelledby="chat-config-heading">
-    <h2 id="chat-config-heading" class="sr-only">
-      {{ t('chatConfigHeading') || 'Chat configuration' }}
-    </h2>
-    <div class="chat-grid">
+    <BlockedState v-if="isBlocked" :module-name="t('chatModule')" :details="blockDetails" />
+
+    <div v-else class="chat-grid">
       <div class="chat-col chat-col-left">
         <div class="chat-group-box" aria-labelledby="chat-colors-heading">
           <h3 id="chat-colors-heading" class="chat-group-title flex items-center gap-2">
@@ -101,40 +100,7 @@
             </div>
           </div>
         </div>
-        <div class="chat-group-box" aria-labelledby="obs-heading">
-          <h3 id="obs-heading" class="chat-group-title flex items-center gap-2">
-            <HeaderIcon>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round">
-                <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-                <line x1="8" y1="21" x2="16" y2="21" />
-                <line x1="12" y1="17" x2="12" y2="21" />
-              </svg>
-            </HeaderIcon>
-            <span>{{ t('obsIntegration') }}</span>
-          </h3>
-          <div class="form-group">
-            <label class="label mb-0">{{ t('chatWidgetUrl') }}</label>
-            <CopyField :value="widgetUrl" secret />
-          </div>
-          <div class="form-group mt-2">
-            <label class="label mb-0">{{
-              t('chatWidgetUrlHorizontal') || 'Chat Widget URL (horizontal):'
-            }}</label>
-            <CopyField :value="widgetHorizontalUrl" secret />
-          </div>
-        </div>
-      </div>
-      <!-- Right Column -->
-      <div class="chat-col chat-col-right">
+
         <div
           class="chat-group-box"
           aria-labelledby="username-heading"
@@ -233,6 +199,7 @@
             }}</small>
           </div>
         </div>
+
         <div class="chat-group-box" aria-labelledby="tts-heading">
           <h3 id="tts-heading" class="chat-group-title flex items-center gap-2">
             <HeaderIcon>
@@ -279,6 +246,16 @@
             </button>
           </div>
         </div>
+      </div>
+
+      <div class="chat-col chat-col-right">
+        <div aria-labelledby="chat-builder-heading">
+          <h2 id="chat-builder-heading" class="sr-only">
+            {{ t('chatThemeCustomize') || 'Custom theme builder' }}
+          </h2>
+          <ChatThemeBuilder />
+        </div>
+
         <div
           class="chat-group-box"
           aria-labelledby="test-msg-heading"
@@ -388,13 +365,39 @@
             </button>
           </div>
         </div>
+
+        <div class="chat-group-box" aria-labelledby="obs-heading">
+          <h3 id="obs-heading" class="chat-group-title flex items-center gap-2">
+            <HeaderIcon>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                <line x1="8" y1="21" x2="16" y2="21" />
+                <line x1="12" y1="17" x2="12" y2="21" />
+              </svg>
+            </HeaderIcon>
+            <span>{{ t('obsIntegration') }}</span>
+          </h3>
+          <div class="form-group">
+            <label class="label mb-0">{{ t('chatWidgetUrl') }}</label>
+            <CopyField :value="widgetUrl" secret />
+          </div>
+          <div class="form-group mt-2">
+            <label class="label mb-0">{{
+              t('chatWidgetUrlHorizontal') || 'Chat Widget URL (horizontal):'
+            }}</label>
+            <CopyField :value="widgetHorizontalUrl" secret />
+          </div>
+        </div>
       </div>
-    </div>
-    <div class="mt-8" aria-labelledby="chat-builder-heading">
-      <h2 id="chat-builder-heading" class="sr-only">
-        {{ t('chatThemeCustomize') || 'Custom theme builder' }}
-      </h2>
-      <ChatThemeBuilder />
     </div>
   </section>
 </template>
@@ -404,6 +407,7 @@ import { useI18n } from 'vue-i18n';
 import ColorInput from '../shared/ColorInput.vue';
 import CopyField from '../shared/CopyField.vue';
 import HeaderIcon from '../shared/HeaderIcon.vue';
+import BlockedState from '../shared/BlockedState.vue';
 import ChatThemeBuilder from '../ChatThemeManager/ChatThemeManager.vue';
 import { createChatPanel } from './ChatPanel.js';
 
@@ -432,6 +436,8 @@ const {
   sendTest,
   price,
   refreshPrice,
+  isBlocked,
+  blockDetails,
 } = state;
 </script>
 <style scoped src="./ChatPanel.css"></style>

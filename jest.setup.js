@@ -95,6 +95,7 @@ if (process.env.NODE_ENV === 'test') {
       async get(key) { return this.data.get(key) || null; }
       async set(key, value) { this.data.set(key, value); return 'OK'; }
       async del(key) { return this.data.delete(key) ? 1 : 0; }
+      async exists(key) { return this.data.has(key) ? 1 : 0; }
       hget() { return Promise.resolve(null); }
       hset() { return Promise.resolve(1); }
       hdel() { return Promise.resolve(1); }

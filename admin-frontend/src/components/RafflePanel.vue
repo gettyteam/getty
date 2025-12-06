@@ -1,292 +1,296 @@
 <template>
   <section class="admin-tab active relative" role="form">
-    <div
-      v-if="masked"
-      class="absolute inset-0 z-10 flex items-center justify-center backdrop-blur bg-black/35">
+    <BlockedState v-if="isBlocked" :module-name="t('raffleModule')" :details="blockDetails" />
+
+    <div v-else>
       <div
-        class="p-5 rounded-os bg-[var(--bg-card)] border border-[var(--card-border)] shadow-lg max-w-md text-center">
-        <div class="mb-2 text-lg font-semibold">{{ t('raffleSessionRequiredTitle') }}</div>
-        <p class="mb-4 text-sm">{{ t('raffleSessionRequiredBody') }}</p>
-        <a href="/" class="btn" aria-label="wallet-login-redirect">{{ t('createSession') }}</a>
-      </div>
-    </div>
-    <div v-if="warning" class="os-subtle mt-3 p-4 rounded-os" role="status" aria-live="polite">
-      <div class="flex items-center gap-2">
-        <svg width="24" height="24" fill="none" class="shrink-0">
-          <circle cx="12" cy="12" r="12" fill="#ffe066" />
-          <path d="M12 8v4m0 4h.01" stroke="#b58900" stroke-width="2" stroke-linecap="round" />
-        </svg>
-        <div>
-          <strong class="mr-1">{{ t('raffleWarningTitle') }}</strong>
-          <span>{{ t('raffleWarningChat') }}</span>
+        v-if="masked"
+        class="absolute inset-0 z-10 flex items-center justify-center backdrop-blur bg-black/35">
+        <div
+          class="p-5 rounded-os bg-[var(--bg-card)] border border-[var(--card-border)] shadow-lg max-w-md text-center">
+          <div class="mb-2 text-lg font-semibold">{{ t('raffleSessionRequiredTitle') }}</div>
+          <p class="mb-4 text-sm">{{ t('raffleSessionRequiredBody') }}</p>
+          <a href="/" class="btn" aria-label="wallet-login-redirect">{{ t('createSession') }}</a>
         </div>
       </div>
-    </div>
-    <OsCard
-      class="mt-3"
-      aria-describedby="raffle-settings-desc"
-      :title="t('raffleSettings') || 'Raffle settings'">
-      <p id="raffle-settings-desc" class="sr-only">
-        Configure raffle command, prize, image, max winners and actions.
-      </p>
-      <div class="form-group">
-        <label class="label" for="raffle-command">{{ t('raffleCommandLabel') }}</label>
-        <input
-          class="input"
-          id="raffle-command"
-          v-model="form.command"
-          type="text"
-          :placeholder="t('raffleCommandPlaceholder')"
-          aria-describedby="raffle-command-hint" />
-        <small id="raffle-command-hint" class="small">{{ t('raffleCommandHint') }}</small>
-      </div>
-      <div class="form-group">
-        <label class="label" for="raffle-prize">{{ t('rafflePrizeLabel') }}</label>
-        <input
-          class="input"
-          id="raffle-prize"
-          v-model="form.prize"
-          type="text"
-          maxlength="15"
-          :placeholder="t('rafflePrizePlaceholder')" />
-        <div class="flex gap-2 small mt-1 justify-between">
-          <small :class="{ 'text-red-500': form.prize.length >= 15 }">
-            {{ form.prize.length >= 15 ? t('valMaxChars') : '\u00A0' }}
-          </small>
-          <small aria-live="polite" aria-atomic="true">{{
-            t('charsUsed', { used: form.prize.length, max: 15 })
-          }}</small>
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="label" for="raffle-image">{{ t('rafflePrizeImageLabel') }}</label>
-        <p
-          v-if="providerStatus && !providerStatus.available"
-          class="small text-amber-500 mb-2"
-          role="status">
-          {{ providerStatus.label }} {{ t('storageProviderUnavailable') }}
-        </p>
-        <div class="flex items-center gap-2 flex-wrap">
-          <input
-            ref="imageInput"
-            id="raffle-image"
-            type="file"
-            accept="image/png,image/jpeg,image/gif"
-            class="sr-only"
-            @change="onImageFileChange" />
-          <button
-            v-if="selectedStorageProvider !== 'wuzzy'"
-            type="button"
-            class="upload-btn"
-            @click="openImageDialog">
-            <i class="pi pi-upload mr-2" aria-hidden="true"></i>
-            {{ t('imageChoose') || t('rafflePrizeImageLabel') }}
-          </button>
-          <button
-            v-if="selectedStorageProvider !== 'wuzzy'"
-            type="button"
-            class="btn-secondary btn-compact-secondary"
-            @click="openImageLibraryDrawer"
-            :aria-label="t('imageLibraryOpenBtn')">
-            <i class="pi pi-images" aria-hidden="true"></i>
-            {{ t('imageLibraryOpenBtn') }}
-          </button>
-          <button
-            v-if="selectedStorageProvider === 'wuzzy'"
-            type="button"
-            class="btn-secondary btn-compact-secondary"
-            @click="openWuzzyDrawer"
-            :aria-label="t('wuzzyOpenDrawerBtn')">
-            <i class="pi pi-search-plus" aria-hidden="true"></i>
-            {{ t('wuzzyOpenDrawerBtn') }}
-          </button>
-          <div
-            v-if="storageOptions.length"
-            class="flex items-center gap-2"
-            role="group"
-            aria-label="Storage provider selection">
-            <label class="label mb-0" for="raffle-storage-provider">
-              {{ t('storageProviderLabel') }}
-            </label>
-            <QuickSelect
-              v-model="selectedStorageProvider"
-              :disabled="storageLoading || !storageOptions.length"
-              :options="
-                storageOptions.map((opt) => ({
-                  label: opt.label,
-                  value: opt.id,
-                  disabled: !opt.available && opt.id !== selectedStorageProvider,
-                }))
-              "
-              :aria-label="t('storageProviderLabel')" />
+      <div v-if="warning" class="os-subtle mt-3 p-4 rounded-os" role="status" aria-live="polite">
+        <div class="flex items-center gap-2">
+          <svg width="24" height="24" fill="none" class="shrink-0">
+            <circle cx="12" cy="12" r="12" fill="#ffe066" />
+            <path d="M12 8v4m0 4h.01" stroke="#b58900" stroke-width="2" stroke-linecap="round" />
+          </svg>
+          <div>
+            <strong class="mr-1">{{ t('raffleWarningTitle') }}</strong>
+            <span>{{ t('raffleWarningChat') }}</span>
           </div>
         </div>
-        <div v-if="imageLibrary.error" class="small mt-1 text-red-500">
-          {{ imageLibrary.error }}
+      </div>
+      <OsCard
+        class="mt-3"
+        aria-describedby="raffle-settings-desc"
+        :title="t('raffleSettings') || 'Raffle settings'">
+        <p id="raffle-settings-desc" class="sr-only">
+          Configure raffle command, prize, image, max winners and actions.
+        </p>
+        <div class="form-group">
+          <label class="label" for="raffle-command">{{ t('raffleCommandLabel') }}</label>
+          <input
+            class="input"
+            id="raffle-command"
+            v-model="form.command"
+            type="text"
+            :placeholder="t('raffleCommandPlaceholder')"
+            aria-describedby="raffle-command-hint" />
+          <small id="raffle-command-hint" class="small">{{ t('raffleCommandHint') }}</small>
         </div>
-        <div v-if="displayImageUrl" class="mt-2">
-          <img
-            :src="displayImageUrl"
-            alt="raffle"
-            class="object-contain rounded"
-            style="max-height: 9rem" />
-          <div class="flex items-center gap-2 mt-1">
-            <span
-              v-if="selectedPrizeFilename"
-              class="file-name-label"
-              :title="selectedPrizeFilename">
-              <i class="pi pi-image mr-1"></i>
-              {{
-                selectedPrizeFilename.length > 18
-                  ? selectedPrizeFilename.substring(0, 18) + '...'
-                  : selectedPrizeFilename
-              }}
-            </span>
-            <span
-              v-else-if="form.imageOriginalName"
-              class="file-name-label"
-              :title="form.imageOriginalName">
-              <i class="pi pi-image mr-1"></i>
-              {{
-                form.imageOriginalName.length > 18
-                  ? form.imageOriginalName.substring(0, 18) + '...'
-                  : form.imageOriginalName
-              }}
-            </span>
+        <div class="form-group">
+          <label class="label" for="raffle-prize">{{ t('rafflePrizeLabel') }}</label>
+          <input
+            class="input"
+            id="raffle-prize"
+            v-model="form.prize"
+            type="text"
+            maxlength="15"
+            :placeholder="t('rafflePrizePlaceholder')" />
+          <div class="flex gap-2 small mt-1 justify-between">
+            <small :class="{ 'text-red-500': form.prize.length >= 15 }">
+              {{ form.prize.length >= 15 ? t('valMaxChars') : '\u00A0' }}
+            </small>
+            <small aria-live="polite" aria-atomic="true">{{
+              t('charsUsed', { used: form.prize.length, max: 15 })
+            }}</small>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="label" for="raffle-image">{{ t('rafflePrizeImageLabel') }}</label>
+          <p
+            v-if="providerStatus && !providerStatus.available"
+            class="small text-amber-500 mb-2"
+            role="status">
+            {{ providerStatus.label }} {{ t('storageProviderUnavailable') }}
+          </p>
+          <div class="flex items-center gap-2 flex-wrap">
+            <input
+              ref="imageInput"
+              id="raffle-image"
+              type="file"
+              accept="image/png,image/jpeg,image/gif"
+              class="sr-only"
+              @change="onImageFileChange" />
+            <button
+              v-if="selectedStorageProvider !== 'wuzzy'"
+              type="button"
+              class="upload-btn"
+              @click="openImageDialog">
+              <i class="pi pi-upload mr-2" aria-hidden="true"></i>
+              {{ t('imageChoose') || t('rafflePrizeImageLabel') }}
+            </button>
+            <button
+              v-if="selectedStorageProvider !== 'wuzzy'"
+              type="button"
+              class="btn-secondary btn-compact-secondary"
+              @click="openImageLibraryDrawer"
+              :aria-label="t('imageLibraryOpenBtn')">
+              <i class="pi pi-images" aria-hidden="true"></i>
+              {{ t('imageLibraryOpenBtn') }}
+            </button>
+            <button
+              v-if="selectedStorageProvider === 'wuzzy'"
+              type="button"
+              class="btn-secondary btn-compact-secondary"
+              @click="openWuzzyDrawer"
+              :aria-label="t('wuzzyOpenDrawerBtn')">
+              <i class="pi pi-search-plus" aria-hidden="true"></i>
+              {{ t('wuzzyOpenDrawerBtn') }}
+            </button>
+            <div
+              v-if="storageOptions.length"
+              class="flex items-center gap-2"
+              role="group"
+              aria-label="Storage provider selection">
+              <label class="label mb-0" for="raffle-storage-provider">
+                {{ t('storageProviderLabel') }}
+              </label>
+              <QuickSelect
+                v-model="selectedStorageProvider"
+                :disabled="storageLoading || !storageOptions.length"
+                :options="
+                  storageOptions.map((opt) => ({
+                    label: opt.label,
+                    value: opt.id,
+                    disabled: !opt.available && opt.id !== selectedStorageProvider,
+                  }))
+                "
+                :aria-label="t('storageProviderLabel')" />
+            </div>
+          </div>
+          <div v-if="imageLibrary.error" class="small mt-1 text-red-500">
+            {{ imageLibrary.error }}
+          </div>
+          <div v-if="displayImageUrl" class="mt-2">
+            <img
+              :src="displayImageUrl"
+              alt="raffle"
+              class="object-contain rounded"
+              style="max-height: 9rem" />
+            <div class="flex items-center gap-2 mt-1">
+              <span
+                v-if="selectedPrizeFilename"
+                class="file-name-label"
+                :title="selectedPrizeFilename">
+                <i class="pi pi-image mr-1"></i>
+                {{
+                  selectedPrizeFilename.length > 18
+                    ? selectedPrizeFilename.substring(0, 18) + '...'
+                    : selectedPrizeFilename
+                }}
+              </span>
+              <span
+                v-else-if="form.imageOriginalName"
+                class="file-name-label"
+                :title="form.imageOriginalName">
+                <i class="pi pi-image mr-1"></i>
+                {{
+                  form.imageOriginalName.length > 18
+                    ? form.imageOriginalName.substring(0, 18) + '...'
+                    : form.imageOriginalName
+                }}
+              </span>
+              <button
+                type="button"
+                class="icon-btn"
+                :aria-label="t('remove')"
+                :title="t('remove')"
+                @click="clearPrizeImage">
+                <i class="pi pi-trash"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-2 form-group mt-4" role="group" aria-label="Raffle actions">
+          <button
+            class="btn"
+            @click="start"
+            :disabled="(state.active && !state.paused) || savingAction"
+            :aria-busy="savingAction && action === 'start' ? 'true' : 'false'">
+            {{ savingAction && action === 'start' ? t('commonSaving') : t('raffleStart') }}
+          </button>
+          <button
+            class="btn"
+            @click="pause"
+            :disabled="!state.active || state.paused || savingAction"
+            :aria-busy="savingAction && action === 'pause' ? 'true' : 'false'">
+            {{ savingAction && action === 'pause' ? t('commonSaving') : t('rafflePause') }}
+          </button>
+          <button
+            class="btn"
+            @click="resume"
+            :disabled="!state.active || !state.paused || savingAction"
+            :aria-busy="savingAction && action === 'resume' ? 'true' : 'false'">
+            {{ savingAction && action === 'resume' ? t('commonSaving') : t('raffleResume') }}
+          </button>
+          <button
+            class="btn"
+            @click="stop"
+            :disabled="!state.active || savingAction"
+            :aria-busy="savingAction && action === 'stop' ? 'true' : 'false'">
+            {{ savingAction && action === 'stop' ? t('commonSaving') : t('raffleStop') }}
+          </button>
+          <button
+            class="btn"
+            @click="draw"
+            :disabled="!participants.length || savingAction"
+            :aria-busy="savingAction && action === 'draw' ? 'true' : 'false'">
+            {{ savingAction && action === 'draw' ? t('commonSaving') : t('raffleDrawWinner') }}
+          </button>
+          <button
+            class="btn danger"
+            @click="reset"
+            :disabled="savingAction"
+            :aria-busy="savingAction && action === 'reset' ? 'true' : 'false'">
+            {{ savingAction && action === 'reset' ? t('commonSaving') : t('raffleResetWinners') }}
+          </button>
+        </div>
+        <div class="form-group">
+          <label class="label" for="raffle-max-winners">{{ t('raffleMaxWinnersLabel') }}</label>
+          <input
+            class="input"
+            id="raffle-max-winners"
+            v-model.number="form.maxWinners"
+            type="number"
+            min="1" />
+          <div class="flex items-center gap-2 mt-2">
             <button
               type="button"
-              class="icon-btn"
-              :aria-label="t('remove')"
-              :title="t('remove')"
-              @click="clearPrizeImage">
-              <i class="pi pi-trash"></i>
+              class="switch"
+              :aria-pressed="String(form.enabled)"
+              :aria-label="t('raffleEnabled')"
+              @click="form.enabled = !form.enabled">
+              <span class="knob"></span>
             </button>
+            <span class="text-sm font-medium">{{ t('raffleEnabled') }}</span>
+          </div>
+          <button class="btn mt-3" @click="saveSettings" :disabled="savingSettings">
+            {{ savingSettings ? t('commonSaving') : t('saveSettings') }}
+          </button>
+        </div>
+      </OsCard>
+      <OsCard class="mt-3">
+        <template #header>
+          <div class="flex items-center gap-2">
+            <HeaderIcon>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+              </svg>
+            </HeaderIcon>
+            <h3 class="font-semibold text-[15px]">{{ t('obsIntegration') }}</h3>
+          </div>
+        </template>
+        <div class="form-group">
+          <div class="flex flex-wrap items-center gap-3">
+            <span class="label mb-0">{{ t('raffleAdminSectionWidgetLink') }}</span>
+            <CopyField :value="widgetUrl" :aria-label="t('raffleAdminSectionWidgetLink')" secret />
           </div>
         </div>
-      </div>
-      <div class="flex flex-wrap gap-2 form-group mt-4" role="group" aria-label="Raffle actions">
-        <button
-          class="btn"
-          @click="start"
-          :disabled="(state.active && !state.paused) || savingAction"
-          :aria-busy="savingAction && action === 'start' ? 'true' : 'false'">
-          {{ savingAction && action === 'start' ? t('commonSaving') : t('raffleStart') }}
-        </button>
-        <button
-          class="btn"
-          @click="pause"
-          :disabled="!state.active || state.paused || savingAction"
-          :aria-busy="savingAction && action === 'pause' ? 'true' : 'false'">
-          {{ savingAction && action === 'pause' ? t('commonSaving') : t('rafflePause') }}
-        </button>
-        <button
-          class="btn"
-          @click="resume"
-          :disabled="!state.active || !state.paused || savingAction"
-          :aria-busy="savingAction && action === 'resume' ? 'true' : 'false'">
-          {{ savingAction && action === 'resume' ? t('commonSaving') : t('raffleResume') }}
-        </button>
-        <button
-          class="btn"
-          @click="stop"
-          :disabled="!state.active || savingAction"
-          :aria-busy="savingAction && action === 'stop' ? 'true' : 'false'">
-          {{ savingAction && action === 'stop' ? t('commonSaving') : t('raffleStop') }}
-        </button>
-        <button
-          class="btn"
-          @click="draw"
-          :disabled="!participants.length || savingAction"
-          :aria-busy="savingAction && action === 'draw' ? 'true' : 'false'">
-          {{ savingAction && action === 'draw' ? t('commonSaving') : t('raffleDrawWinner') }}
-        </button>
-        <button
-          class="btn danger"
-          @click="reset"
-          :disabled="savingAction"
-          :aria-busy="savingAction && action === 'reset' ? 'true' : 'false'">
-          {{ savingAction && action === 'reset' ? t('commonSaving') : t('raffleResetWinners') }}
-        </button>
-      </div>
-      <div class="form-group">
-        <label class="label" for="raffle-max-winners">{{ t('raffleMaxWinnersLabel') }}</label>
-        <input
-          class="input"
-          id="raffle-max-winners"
-          v-model.number="form.maxWinners"
-          type="number"
-          min="1" />
-        <div class="flex items-center gap-2 mt-2">
-          <button
-            type="button"
-            class="switch"
-            :aria-pressed="String(form.enabled)"
-            :aria-label="t('raffleEnabled')"
-            @click="form.enabled = !form.enabled">
-            <span class="knob"></span>
-          </button>
-          <span class="text-sm font-medium">{{ t('raffleEnabled') }}</span>
-        </div>
-        <button class="btn mt-3" @click="saveSettings" :disabled="savingSettings">
-          {{ savingSettings ? t('commonSaving') : t('saveSettings') }}
-        </button>
-      </div>
-    </OsCard>
-    <OsCard class="mt-3">
-      <template #header>
-        <div class="flex items-center gap-2">
-          <HeaderIcon>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round">
-              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-              <line x1="8" y1="21" x2="16" y2="21"></line>
-              <line x1="12" y1="17" x2="12" y2="21"></line>
-            </svg>
-          </HeaderIcon>
-          <h3 class="font-semibold text-[15px]">{{ t('obsIntegration') }}</h3>
-        </div>
-      </template>
-      <div class="form-group">
-        <div class="flex flex-wrap items-center gap-3">
-          <span class="label mb-0">{{ t('raffleAdminSectionWidgetLink') }}</span>
-          <CopyField :value="widgetUrl" :aria-label="t('raffleAdminSectionWidgetLink')" secret />
-        </div>
-      </div>
-    </OsCard>
-    <ImageLibraryDrawer
-      :open="imageLibrary.open"
-      :items="imageLibrary.items"
-      :loading="imageLibrary.loading"
-      :error="imageLibrary.error"
-      :allow-delete="true"
-      :deleting-id="imageLibraryDeletingId"
-      @close="closeImageLibraryDrawer"
-      @refresh="fetchImageLibrary(true)"
-      @select="onLibraryImageSelect"
-      @delete="onLibraryImageDelete" />
-    <WuzzyImageDrawer
-      :open="wuzzyDrawerOpen"
-      @close="closeWuzzyDrawer"
-      @select="handleWuzzySelect" />
-    <AlertDialog v-model:open="uploadErrorDialog.open">
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{{ uploadErrorDialog.title }}</AlertDialogTitle>
-          <AlertDialogDescription>{{ uploadErrorDialog.message }}</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel @click="uploadErrorDialog.open = false">OK</AlertDialogCancel>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+      </OsCard>
+      <ImageLibraryDrawer
+        :open="imageLibrary.open"
+        :items="imageLibrary.items"
+        :loading="imageLibrary.loading"
+        :error="imageLibrary.error"
+        :allow-delete="true"
+        :deleting-id="imageLibraryDeletingId"
+        @close="closeImageLibraryDrawer"
+        @refresh="fetchImageLibrary(true)"
+        @select="onLibraryImageSelect"
+        @delete="onLibraryImageDelete" />
+      <WuzzyImageDrawer
+        :open="wuzzyDrawerOpen"
+        @close="closeWuzzyDrawer"
+        @select="handleWuzzySelect" />
+      <AlertDialog v-model:open="uploadErrorDialog.open">
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{{ uploadErrorDialog.title }}</AlertDialogTitle>
+            <AlertDialogDescription>{{ uploadErrorDialog.message }}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel @click="uploadErrorDialog.open = false">OK</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   </section>
 </template>
 <script setup>
@@ -314,9 +318,12 @@ import { useWalletSession } from '../composables/useWalletSession';
 import { usePublicToken } from '../composables/usePublicToken';
 import { useStorageProviders } from '../composables/useStorageProviders';
 import HeaderIcon from './shared/HeaderIcon.vue';
+import BlockedState from './shared/BlockedState.vue';
 
 const { t } = useI18n();
 const masked = ref(false);
+const isBlocked = ref(false);
+const blockDetails = ref({});
 
 const form = reactive({
   command: '!giveaway',
@@ -794,16 +801,38 @@ async function maybeHandleDuplicate(file) {
   return false;
 }
 async function load(forceLibrary = false) {
-  const [modulesRes, settingsRes, stateRes] = await Promise.all([
-    api.get('/api/modules').catch(() => ({ data: {} })),
-    api.get('/api/raffle/settings').catch(() => ({ data: {} })),
-    api.get('/api/raffle/state').catch(() => ({ data: {} })),
-  ]);
-  masked.value = !!modulesRes?.data?.masked;
-  const settingsData = settingsRes?.data?.data || {};
-  applySettings(settingsData);
-  applyState(stateRes?.data || {});
-  await ensureImageLibraryLoaded(forceLibrary);
+  isBlocked.value = false;
+  try {
+    const [modulesRes, settingsRes, stateRes] = await Promise.all([
+      api.get('/api/modules').catch(() => ({ data: {} })),
+      api.get('/api/raffle/settings').catch((e) => {
+        if (
+          e?.response?.data?.error === 'configuration_blocked' ||
+          e?.response?.data?.error === 'CONFIGURATION_BLOCKED'
+        ) {
+          throw e;
+        }
+        return { data: {} };
+      }),
+      api.get('/api/raffle/state').catch(() => ({ data: {} })),
+    ]);
+    masked.value = !!modulesRes?.data?.masked;
+    const settingsData = settingsRes?.data?.data || {};
+    applySettings(settingsData);
+    applyState(stateRes?.data || {});
+    await ensureImageLibraryLoaded(forceLibrary);
+  } catch (e) {
+    if (
+      e.response &&
+      e.response.data &&
+      (e.response.data.error === 'CONFIGURATION_BLOCKED' ||
+        e.response.data.error === 'configuration_blocked')
+    ) {
+      isBlocked.value = true;
+      const details = e.response.data.details;
+      blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+    }
+  }
 }
 
 async function saveSettings() {
@@ -839,6 +868,17 @@ async function saveSettings() {
       pushToast({ type: 'error', message: res?.data?.error || t('saveFailedRaffleSettings') });
     }
   } catch (error) {
+    if (
+      error.response &&
+      error.response.data &&
+      (error.response.data.error === 'CONFIGURATION_BLOCKED' ||
+        error.response.data.error === 'configuration_blocked')
+    ) {
+      isBlocked.value = true;
+      const details = error.response.data.details;
+      blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+      return;
+    }
     console.error('[raffle] save settings failed', error);
     pushToast({ type: 'error', message: t('saveFailedRaffleSettings') });
   } finally {

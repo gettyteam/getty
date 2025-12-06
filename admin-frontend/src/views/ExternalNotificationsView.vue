@@ -1,5 +1,5 @@
 <template>
-  <div class="mb-4">
+  <div class="mb-4" v-if="!isBlocked">
     <Alert>
       <Rocket class="h-5 w-5 alert-icon" />
       <div class="flex-1">
@@ -11,7 +11,7 @@
     </Alert>
   </div>
 
-  <div class="mb-4">
+  <div class="mb-4" v-if="!isBlocked">
     <div
       v-if="showObsBanner"
       class="relative p-3 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] flex items-start gap-3">
@@ -76,8 +76,8 @@
     </div>
   </div>
 
-  <ExternalNotificationsPanel />
-  <div class="mt-4">
+  <ExternalNotificationsPanel @blocked="handleBlocked" />
+  <div class="mt-4" v-if="!isBlocked">
     <LiveAnnouncementPanel />
   </div>
 </template>
@@ -89,6 +89,11 @@ import LiveAnnouncementPanel from '../components/LiveAnnouncementPanel.vue';
 import { useI18n } from 'vue-i18n';
 import { ref, onMounted } from 'vue';
 const { t } = useI18n();
+
+const isBlocked = ref(false);
+function handleBlocked(val) {
+  isBlocked.value = !!val;
+}
 
 const OBS_BANNER_KEY = 'getty_obs_banner_collapsed_v1';
 const showObsBanner = ref(true);

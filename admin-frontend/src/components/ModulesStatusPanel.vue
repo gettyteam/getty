@@ -57,6 +57,9 @@
             <template v-else-if="it.displayState === 'configured'">{{
               t('commonConfigured') || 'Configured'
             }}</template>
+            <template v-else-if="it.displayState === 'blocked'">{{
+              t('commonBlocked') || 'Blocked'
+            }}</template>
             <template v-else>{{ t('commonOff') || 'Off' }}</template>
           </span>
         </div>
@@ -128,13 +131,15 @@ function buildItems(d) {
         : '';
     const extra = extraFn ? extraFn(obj) : '';
     let state = obj.displayState;
-    if (!state) {
+    if (obj.blocked || obj.isBlocked || obj.error === 'CONFIGURATION_BLOCKED') {
+      state = 'blocked';
+    } else if (!state) {
       if (obj.active || obj.connected) state = 'active';
       else if (obj.configured || obj.initialized) state = 'configured';
       else state = 'inactive';
     }
-    if (key === 'socialmedia' && obj.entries > 0) state = 'configured';
-    if (key === 'liveviews' && obj.claimid) state = 'configured';
+    if (key === 'socialmedia' && obj.entries > 0 && !obj.blocked) state = 'configured';
+    if (key === 'liveviews' && obj.claimid && !obj.blocked) state = 'configured';
     const showActive = state === 'active' || state === 'configured';
     out.push({ key, label, active: showActive, uptime, extra, displayState: state });
   };
@@ -181,6 +186,8 @@ function badgeClass(state) {
       return 'bg-[var(--badge-active-bg)] text-[var(--badge-active-fg)]';
     case 'configured':
       return 'bg-[var(--badge-configured-bg)] text-[var(--badge-configured-fg)]';
+    case 'blocked':
+      return 'bg-red-500/20 text-red-400 border border-red-500/30';
     default:
       return 'bg-[var(--badge-inactive-bg)] text-[var(--badge-inactive-fg)]';
   }

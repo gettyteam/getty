@@ -1,6 +1,6 @@
 <template>
   <div class="chat-theme-manager">
-    <OsCard class="mt-4" aria-labelledby="chat-theme-heading">
+    <OsCard aria-labelledby="chat-theme-heading">
       <h3 id="chat-theme-heading" class="os-card-title mb-3 flex items-center gap-2">
         <HeaderIcon>
           <svg

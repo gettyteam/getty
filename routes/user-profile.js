@@ -228,7 +228,9 @@ function registerUserProfileRoutes(app, options = {}) {
         USER_PROFILE_FILENAME
       );
       if (loaded && loaded.data) return normalizeConfig(loaded.data);
-    } catch {}
+    } catch (err) {
+      if (err.code === 'CONFIGURATION_BLOCKED') throw err;
+    }
     return defaultConfig();
   }
 
@@ -373,6 +375,13 @@ function registerUserProfileRoutes(app, options = {}) {
         config.shareEnabled && config.shareSlug ? buildShareUrl(req, config.shareSlug) : null;
       res.json({ ...config, shareUrl });
     } catch (err) {
+      if (err.code === 'CONFIGURATION_BLOCKED') {
+        return res.status(403).json({
+          error: 'CONFIGURATION_BLOCKED',
+          message: 'This configuration has been disabled by a moderator.',
+          details: err.details,
+        });
+      }
       res.status(500).json({ error: 'failed_to_load_user_profile_config', details: err?.message });
     }
   });
@@ -413,6 +422,13 @@ function registerUserProfileRoutes(app, options = {}) {
         config.shareEnabled && config.shareSlug ? buildShareUrl(req, config.shareSlug) : null;
       res.json({ success: true, config: { ...config, shareUrl } });
     } catch (err) {
+      if (err.code === 'CONFIGURATION_BLOCKED') {
+        return res.status(403).json({
+          error: 'CONFIGURATION_BLOCKED',
+          message: 'This configuration has been disabled by a moderator.',
+          details: err.details,
+        });
+      }
       res.status(500).json({ error: 'failed_to_save_user_profile_config', details: err?.message });
     }
   });
@@ -428,6 +444,13 @@ function registerUserProfileRoutes(app, options = {}) {
       const payload = await buildOverviewPayload(req, adminNs, { shareContext: false });
       res.json(payload);
     } catch (err) {
+      if (err.code === 'CONFIGURATION_BLOCKED') {
+        return res.status(403).json({
+          error: 'CONFIGURATION_BLOCKED',
+          message: 'This configuration has been disabled by a moderator.',
+          details: err.details,
+        });
+      }
       res.status(500).json({ error: 'failed_to_build_profile_overview', details: err?.message });
     }
   });
@@ -441,6 +464,13 @@ function registerUserProfileRoutes(app, options = {}) {
       res.setHeader('Cache-Control', 'public, max-age=120');
       res.json(context.payload);
     } catch (err) {
+      if (err.code === 'CONFIGURATION_BLOCKED') {
+        return res.status(403).json({
+          error: 'CONFIGURATION_BLOCKED',
+          message: 'This profile has been disabled by a moderator.',
+          details: err.details,
+        });
+      }
       res.status(500).json({ error: 'failed_to_build_public_profile', details: err?.message });
     }
   });

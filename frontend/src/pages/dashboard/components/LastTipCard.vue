@@ -10,7 +10,9 @@
       <span data-i18n="lastTipTitle"></span>
     </h2>
     <div class="flex-1 flex flex-col justify-center">
+      <BlockedState v-if="isBlocked" module-name="Last Tip" />
       <div
+        v-else
         id="last-donation"
         class="last-donation"
         role="status"
@@ -81,3 +83,14 @@
     </div>
   </section>
 </template>
+
+<script setup>
+import BlockedState from './BlockedState.vue';
+
+defineProps({
+  isBlocked: {
+    type: Boolean,
+    default: false,
+  },
+});
+</script>

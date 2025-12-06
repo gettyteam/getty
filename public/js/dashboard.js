@@ -480,9 +480,11 @@ async function bootstrapDashboard() {
     }
   } catch {
   }
-  root.innerHTML = buildLayout();
-  updateWelcomeMessage(root, widgetToken);
-  toggleAdminControls(root, !!bootstrap.hasAdminSession);
+  if (!root.hasAttribute("data-dashboard-vue")) {
+    root.innerHTML = buildLayout();
+    updateWelcomeMessage(root, widgetToken);
+    toggleAdminControls(root, !!bootstrap.hasAdminSession);
+  }
   await loadLegacyAssets(nonce);
 }
 bootstrapDashboard();

@@ -1,6 +1,8 @@
 <template>
   <section class="admin-tab active relative events-root" role="form">
-    <div class="events-grid">
+    <BlockedState v-if="isBlocked" :module-name="t('eventsModule')" :details="blockDetails" />
+
+    <div v-else class="events-grid">
       <div class="events-group-box" aria-labelledby="events-activity-title">
         <div class="events-group-head">
           <HeaderIcon>
@@ -210,6 +212,7 @@ import { useDirty } from '@/composables/useDirtyRegistry';
 import CopyField from '@/components/shared/CopyField.vue';
 import HeaderIcon from '@/components/shared/HeaderIcon.vue';
 import ColorInput from '@/components/shared/ColorInput.vue';
+import BlockedState from '@/components/shared/BlockedState.vue';
 import { usePublicToken } from '@/composables/usePublicToken';
 
 const { t } = useI18n();
@@ -237,6 +240,8 @@ const activities = [
 ];
 
 const originalSettings = ref(null);
+const isBlocked = ref(false);
+const blockDetails = ref({});
 
 const widgetUrl = computed(() => withToken(`${location.origin}/widgets/events`));
 
@@ -314,12 +319,24 @@ async function saveSettings() {
     };
 
     pushToast({ type: 'success', message: t('eventsSettingsSaved') });
-  } catch {
+  } catch (e) {
+    if (
+      e.response &&
+      e.response.data &&
+      (e.response.data.error === 'CONFIGURATION_BLOCKED' ||
+        e.response.data.error === 'configuration_blocked')
+    ) {
+      isBlocked.value = true;
+      const details = e.response.data.details;
+      blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+      return;
+    }
     pushToast({ type: 'error', message: t('eventsSaveFailed') });
   }
 }
 
 async function loadSettings() {
+  isBlocked.value = false;
   try {
     const { data } = await api.get('/api/events-settings');
     if (data) {
@@ -340,7 +357,18 @@ async function loadSettings() {
         animation: settings.animation,
       };
     }
-  } catch {}
+  } catch (e) {
+    if (
+      e.response &&
+      e.response.data &&
+      (e.response.data.error === 'CONFIGURATION_BLOCKED' ||
+        e.response.data.error === 'configuration_blocked')
+    ) {
+      isBlocked.value = true;
+      const details = e.response.data.details;
+      blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+    }
+  }
 }
 
 function isDirty() {
@@ -351,7 +379,7 @@ function isDirty() {
     animation: settings.animation,
   };
   const saved = originalSettings.value;
-  return JSON.stringify(current) !== JSON.stringify(saved);
+  return !isBlocked.value && JSON.stringify(current) !== JSON.stringify(saved);
 }
 useDirty(isDirty, t('eventsModule') || 'Events');
 

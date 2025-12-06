@@ -95,6 +95,11 @@ function registerChannelAnalyticsRoutes(app, strictLimiter, options = {}) {
   app.get('/config/channel-analytics-config.json', strictLimiter, async (req, res) => {
     const ns = await ensureSession(req, res);
     if (!ns) return;
+
+    if (store && store.isConfigBlocked && await store.isConfigBlocked(ns, CONFIG_FILENAME)) {
+      return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+    }
+
     try {
       const loaded = await loadTenantConfig(req, store, CONFIG_FILE_PATH, CONFIG_FILENAME);
       const config = loaded?.data || {};
@@ -111,6 +116,11 @@ function registerChannelAnalyticsRoutes(app, strictLimiter, options = {}) {
   app.post('/config/channel-analytics-config.json', strictLimiter, async (req, res) => {
     const ns = await ensureSession(req, res);
     if (!ns) return;
+
+    if (store && store.isConfigBlocked && await store.isConfigBlocked(ns, CONFIG_FILENAME)) {
+      return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+    }
+
     const body = req.body || {};
     try {
       const existingWrapped = await loadTenantConfig(req, store, CONFIG_FILE_PATH, CONFIG_FILENAME);
@@ -180,6 +190,11 @@ function registerChannelAnalyticsRoutes(app, strictLimiter, options = {}) {
   app.get('/api/channel-analytics/overview', strictLimiter, async (req, res) => {
     const ns = await ensureSession(req, res);
     if (!ns) return;
+
+    if (store && store.isConfigBlocked && await store.isConfigBlocked(ns, CONFIG_FILENAME)) {
+      return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+    }
+
     try {
       const loaded = await loadTenantConfig(req, store, CONFIG_FILE_PATH, CONFIG_FILENAME);
       const config = loaded?.data || {};

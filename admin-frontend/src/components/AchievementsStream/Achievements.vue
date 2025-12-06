@@ -1,6 +1,8 @@
 <template>
   <section class="os-card overflow-hidden flex flex-col">
-    <div class="p-4 space-y-4">
+    <BlockedState v-if="isBlocked" :module-name="t('achievementsTitle')" :details="blockDetails" />
+
+    <div v-else class="p-4 space-y-4">
       <div class="banner flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h3 class="banner-title">{{ t('achievementsBannerTitle') }}</h3>
@@ -565,6 +567,7 @@ import {
 } from './Achievements.js';
 import { usePublicToken } from '../../composables/usePublicToken';
 import { useStorageProviders } from '../../composables/useStorageProviders';
+import BlockedState from '../shared/BlockedState.vue';
 
 const cfg = reactive({
   enabled: true,
@@ -577,8 +580,10 @@ const cfg = reactive({
 });
 const status = reactive({ items: [] });
 const achMeta = ref(null);
-const saving = ref(false);
 const loading = ref(false);
+const saving = ref(false);
+const isBlocked = ref(false);
+const blockDetails = ref({});
 const toasts = ref([]);
 let toastCounter = 0;
 const { t } = useI18n();
@@ -726,18 +731,44 @@ async function refreshAudioState() {
     const { data } = await api.get('/api/achievements-audio-settings');
     await processAudioData(data);
   } catch (error) {
-    console.error('Error refreshing audio state:', error);
+    if (
+      error.response &&
+      error.response.data &&
+      (error.response.data.error === 'CONFIGURATION_BLOCKED' ||
+        error.response.data.error === 'configuration_blocked')
+    ) {
+      isBlocked.value = true;
+      const details = error.response.data.details;
+      blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+    } else {
+      console.error('Error refreshing audio state:', error);
+    }
   }
 }
 
 async function loadAll() {
   loading.value = true;
+  isBlocked.value = false;
   try {
     const [rConfig, rStatus, rAudio] = await Promise.allSettled([
       fetchAchievementsConfig(),
       getAchievementsStatus(),
       api.get('/api/achievements-audio-settings'),
     ]);
+
+    const blockedError = [rConfig, rStatus, rAudio].find(
+      (r) =>
+        r.status === 'rejected' &&
+        (r.reason?.response?.data?.error === 'CONFIGURATION_BLOCKED' ||
+          r.reason?.response?.data?.error === 'configuration_blocked')
+    );
+
+    if (blockedError) {
+      isBlocked.value = true;
+      const details = blockedError.reason.response.data.details;
+      blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+      return;
+    }
 
     if (rConfig.status === 'fulfilled') {
       const { config, meta } = rConfig.value;
@@ -811,6 +842,17 @@ async function save() {
     achMeta.value = meta;
     await loadAll();
     pushToast('success', 'toastSettingsSaved');
+  } catch (e) {
+    if (
+      e.response &&
+      e.response.data &&
+      (e.response.data.error === 'CONFIGURATION_BLOCKED' ||
+        e.response.data.error === 'configuration_blocked')
+    ) {
+      isBlocked.value = true;
+      const details = e.response.data.details;
+      blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+    }
   } finally {
     saving.value = false;
   }
@@ -820,14 +862,36 @@ async function reset(id) {
     await resetAchievement(id);
     await loadAll();
     pushToast('info', 'toastAchievementReset');
-  } catch {}
+  } catch (e) {
+    if (
+      e.response &&
+      e.response.data &&
+      (e.response.data.error === 'CONFIGURATION_BLOCKED' ||
+        e.response.data.error === 'configuration_blocked')
+    ) {
+      isBlocked.value = true;
+      const details = e.response.data.details;
+      blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+    }
+  }
 }
 
 async function testNotif() {
   try {
     await testAchievementsNotification(walletHash.value);
     pushToast('info', 'toastTestSent');
-  } catch {}
+  } catch (e) {
+    if (
+      e.response &&
+      e.response.data &&
+      (e.response.data.error === 'CONFIGURATION_BLOCKED' ||
+        e.response.data.error === 'configuration_blocked')
+    ) {
+      isBlocked.value = true;
+      const details = e.response.data.details;
+      blockDetails.value = typeof details === 'string' ? { reason: details } : details || {};
+    }
+  }
 }
 
 onMounted(async () => {

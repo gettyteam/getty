@@ -30,6 +30,19 @@ function registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, option
   app.get('/api/socialmedia-config', async (req, res) => {
     try {
       const ns = await resolveNsFromReq(req);
+      
+      if (store && ns) {
+        const blockDetails = await store.isConfigBlocked(ns, 'socialmedia-config.json');
+        if (blockDetails) {
+          return res.status(403).json({
+            success: false,
+            error: 'CONFIGURATION_BLOCKED',
+            message: 'This configuration has been disabled by a moderator.',
+            details: blockDetails
+          });
+        }
+      }
+
       const trustedLocalAdmin = isTrustedLocalAdmin(req);
       const conceal = shouldMaskSensitive(req);
 
@@ -46,6 +59,15 @@ function registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, option
           (await store.get(ns, 'socialmedia-config', null));
         if (loaded) {
           config = loaded.data ? loaded.data : loaded;
+
+          if (loaded.__version || loaded.checksum) {
+             meta = {
+               __version: loaded.__version,
+               checksum: loaded.checksum,
+               updatedAt: loaded.updatedAt,
+               source: 'redis'
+             };
+          }
         }
       }
 
@@ -97,6 +119,14 @@ function registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, option
       }
       res.json({ success: true, config: config, meta });
     } catch (error) {
+      if (error.code === 'CONFIGURATION_BLOCKED') {
+        return res.status(403).json({
+          success: false,
+          error: 'CONFIGURATION_BLOCKED',
+          message: 'This configuration has been disabled by a moderator.',
+          details: error.details || {}
+        });
+      }
       res.status(500).json({ success: false, error: error.message });
     }
   });
@@ -281,7 +311,6 @@ function registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, option
       let meta = null;
       if (ns && store) {
         const globalPath = path.join(process.cwd(), 'config', 'socialmedia-config.json');
-        await store.setConfig(ns, 'socialmedia-config.json', normalized);
 
         let forceHash = null;
         if (req.walletSession && req.walletSession.walletHash) {
@@ -309,6 +338,14 @@ function registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, option
       }
       res.json({ success: true, ...(meta ? { meta } : {}) });
     } catch (error) {
+      if (error.code === 'CONFIGURATION_BLOCKED') {
+        return res.status(403).json({
+          success: false,
+          error: 'CONFIGURATION_BLOCKED',
+          message: 'This configuration has been disabled by a moderator.',
+          details: error.details || {}
+        });
+      }
       res.status(500).json({ success: false, error: error.message });
     }
   });

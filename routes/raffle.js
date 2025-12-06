@@ -128,6 +128,11 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
   app.get('/api/raffle/settings', async (req, res) => {
     try {
       let adminNs = resolveAdminNamespace(req);
+
+      if (store && store.isConfigBlocked && await store.isConfigBlocked(adminNs, 'raffle-config.json')) {
+        return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+      }
+
       if (!isOpenTestMode() && shouldRequireSession && !adminNs) {
         return res.json({});
       }
@@ -179,6 +184,11 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
     try {
       const requireSession = shouldRequireSession;
       const adminNs = resolveAdminNamespace(req);
+
+      if (store && store.isConfigBlocked && await store.isConfigBlocked(adminNs, 'raffle-image-library.json')) {
+        return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+      }
+
       if (!isOpenTestMode() && requireSession && !adminNs) {
         return res.status(401).json({ error: 'session_required' });
       }
@@ -193,6 +203,11 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
   app.delete('/api/raffle/image-library/:id', async (req, res) => {
     try {
       const adminNs = resolveAdminNamespace(req);
+
+      if (store && store.isConfigBlocked && await store.isConfigBlocked(adminNs, 'raffle-image-library.json')) {
+        return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+      }
+
       if (!isOpenTestMode() && shouldRequireSession && !adminNs) {
         return res.status(401).json({ error: 'session_required' });
       }
@@ -253,6 +268,11 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
   app.post('/api/raffle/settings', async (req, res) => {
     try {
       let adminNs = resolveAdminNamespace(req);
+
+      if (store && store.isConfigBlocked && await store.isConfigBlocked(adminNs, 'raffle-config.json')) {
+        return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+      }
+
       if (!isOpenTestMode() && shouldRequireSession && !adminNs)
         return res.status(401).json({ success: false, error: 'session_required' });
       const { canWriteConfig } = require('../lib/authz');
@@ -457,6 +477,11 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
 
   app.post('/api/raffle/upload-image', raffleImageUpload.single('image'), async (req, res) => {
     const adminNs = resolveAdminNamespace(req);
+
+    if (store && store.isConfigBlocked && await store.isConfigBlocked(adminNs, 'raffle-image-library.json')) {
+      return res.status(403).json({ error: 'configuration_blocked', details: 'This configuration has been blocked by moderation.' });
+    }
+
     if (!isOpenTestMode() && shouldRequireSession && !adminNs) {
       return res.status(401).json({ error: 'session_required' });
     }

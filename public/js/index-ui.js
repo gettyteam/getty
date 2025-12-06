@@ -57,6 +57,33 @@
     });
   }
 
+  function waitForDashboardLayout(root) {
+    if (!root) return Promise.resolve(root);
+    if (window.__GETTY_VUE_IS_READY) return Promise.resolve(root);
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (target) => {
+        if (settled) return;
+        settled = true;
+        resolve(target || root);
+        window.removeEventListener('getty-dashboard-vue-ready', onReady);
+        if (window.__GETTY_DASHBOARD_VUE_READY__ === bridge) {
+          try {
+            delete window.__GETTY_DASHBOARD_VUE_READY__;
+          } catch (_) {
+            window.__GETTY_DASHBOARD_VUE_READY__ = undefined;
+          }
+        }
+      };
+      const onReady = (event) => {
+        finish(event?.detail?.root || root);
+      };
+      window.addEventListener('getty-dashboard-vue-ready', onReady, { once: true });
+      const bridge = () => finish(root);
+      window.__GETTY_DASHBOARD_VUE_READY__ = bridge;
+    });
+  }
+
   function whenDomReady() {
     return new Promise((resolve) => {
       if (document.readyState === 'loading') {
@@ -76,6 +103,15 @@
     );
     if (isVueLanding) {
       await waitForLandingLayout(landingRoot);
+    }
+
+    const isVueDashboard = !!(
+      landingRoot &&
+      landingRoot.hasAttribute &&
+      landingRoot.hasAttribute('data-dashboard-vue')
+    );
+    if (isVueDashboard) {
+      await waitForDashboardLayout(landingRoot);
     }
 
     try {
@@ -331,15 +367,14 @@
       const seen = new WeakSet();
       const loadFor = async (panel) => {
         try {
+          const widgets = await import('/js/modules/widgets.js');
           const hasLastTip = !!panel.querySelector('#last-donation');
           const hasGoal = !!panel.querySelector('#goal-widget');
           const hasNotif = !!panel.querySelector('#notification');
           const hasChat = !!panel.querySelector('#chat-container');
-          const hasRaffle = !!panel.querySelector('#raffleContentContainer');
-          const widgets = await import('/js/modules/widgets.js');
+
           if (hasLastTip) {
             await widgets.loadLastTip();
-            await widgets.loadTipWidget();
           }
           if (hasGoal) {
             await widgets.loadTipGoal();
@@ -347,9 +382,14 @@
           if (hasNotif) {
             await widgets.loadNotifications();
           }
+
           if (hasChat) {
-            await widgets.loadChat();
+            const chatContainer = panel.querySelector('#chat-container');
+            if (document.body.contains(chatContainer)) {
+              await widgets.loadChat();
+            }
           }
+          const hasRaffle = !!panel.querySelector('#raffleContentContainer');
           if (hasRaffle) {
             await widgets.loadRaffle();
           }
@@ -370,6 +410,13 @@
           /* ignore */
         }
       };
+
+      window.getty = window.getty || {};
+      window.getty.scanForWidgets = () => {
+        const currentPanels = document.querySelectorAll('.os-card');
+        currentPanels.forEach((p) => loadFor(p));
+      };
+
       const io =
         'IntersectionObserver' in window
           ? new IntersectionObserver(

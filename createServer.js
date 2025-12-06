@@ -2,6 +2,15 @@ const path = require('path');
 
 require('./lib/log-shim');
 
+const { NamespacedStore } = require('./lib/store');
+let redisClient = null;
+const SESSION_TTL_SECONDS = parseInt(process.env.SESSION_TTL_SECONDS || '259200', 10);
+const store = new NamespacedStore({
+  redis: null,
+  ttlSeconds: SESSION_TTL_SECONDS,
+});
+const historyStore = new NamespacedStore({ redis: null, ttlSeconds: 0 });
+
 async function loadSecrets() {
   if (process.env.DONT_LOAD_DOTENV === '1') return;
 
@@ -50,6 +59,160 @@ function validateEnvironment() {
 const secretsLoaded = (async () => {
   await loadSecrets();
   validateEnvironment();
+
+  initRedisClientFromEnv();
+  if (redisClient) {
+    if (store) {
+      store.attachRedis(redisClient);
+      const ttl = parseInt(process.env.SESSION_TTL_SECONDS || '259200', 10);
+      if (ttl) store.ttl = ttl;
+    }
+    if (historyStore) historyStore.attachRedis(redisClient);
+    
+    (async () => {
+      try {
+        if (typeof redisClient.duplicate !== 'function') {
+          console.warn('[getty:events] redisClient.duplicate is not available (mock mode?), skipping subscription');
+          return;
+        }
+        const subClient = redisClient.duplicate();
+        await subClient.connect();
+        
+        await subClient.subscribe('getty:events', (err, count) => {
+          if (err) {
+            console.error('[getty:events] Failed to subscribe: %s', err.message);
+          } else {
+            console.warn(`[getty:events] Subscribed successfully! This client is currently subscribed to ${count} channels.`);
+          }
+        });
+        subClient.on('message', async (channel, message) => {
+          if (channel !== 'getty:events') return;
+          try {
+            console.warn('[getty:events] Received message:', message);
+            const payload = JSON.parse(message);
+            if (payload && payload.type === 'config:delete' && payload.hash && payload.filename) {
+               const { hash, filename } = payload;
+  
+               if (hash.includes('..') || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+                 console.warn('[getty:events] Invalid hash or filename in config:delete', payload);
+                 return;
+               }
+  
+               const tenantConfigDir = path.join(process.cwd(), 'tenant', hash, 'config');
+               const tenantDataDir = path.join(process.cwd(), 'tenant', hash, 'data');
+               
+               const configFilePath = path.join(tenantConfigDir, filename);
+               const dataFilePath = path.join(tenantDataDir, filename);
+
+               console.warn('[getty:events] Attempting to delete file (config/data):', filename);
+               
+               let deleted = false;
+
+               if (fs.existsSync(configFilePath)) {
+                 try {
+                   fs.unlinkSync(configFilePath);
+                   console.warn('[getty:events] Deleted tenant config file:', configFilePath);
+                   deleted = true;
+                 } catch (e) {
+                   console.error('[getty:events] Failed to delete config file:', configFilePath, e);
+                 }
+               }
+
+               if (fs.existsSync(dataFilePath)) {
+                 try {
+                   fs.unlinkSync(dataFilePath);
+                   console.warn('[getty:events] Deleted tenant data file:', dataFilePath);
+                   deleted = true;
+                 } catch (e) {
+                   console.error('[getty:events] Failed to delete data file:', dataFilePath, e);
+                 }
+               }
+
+               if (!deleted) {
+                 console.warn('[getty:events] File not found in tenant config or data:', filename);
+               }
+  
+               if (process.env.NODE_ENV !== 'production') {
+                  const localConfigDir = path.join(process.cwd(), 'tenant', 'local', 'config');
+                  const localDataDir = path.join(process.cwd(), 'tenant', 'local', 'data');
+                  
+                  const localConfigPath = path.join(localConfigDir, filename);
+                  const localDataPath = path.join(localDataDir, filename);
+
+                  if (fs.existsSync(localConfigPath)) {
+                     try {
+                       fs.unlinkSync(localConfigPath);
+                       console.warn('[getty:events] Deleted local fallback config file (DEV mode):', localConfigPath);
+                     } catch (e) {
+                       console.error('[getty:events] Failed to delete local fallback file:', localConfigPath, e);
+                     }
+                  }
+                  if (fs.existsSync(localDataPath)) {
+                     try {
+                       fs.unlinkSync(localDataPath);
+                       console.warn('[getty:events] Deleted local fallback data file (DEV mode):', localDataPath);
+                     } catch (e) {
+                       console.error('[getty:events] Failed to delete local fallback data file:', localDataPath, e);
+                     }
+                  }
+               }
+               
+               const redisKey = `gettycfg:${hash}:${filename}`;
+               if (store && store.redis) {
+                  await store.redis.del(redisKey);
+                  
+                  const extraKeysMap = {
+                    'stream-history.json': [
+                       `getty:${hash}:stream-history-data`,
+                       `getty:${hash}:stream-history:samples`,
+                       `getty:${hash}:stream-history:segments`,
+                       `getty:${hash}:stream-history:tips`
+                    ],
+                    'events-settings.json': [`getty:${hash}:events-settings`],
+                    'socialmedia-config.json': [`getty:${hash}:socialmedia-config`],
+                    'announcement-config.json': [`getty:${hash}:announcement-config`],
+                    'tip-goal-config.json': [`getty:${hash}:tip-goal-config`]
+                  };
+
+                  if (extraKeysMap[filename]) {
+                     const keysToDelete = extraKeysMap[filename];
+                     for (const k of keysToDelete) {
+                       await store.redis.del(k);
+                     }
+                     console.warn('[getty:events] Deleted extra Redis keys for', filename, keysToDelete);
+                  }
+               }
+               console.warn('[getty:events] Ensured Redis key deleted:', redisKey);
+  
+               if (wss && wss.broadcast) {
+                  wss.broadcast(hash, {
+                    type: 'config_deleted',
+                    filename: filename
+                  });
+               }
+            }
+
+            if (payload && payload.type === 'config:block' && payload.hash && payload.filename) {
+               console.warn(`[getty:events] Config ${payload.blocked ? 'BLOCKED' : 'UNBLOCKED'}: ${payload.filename}`);
+               if (wss && wss.broadcast) {
+                  wss.broadcast(payload.hash, {
+                    type: 'config_status_change',
+                    filename: payload.filename,
+                    blocked: payload.blocked,
+                    details: payload.details || {}
+                  });
+               }
+            }
+          } catch (err) {
+            console.error('[getty:events] Error processing message:', err);
+          }
+        });
+        console.warn('[getty:events] Subscribed to getty:events channel');
+      } catch (err) {
+        console.error('[getty:events] Failed to setup subscription:', err);
+      }
+    })();
+  }
 })();
 const LIVEVIEWS_CONFIG_FILE = path.join(process.cwd(), 'config', 'liveviews-config.json');
 const STREAM_HISTORY_CONFIG_FILE = path.join(process.cwd(), 'config', 'stream-history-config.json');
@@ -534,8 +697,8 @@ async function loadDashboardTemplate(req) {
 }
 
 const app = express();
+app.set('store', store);
 const cookieParser = require('cookie-parser');
-const { NamespacedStore } = require('./lib/store');
 
 let walletAuth = null;
 try {
@@ -604,8 +767,6 @@ function anonymizeIp(ip) {
     return '';
   }
 }
-
-let redisClient = null;
 
 function initRedisClientFromEnv() {
   if (redisClient || !process.env.REDIS_URL) return false;
@@ -689,13 +850,7 @@ function initRedisClientFromEnv() {
   }
 }
 
-initRedisClientFromEnv();
-const SESSION_TTL_SECONDS = parseInt(process.env.SESSION_TTL_SECONDS || '259200', 10);
-const store = new NamespacedStore({
-  redis: redisClient,
-  ttlSeconds: SESSION_TTL_SECONDS,
-});
-const historyStore = new NamespacedStore({ redis: redisClient, ttlSeconds: 0 });
+// initRedisClientFromEnv(); // Moved to secretsLoaded
 
 setupMiddlewares(app, {
   store,
@@ -1250,6 +1405,8 @@ wss.broadcast = function (nsToken, payload) {
   }
 };
 
+// Old subscription block removed (moved to secretsLoaded)
+
 let __arPriceCache = { usd: 0, ts: 0, source: 'none', providersTried: [] };
 let __arPriceFetchPromise = null;
 async function getArUsdCached(_force = false) {
@@ -1371,11 +1528,11 @@ async function getArUsdCached(_force = false) {
 
 const languageConfig = new LanguageConfig();
 const wssBound = wss;
-const lastTip = new LastTipModule(wssBound);
-const tipWidget = new TipWidgetModule(wssBound);
-const tipGoal = new TipGoalModule(wssBound);
-const externalNotifications = new ExternalNotifications(wssBound);
-const raffle = new RaffleModule(wssBound);
+const lastTip = new LastTipModule(wssBound, { store });
+const tipWidget = new TipWidgetModule(wssBound, { store });
+const tipGoal = new TipGoalModule(wssBound, { store });
+const externalNotifications = new ExternalNotifications(wssBound, { store });
+const raffle = new RaffleModule(wssBound, { store });
 const achievements = new AchievementsModule(wssBound, {
   store,
   liveviewsCfgFile: LIVEVIEWS_CONFIG_FILE,
@@ -1389,7 +1546,7 @@ try {
   global.gettyRaffleInstance = raffle;
 } catch {}
 const announcementModule = new AnnouncementModule(wssBound, { store });
-const chat = new ChatModule(wssBound);
+const chat = new ChatModule(wssBound, { store });
 const chatNs = new ChatNsManager(wssBound, store);
 
 const announcementLimiters = {
@@ -3939,6 +4096,21 @@ app.get('/api/modules', async (req, res) => {
       if (walletHash) {
         req.ns = req.ns || {};
         req.ns.pub = walletHash;
+
+        let isSuspended = false;
+        try {
+          if (store.redis) {
+            const exists = await store.redis.exists(`gettycfg:${walletHash}:suspended`);
+            isSuspended = exists === 1;
+          } else {
+            const suspendPath = path.join(process.cwd(), 'tenant', walletHash, 'suspended');
+            isSuspended = fs.existsSync(suspendPath);
+          }
+        } catch {}
+
+        if (isSuspended) {
+          return res.status(403).json({ error: 'Tenant suspended' });
+        }
       }
     } catch (e) {
       console.warn('Failed to resolve widgetToken:', e.message);
@@ -3962,6 +4134,53 @@ app.get('/api/modules', async (req, res) => {
   })();
   const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
   const hosted = !!(store && store.redis) || !!process.env.REDIS_URL;
+
+  const blockedStatus = {
+    lastTip: false,
+    externalNotifications: false,
+    tipGoal: false,
+    chat: false,
+    announcement: false,
+    socialmedia: false,
+    liveviews: false,
+    raffle: false,
+    achievements: false,
+    events: false,
+    tipWidget: false,
+    userProfile: false,
+  };
+
+  if (store && ns) {
+    try {
+      const checks = [
+        store.isConfigBlocked(ns, 'last-tip-config.json'),
+        store.isConfigBlocked(ns, 'external-notifications-config.json'),
+        store.isConfigBlocked(ns, 'tip-goal-config.json'),
+        store.isConfigBlocked(ns, 'chat-config.json'),
+        store.isConfigBlocked(ns, 'announcement-config.json'),
+        store.isConfigBlocked(ns, 'socialmedia-config.json'),
+        store.isConfigBlocked(ns, 'liveviews-config.json'),
+        store.isConfigBlocked(ns, 'raffle-config.json'),
+        store.isConfigBlocked(ns, 'achievements-config.json'),
+        store.isConfigBlocked(ns, 'events-settings.json'),
+        store.isConfigBlocked(ns, 'tip-notification-config.json'),
+        store.isConfigBlocked(ns, 'user-profile-config.json'),
+      ];
+      const results = await Promise.all(checks);
+      blockedStatus.lastTip = !!results[0];
+      blockedStatus.externalNotifications = !!results[1];
+      blockedStatus.tipGoal = !!results[2];
+      blockedStatus.chat = !!results[3];
+      blockedStatus.announcement = !!results[4];
+      blockedStatus.socialmedia = !!results[5];
+      blockedStatus.liveviews = !!results[6];
+      blockedStatus.raffle = !!results[7];
+      blockedStatus.achievements = !!results[8];
+      blockedStatus.events = !!results[9];
+      blockedStatus.tipWidget = !!results[10];
+      blockedStatus.userProfile = !!results[11];
+    } catch {}
+  }
 
   let tipGoalColors = {};
   let lastTipColors = {};
@@ -4200,9 +4419,10 @@ app.get('/api/modules', async (req, res) => {
           }
         }
         merged.active = !!wallet || !!merged.lastDonation;
+        merged.blocked = blockedStatus.lastTip;
         return sanitizeIfNoNs(merged);
       } catch {
-        return sanitizeIfNoNs({ ...lastTip.getStatus(), ...lastTipColors });
+        return sanitizeIfNoNs({ ...lastTip.getStatus(), ...lastTipColors, blocked: blockedStatus.lastTip });
       }
     })(),
     externalNotifications: (async () => {
@@ -4273,6 +4493,7 @@ app.get('/api/modules', async (req, res) => {
             hasLiveTelegram: !!cfg.hasLiveTelegram,
             template: typeof cfg.template === 'string' ? cfg.template : '',
           },
+          blocked: blockedStatus.externalNotifications,
         };
         return out;
       } catch {
@@ -4287,6 +4508,7 @@ app.get('/api/modules', async (req, res) => {
             hasLiveTelegram: false,
             template: '',
           },
+          blocked: blockedStatus.externalNotifications,
         };
       }
     })(),
@@ -4363,9 +4585,12 @@ app.get('/api/modules', async (req, res) => {
             out.configured = true;
           }
         }
+        out.blocked = blockedStatus.tipWidget;
         return sanitizeIfNoNs(out);
       } catch {
-        return sanitizeIfNoNs(tipWidget.getStatus());
+        const fallback = tipWidget.getStatus();
+        fallback.blocked = blockedStatus.tipWidget;
+        return sanitizeIfNoNs(fallback);
       }
     })(),
     tipGoal: (async () => {
@@ -4477,15 +4702,16 @@ app.get('/api/modules', async (req, res) => {
           merged.usdValue = '0.00';
           merged.goalUsd = '0.00';
         }
+        merged.blocked = blockedStatus.tipGoal;
         return sanitizeIfNoNs(merged);
       } catch {
         try {
           const fallback = tipGoal.getStatus?.() || {};
           if (fallback.currentAmount == null && typeof fallback.currentTips === 'number')
             fallback.currentAmount = fallback.currentTips;
-          return sanitizeIfNoNs({ ...fallback, ...tipGoalColors });
+          return sanitizeIfNoNs({ ...fallback, ...tipGoalColors, blocked: blockedStatus.tipGoal });
         } catch {
-          return sanitizeIfNoNs({ ...tipGoalColors });
+          return sanitizeIfNoNs({ ...tipGoalColors, blocked: blockedStatus.tipGoal });
         }
       }
     })(),
@@ -4503,11 +4729,12 @@ app.get('/api/modules', async (req, res) => {
           if (typeof chatColors.chatUrl === 'string' && chatColors.chatUrl.trim()) {
             out.chatUrl = chatColors.chatUrl.trim();
           }
+          out.blocked = blockedStatus.chat;
           return out;
         }
-        return { ...base, ...chatColors };
+        return { ...base, ...chatColors, blocked: blockedStatus.chat };
       } catch {
-        return { active: false, ...chatColors };
+        return { active: false, ...chatColors, blocked: blockedStatus.chat };
       }
     })(),
     announcement: (async () => {
@@ -4520,12 +4747,13 @@ app.get('/api/modules', async (req, res) => {
           totalMessages: cfg.messages.length,
           enabledMessages,
           cooldownSeconds: cfg.cooldownSeconds,
+          blocked: blockedStatus.announcement,
         };
         return (requireSessionFlag || hosted) && !hasNs
-          ? { active: false, totalMessages: 0, enabledMessages: 0 }
+          ? { active: false, totalMessages: 0, enabledMessages: 0, blocked: blockedStatus.announcement }
           : base;
       } catch {
-        return { active: false, totalMessages: 0, enabledMessages: 0 };
+        return { active: false, totalMessages: 0, enabledMessages: 0, blocked: blockedStatus.announcement };
       }
     })(),
     socialmedia: (async () => {
@@ -4549,9 +4777,9 @@ app.get('/api/modules', async (req, res) => {
         }
         const arr = Array.isArray(items) ? items : Array.isArray(items?.data) ? items.data : [];
         const count = Array.isArray(arr) ? arr.length : 0;
-        return { configured: count > 0, entries: count };
+        return { configured: count > 0, entries: count, blocked: blockedStatus.socialmedia };
       } catch {
-        return { configured: false, entries: 0 };
+        return { configured: false, entries: 0, blocked: blockedStatus.socialmedia };
       }
     })(),
     liveviews: (async () => {
@@ -4581,9 +4809,10 @@ app.get('/api/modules', async (req, res) => {
           claimid: hasNs ? full.claimid : undefined,
           viewersLabel: full.viewersLabel,
           configured: !!cfg,
+          blocked: blockedStatus.liveviews,
         };
       } catch {
-        return { active: false };
+        return { active: false, blocked: blockedStatus.liveviews };
       }
     })(),
     raffle: (async () => {
@@ -4630,9 +4859,10 @@ app.get('/api/modules', async (req, res) => {
           participants: st.participants || [],
           totalWinners: st.totalWinners || 0,
           configured,
+          blocked: blockedStatus.raffle,
         };
       } catch {
-        return { active: false, participants: [] };
+        return { active: false, participants: [], blocked: blockedStatus.raffle };
       }
     })(),
     achievements: (async () => {
@@ -4640,9 +4870,9 @@ app.get('/api/modules', async (req, res) => {
         const ns = req?.ns?.admin || req?.ns?.pub || null;
         const cfg = await achievements.getConfigEffective(ns);
         const st = await achievements.getStatus(ns);
-        return { active: !!cfg.enabled, dnd: !!cfg.dnd, items: st.items?.length || 0 };
+        return { active: !!cfg.enabled, dnd: !!cfg.dnd, items: st.items?.length || 0, blocked: blockedStatus.achievements };
       } catch {
-        return { active: false, items: 0 };
+        return { active: false, items: 0, blocked: blockedStatus.achievements };
       }
     })(),
     events: (async () => {
@@ -4688,9 +4918,37 @@ app.get('/api/modules', async (req, res) => {
           }
         }
 
-        return { active: configured, configured, eventCount, animation };
+        return { active: configured, configured, eventCount, animation, blocked: blockedStatus.events };
       } catch {
-        return { active: false, configured: false, eventCount: 6, animation: 'fadeIn' };
+        return { active: false, configured: false, eventCount: 6, animation: 'fadeIn', blocked: blockedStatus.events };
+      }
+    })(),
+    userProfile: (async () => {
+      try {
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        let configured = false;
+        if (store && ns) {
+          try {
+            const cfg = await store.getConfig(ns, 'user-profile-config.json', null);
+            if (cfg && typeof cfg === 'object') configured = true;
+          } catch {}
+        }
+        if (!configured) {
+          try {
+            const { loadTenantConfig } = require('./lib/tenant-config');
+            const reqLike = { ns: { admin: ns } };
+            const loaded = await loadTenantConfig(
+              reqLike,
+              store,
+              require('path').join(process.cwd(), 'config', 'user-profile-config.json'),
+              'user-profile-config.json'
+            );
+            if (loaded && loaded.data) configured = true;
+          } catch {}
+        }
+        return { active: configured, configured, blocked: blockedStatus.userProfile };
+      } catch {
+        return { active: false, configured: false, blocked: blockedStatus.userProfile };
       }
     })(),
     system: { uptimeSeconds, wsClients, env: process.env.NODE_ENV || 'development' },

@@ -233,7 +233,14 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
       }
 
       res.json(cfg);
-    } catch {
+    } catch (e) {
+      if (e.code === 'CONFIGURATION_BLOCKED') {
+        return res.status(403).json({
+          error: 'CONFIGURATION_BLOCKED',
+          message: 'This configuration has been disabled by a moderator.',
+          details: e.details,
+        });
+      }
       res.status(500).json({ error: 'Error loading config' });
     }
   });
