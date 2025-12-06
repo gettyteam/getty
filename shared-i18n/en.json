@@ -455,7 +455,7 @@
   "kpiStreamDuration": "Stream duration",
   "kpiLastStreamSubtitle": "Last stream • {date}",
   "kpiLastStreamSubtitleStandalone": "Last stream",
-  "kpiNoStreamData": "Without streams",
+  "kpiNoStreamData": "No data available",
   "kpiNoPreviousStream": "No previous stream",
   "kpiVsPrevious": "vs previous",
   "show": "Show",

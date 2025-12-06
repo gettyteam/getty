@@ -1050,28 +1050,62 @@ router.afterEach(() => {
 .sidebar-submenu {
   display: flex;
   flex-direction: column;
-  margin-top: 4px;
-  padding-left: 28px;
-  gap: 2px;
+  margin-top: 2px;
+  padding-left: 0;
+  gap: 4px;
+  position: relative;
+  margin-left: 20px;
 }
 .sidebar-sublink {
   font-size: 13px;
-  padding: 4px 10px;
+  padding: 6px 10px;
   display: flex;
   align-items: center;
   gap: 8px;
   border-radius: 0.5rem;
   color: var(--sidebar-link-color);
+  position: relative;
+  margin-left: 12px;
+  margin-right: 8px;
+}
+.sidebar-sublink::before {
+  content: '';
+  position: absolute;
+  left: -17px;
+  top: 0;
+  height: 50%;
+  width: 15px;
+}
+.sidebar-sublink.active::before {
+  border-left: 2px solid var(--border-color);
+  border-bottom: 2px solid var(--border-color);
+  border-bottom-left-radius: 10px;
+}
+.sidebar-sublink:not(:last-child):not(.active)::after {
+  content: '';
+  position: absolute;
+  left: -16px;
+  top: 0;
+  bottom: -6px;
+  border-left: 2px solid var(--border-color);
 }
 .sidebar-sublink-icon {
   font-size: 14px;
   opacity: 0.8;
 }
 .sidebar-collapsed .sidebar-submenu {
-  padding-left: 8px;
+  padding-left: 0;
+  margin-left: 0;
+  align-items: center;
 }
 .sidebar-collapsed .sidebar-sublink {
   justify-content: center;
+  margin-left: 0;
+  margin-right: 0;
+}
+.sidebar-collapsed .sidebar-sublink::before,
+.sidebar-collapsed .sidebar-sublink::after {
+  display: none;
 }
 .sidebar-collapsed .sidebar-sublink .sublink-label {
   display: none;
