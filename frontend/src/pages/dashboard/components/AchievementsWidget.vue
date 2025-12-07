@@ -160,7 +160,6 @@ onMounted(() => {
 
 :global(html.dark) .ach-card {
   background: rgb(18, 18, 18);
-  border: 1px solid rgba(255, 255, 255, 0.06);
   color: #f5f5f5;
 }
 
@@ -184,7 +183,7 @@ onMounted(() => {
 }
 
 :global(html.dark) .ach-icon {
-  background: #374151;
+  background: #09090b;
   color: #f3f4f6;
 }
 
