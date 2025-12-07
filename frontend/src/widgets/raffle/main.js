@@ -1,4 +1,13 @@
 import './raffle.css';
+import enTranslations from 'shared-i18n/en.json';
+import esTranslations from 'shared-i18n/es.json';
+
+const FALLBACK_TRANSLATIONS = {
+  en: enTranslations,
+  es: esTranslations
+};
+
+let currentLanguage = 'en';
 
 const STORAGE_KEY = 'raffle-winner-data';
 const ACTIVE_STATE_KEY = 'raffle-active-state';
@@ -49,6 +58,18 @@ const getI18nText = (key, fallback) => {
       }
     }
   } catch {}
+
+  const lang = currentLanguage;
+  const bundle = FALLBACK_TRANSLATIONS[lang] || FALLBACK_TRANSLATIONS.en;
+  
+  if (bundle && Object.prototype.hasOwnProperty.call(bundle, key)) {
+    return bundle[key];
+  }
+  
+  if (lang !== 'en' && FALLBACK_TRANSLATIONS.en && Object.prototype.hasOwnProperty.call(FALLBACK_TRANSLATIONS.en, key)) {
+    return FALLBACK_TRANSLATIONS.en[key];
+  }
+
   return defaultText;
 };
 
@@ -301,7 +322,7 @@ const renderWinner = () => {
   if (timestamp) {
     const timeEl = document.createElement('div');
     timeEl.className = 'winner-timestamp';
-    timeEl.textContent = `${getI18nText('raffleWinnerTimestamp', 'Announced on')} ${timestamp}`;
+    timeEl.textContent = `${getI18nText('raffleWinnerAnnounced', 'Winner announced on')} ${timestamp}`;
     meta.appendChild(timeEl);
   }
 
@@ -407,7 +428,7 @@ const renderActive = () => {
 
   const command = document.createElement('div');
   const commandLabel = document.createElement('span');
-  commandLabel.textContent = getI18nText('raffleCommand', 'Command');
+  commandLabel.textContent = getI18nText('raffleCommand', 'Command:');
   const commandValue = document.createElement('span');
   commandValue.id = 'raffleCommand';
   commandValue.className = 'value';
@@ -690,6 +711,20 @@ const connectWebSocket = () => {
   };
 };
 
+const initLanguage = async () => {
+  try {
+    const res = await fetch(withWidgetToken('/api/language'));
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.currentLanguage) {
+        currentLanguage = data.currentLanguage;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to fetch language settings', e);
+  }
+};
+
 const fetchInitialState = async () => {
   const state = await safeFetchJson('/api/raffle/state');
   if (state && typeof state === 'object') {
@@ -697,7 +732,7 @@ const fetchInitialState = async () => {
   }
 };
 
-const init = () => {
+const init = async () => {
   container = document.getElementById('raffleContainer');
   contentRoot = document.getElementById('raffleContentContainer');
 
@@ -706,6 +741,7 @@ const init = () => {
     return;
   }
 
+  await initLanguage();
   loadSavedData();
   renderRaffleContent();
   fetchInitialState();

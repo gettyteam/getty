@@ -1,13 +1,13 @@
-export function escapeHtml(text) {
+export function escapeHtml(text: string): string {
   const div = document.createElement('div');
   div.textContent = text || '';
   return div.innerHTML.replace(/&lt;stkr&gt;/g, '<stkr>').replace(/&lt;\/stkr&gt;/g, '</stkr>');
 }
 
-export function formatWithMapping(rawText, emojiMapping) {
+export function formatWithMapping(rawText: string, emojiMapping?: Record<string, string>): string {
   if (!rawText) return '';
 
-  if (/<img[^>]+class=\"(?:comment-emoji|comment-sticker)\"/i.test(rawText)) return rawText;
+  if (/<img[^>]+class="(?:comment-emoji|comment-sticker)"/i.test(rawText)) return rawText;
   let formatted = escapeHtml(rawText);
 
   formatted = formatted.replace(/<stkr>(.*?)<\/stkr>/g, (m, url) => {
@@ -36,7 +36,7 @@ export function formatWithMapping(rawText, emojiMapping) {
   return formatted;
 }
 
-export function truncateTipMessage(original) {
+export function truncateTipMessage(original: string): string {
   const text = original || '';
   if (text.length <= 80) return text;
 
@@ -45,5 +45,3 @@ export function truncateTipMessage(original) {
   if (hasManyEmojis && text.length <= 160) return text;
   return text.substring(0, 80) + '...';
 }
-
-export default { escapeHtml, formatWithMapping, truncateTipMessage };

@@ -148,7 +148,7 @@
     @apply px-3 pb-2 text-[10px] font-semibold tracking-wider uppercase os-muted;
   }
   .os-nav-link {
-    @apply flex items-center gap-2 px-3 py-2 rounded-os-sm text-sm text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 hover:bg-neutral-50 dark:hover:text-neutral-100 dark:hover:bg-neutral-900 transition;
+    @apply flex items-center gap-2 px-3 py-2 rounded-os-sm text-[0.775rem] text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 hover:bg-neutral-50 dark:hover:text-neutral-100 dark:hover:bg-neutral-900 transition;
   }
   .os-nav-link[aria-current='page'],
   .os-nav-link.is-active {

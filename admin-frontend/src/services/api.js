@@ -19,7 +19,7 @@ async function fetchCsrfToken(force = false) {
   if (__csrfDisabled) return null;
   if (!force && __csrfToken && Date.now() - __lastFetchTs < CSRF_MAX_AGE_MS) return __csrfToken;
   if (__csrfPromise && !force) return __csrfPromise;
-  __csrfPromise = fetch('/api/admin/csrf', { credentials: 'include' })
+  __csrfPromise = fetch('/api/admin/csrf', { credentials: 'include', cache: 'no-store' })
     .then((r) => {
       if (r.ok) return r.json();
 
@@ -189,6 +189,7 @@ export async function fetchJson(url, opts = {}) {
     body: payload,
     headers: finalHeaders,
     credentials: 'include',
+    cache: 'no-store',
   });
   if (!res.ok) {
     let bodyText = '';

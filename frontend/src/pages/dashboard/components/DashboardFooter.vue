@@ -3,29 +3,16 @@
     <div class="max-w-7xl mx-auto px-6">
       <div class="flex flex-col md:flex-row justify-between items-center">
         <div class="mb-4 md:mb-0">
-          <p class="font-bold" data-i18n="copyright">
-            © 2025
-            <a
-              href="https://getty.sh/"
-              target="_blank"
-              class="hover:text-primary-200 transition-colors font-bold"
-              >getty</a
-            >
-            ·
-            <a
-              href="https://www.gnu.org/licenses/agpl-3.0.html"
-              target="_blank"
-              class="hover:text-primary-200 transition-colors font-bold"
-              >AGPL v3 License</a
-            >
-            ·
-            <a
-              href="https://github.com/gettyteam/getty"
-              target="_blank"
-              class="hover:text-primary-200 transition-colors font-bold"
-              >Source Code</a
-            >
-          </p>
+          <!-- eslint-disable vue/no-v-html -->
+          <p
+            class="font-bold"
+            v-html="
+              getI18nText(
+                'copyright',
+                `© 2025 <a href='https://getty.sh/' target='_blank'>getty</a> - <a href='https://www.gnu.org/licenses/agpl-3.0.html' target='_blank'>AGPL v3 License</a> - <a href='https://github.com/gettyteam/getty' target='_blank'>Source Code</a>`
+              )
+            "></p>
+          <!-- eslint-enable vue/no-v-html -->
         </div>
         <div class="flex items-center gap-4">
           <a
@@ -140,5 +127,15 @@
 </template>
 
 <script setup>
+import { i18nTrigger } from '../languageManager';
+
 const faviconHref = '/favicon.ico';
+
+const getI18nText = (key, fallback) => {
+  i18nTrigger.value;
+  if (window.languageManager && typeof window.languageManager.getText === 'function') {
+    return window.languageManager.getText(key) || fallback;
+  }
+  return fallback;
+};
 </script>

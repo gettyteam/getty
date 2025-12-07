@@ -29,7 +29,9 @@
         </div>
         <div class="flex items-center gap-3">
           <div class="connection-status" title="Wallet connection status">
-            <span class="status-dot disconnected"></span>
+            <span
+              class="status-dot"
+              :class="store.isConnected ? 'connected' : 'disconnected'"></span>
           </div>
           <button
             id="public-wallet-login"
@@ -54,11 +56,11 @@
             <span data-i18n="walletLogout">Logout</span>
           </button>
           <button
-            id="theme-toggle"
             class="theme-toggle"
             title="Toggle theme"
-            aria-pressed="false"
-            aria-label="Toggle dark mode">
+            :aria-pressed="isDark"
+            aria-label="Toggle dark mode"
+            @click="toggleTheme">
             <svg class="sun-icon" viewBox="0 0 24 24" fill="currentColor">
               <path
                 d="M12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9M12,2L14.39,5.42C13.65,5.15 12.84,5 12,5C11.16,5 10.35,5.15 9.61,5.42L12,2M3.34,7L7.5,6.65C6.9,7.16 6.36,7.78 5.94,8.5C5.52,9.22 5.25,10 5.11,10.79L3.34,7M3.36,17L5.12,13.23C5.26,14 5.53,14.78 5.95,15.5C6.37,16.22 6.91,16.84 7.51,17.35L3.36,17M20.65,7L18.88,10.77C18.74,10 18.47,9.22 18.05,8.5C17.63,7.78 17.09,7.16 16.49,6.65L20.65,7M20.64,17L16.5,17.35C17.1,16.84 17.64,16.22 18.06,15.5C18.48,14.78 18.75,14 18.89,13.21L20.64,17M12,22L9.59,18.56C10.33,18.83 11.14,19 12,19C12.86,19 13.67,18.83 14.41,18.56L12,22Z"></path>
@@ -84,12 +86,12 @@
           <BlockedState module-name="All Modules" />
         </div>
         <template v-else>
-          <LastTipCard :is-blocked="modulesStatus.lastTip?.blocked" />
-          <TipGoalCard :is-blocked="modulesStatus.tipGoal?.blocked" />
-          <NotificationCard :is-blocked="modulesStatus.externalNotifications?.blocked" />
-          <ChatCard :is-blocked="modulesStatus.chat?.blocked" />
-          <RaffleCard :is-blocked="modulesStatus.raffle?.blocked" />
-          <AchievementsCard :is-blocked="modulesStatus.achievements?.blocked" />
+          <LastTipWidget :is-blocked="modulesStatus.lastTip?.blocked" />
+          <TipGoalWidget :is-blocked="modulesStatus.tipGoal?.blocked" />
+          <NotificationWidget :is-blocked="modulesStatus.externalNotifications?.blocked" />
+          <ChatWidget :is-blocked="modulesStatus.chat?.blocked" />
+          <RaffleWidget :is-blocked="modulesStatus.raffle?.blocked" />
+          <AchievementsWidget :is-blocked="modulesStatus.achievements?.blocked" />
         </template>
       </main>
     </div>
@@ -104,14 +106,20 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, nextTick, watch } from 'vue';
-import AchievementsCard from './components/AchievementsCard.vue';
+import AchievementsWidget from './components/AchievementsWidget.vue';
 import BlockedState from './components/BlockedState.vue';
-import ChatCard from './components/ChatCard.vue';
+import ChatWidget from './components/ChatWidget.vue';
 import DashboardFooter from './components/DashboardFooter.vue';
-import LastTipCard from './components/LastTipCard.vue';
-import NotificationCard from './components/NotificationCard.vue';
-import RaffleCard from './components/RaffleCard.vue';
-import TipGoalCard from './components/TipGoalCard.vue';
+import LastTipWidget from './components/LastTipWidget.vue';
+import NotificationWidget from './components/NotificationWidget.vue';
+import RaffleWidget from './components/RaffleWidget.vue';
+import TipGoalWidget from './components/TipGoalWidget.vue';
+import { useWidgetStore } from '../../stores/widgetStore';
+import { useTheme } from '../../composables/useTheme';
+import languageManager, { i18nTrigger } from './languageManager';
+
+const store = useWidgetStore();
+const { isDark, toggleTheme } = useTheme();
 
 const bodyClasses = [
   'bg-background',
@@ -124,19 +132,6 @@ const bodyClasses = [
 const modulesStatus = ref({});
 const loadingStatus = ref(true);
 const isTenantSuspended = ref(false);
-
-watch(
-  modulesStatus,
-  async () => {
-    await nextTick();
-    setTimeout(() => {
-      if (window.getty && typeof window.getty.scanForWidgets === 'function') {
-        window.getty.scanForWidgets();
-      }
-    }, 500);
-  },
-  { deep: true }
-);
 
 const isGlobalBlocked = computed(() => {
   if (isTenantSuspended.value) return true;
@@ -201,6 +196,9 @@ async function fetchModulesStatus() {
 
     await nextTick();
 
+    // Apply translations after widgets are mounted
+    languageManager.updatePageLanguage();
+
     setTimeout(() => {
       notifyLegacyBridge();
     }, 1000);
@@ -231,6 +229,16 @@ onMounted(() => {
     }
   });
   fetchModulesStatus();
+
+  // Initial translation
+  languageManager.updatePageLanguage();
+
+  // Watch for language changes
+  watch(i18nTrigger, () => {
+    nextTick(() => {
+      languageManager.updatePageLanguage();
+    });
+  });
 });
 
 onBeforeUnmount(() => {
