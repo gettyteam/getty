@@ -1,3 +1,78 @@
+<script setup lang="ts">
+import { onMounted, onUnmounted, nextTick, onBeforeUnmount } from 'vue';
+import { useTheme } from '../../composables/useTheme';
+import { useLanguage } from '../../composables/useLanguage';
+// @ts-ignore
+import { applyBaseSeo } from '../../head/baseSeo.js';
+import odyseeLogoUrl from '../../assets/odysee.svg?url';
+
+const { isDark, toggleTheme } = useTheme();
+const { currentLang, isMenuOpen, setLanguage, toggleMenu, closeMenu } = useLanguage();
+
+const assetPaths = {
+  odysee: odyseeLogoUrl,
+  favicon: '/favicon.ico',
+};
+
+const bodyClasses = ['landing', 'bg-background', 'text-gray-100', 'font-sans'];
+let restoreSeo: any = null;
+
+function handleClickOutside(event: MouseEvent) {
+  const wrapper = document.getElementById('lang-picker-wrapper');
+  if (wrapper && !wrapper.contains(event.target as Node)) {
+    closeMenu();
+  }
+}
+
+function triggerLogin() {
+  const btn = document.getElementById('public-wallet-login');
+  if (btn) btn.click();
+}
+
+function notifyLegacyBridge() {
+  const root = document.getElementById('app');
+  window.dispatchEvent(
+    new CustomEvent('getty-landing-vue-ready', {
+      detail: { root },
+    })
+  );
+  if (typeof (window as any).__GETTY_LANDING_VUE_READY__ === 'function') {
+    try {
+      (window as any).__GETTY_LANDING_VUE_READY__();
+    } catch (error) {
+      console.warn('[landing] failed to notify legacy bridge', error);
+    }
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside);
+  restoreSeo = applyBaseSeo();
+  bodyClasses.forEach((className) => {
+    if (!document.body.classList.contains(className)) {
+      document.body.classList.add(className);
+    }
+  });
+  nextTick(() => {
+    notifyLegacyBridge();
+  });
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside);
+});
+
+onBeforeUnmount(() => {
+  bodyClasses.forEach((className) => {
+    document.body.classList.remove(className);
+  });
+  if (typeof restoreSeo === 'function') {
+    restoreSeo();
+    restoreSeo = null;
+  }
+});
+</script>
+
 <template>
   <a
     href="#main-content"
@@ -37,14 +112,13 @@
         </button>
         <div class="relative" id="lang-picker-wrapper">
           <button
-            id="lang-btn"
             type="button"
-            class="pointer-events-auto items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors"
-            data-visible="false"
+            class="pointer-events-auto flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors"
             aria-haspopup="true"
-            aria-expanded="false"
+            :aria-expanded="isMenuOpen"
             aria-controls="lang-menu"
-            title="Language">
+            title="Language"
+            @click.stop="toggleMenu">
             <svg
               viewBox="0 0 24 24"
               class="w-4 h-4"
@@ -59,7 +133,7 @@
               <path
                 d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z"></path>
             </svg>
-            <span id="lang-btn-label" class="font-medium">EN</span>
+            <span class="font-medium">{{ currentLang.toUpperCase() }}</span>
             <svg
               viewBox="0 0 24 24"
               class="w-4 h-4 opacity-70"
@@ -73,10 +147,9 @@
             </svg>
           </button>
           <div
-            id="lang-menu"
-            class="absolute right-0 mt-2 w-44 bg-card border border-border rounded-xl shadow-lg p-2 z-50 hidden"
-            role="menu"
-            aria-labelledby="lang-btn">
+            v-show="isMenuOpen"
+            class="absolute right-0 mt-2 w-44 bg-card border border-border rounded-xl shadow-lg p-2 z-50"
+            role="menu">
             <p class="px-2 py-1 text-xs uppercase tracking-wide text-[var(--text-secondary)]">
               Language
             </p>
@@ -84,18 +157,24 @@
               <li>
                 <button
                   type="button"
-                  data-lang="en"
                   class="w-full text-left px-3 py-2 rounded-md text-sm hover:bg-[var(--bg-chat)]"
-                  role="menuitem">
+                  role="menuitem"
+                  @click="
+                    setLanguage('en');
+                    closeMenu();
+                  ">
                   English
                 </button>
               </li>
               <li>
                 <button
                   type="button"
-                  data-lang="es"
                   class="w-full text-left px-3 py-2 rounded-md text-sm hover:bg-[var(--bg-chat)]"
-                  role="menuitem">
+                  role="menuitem"
+                  @click="
+                    setLanguage('es');
+                    closeMenu();
+                  ">
                   Español
                 </button>
               </li>
@@ -103,11 +182,11 @@
           </div>
         </div>
         <button
-          id="theme-toggle"
           class="theme-toggle"
           title="Toggle theme"
-          aria-pressed="false"
-          aria-label="Toggle dark mode">
+          :aria-pressed="isDark"
+          aria-label="Toggle dark mode"
+          @click="toggleTheme">
           <svg class="sun-icon" viewBox="0 0 24 24" fill="currentColor">
             <path
               d="M12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9M12,2L14.39,5.42C13.65,5.15 12.84,5 12,5C11.16,5 10.35,5.15 9.61,5.42L12,2M3.34,7L7.5,6.65C6.9,7.16 6.36,7.78 5.94,8.5C5.52,9.22 5.25,10 5.11,10.79L3.34,7M3.36,17L5.12,13.23C5.26,14 5.53,14.78 5.95,15.5C6.37,16.22 6.91,16.84 7.51,17.35L3.36,17M20.65,7L18.88,10.77C18.74,10 18.47,9.22 18.05,8.5C17.63,7.78 17.09,7.16 16.49,6.65L20.65,7M20.64,17L16.5,17.35C17.1,16.84 17.64,16.22 18.06,15.5C18.48,14.78 18.75,14 18.89,13.21L20.64,17M12,22L9.59,18.56C10.33,18.83 11.14,19 12,19C12.86,19 13.67,18.83 14.41,18.56L12,22Z" />
@@ -142,7 +221,8 @@
             <button
               id="public-wallet-login-hero"
               class="inline-flex items-center gap-2 rounded-xl bg-[#553fee] px-5 py-3 text-sm font-semibold !text-white shadow transition hover:bg-[#111111]"
-              data-i18n="landingHeroCTA"></button>
+              data-i18n="landingHeroCTA"
+              @click="triggerLogin"></button>
             <a
               href="#features"
               class="inline-flex items-center gap-2 rounded-xl border border-border px-5 py-3 text-sm font-semibold transition hover:bg-card">
@@ -644,41 +724,15 @@
             rel="noopener"
             class="inline-flex items-center hover:text-[var(--text-primary)]"
             title="GitHub">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+            <svg
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="currentColor"
+              aria-hidden="true"
+              class="text-[#1d1d1d] dark:text-white transition-colors">
               <path
-                d="M12 .5C5.73.5.98 5.24.98 11.5c0 4.84 3.14 8.94 7.49 10.39.55.1.75-.24.75-.53 0-.26-.01-1.13-.02-2.05-3.05.66-3.7-1.3-3.7-1.3-.5-1.27-1.22-1.61-1.22-1.61-.99-.68.08-.67.08-.67 1.1.08 1.68 1.13 1.68 1.13.97 1.67 2.54 1.19 3.15.91.1-.7.38-1.19.69-1.46-2.43-.28-4.98-1.22-4.98-5.43 0-1.2.43-2.18 1.13-2.95-.11-.28-.49-1.42.11-2.95 0 0 .93-.3 3.05 1.13a10.6 10.6 0 0 1 5.56 0c2.12-1.43 3.05-1.13 3.05-1.13.6 1.53.22 2.67.11 2.95.7.77 1.13 1.75 1.13 2.95 0 4.22-2.56 5.14-5 5.42.39.33.74.98.74 1.98 0 1.43-.01 2.58-.01 2.93 0 .29.2.64.75.53 4.35-1.45 7.49-5.55 7.49-10.39C23.02 5.24 18.27.5 12 .5Z" />
-            </svg>
-          </a>
-          <a
-            href="https://x.com/getty_sh"
-            aria-label="X (Twitter)"
-            target="_blank"
-            rel="noopener"
-            class="inline-flex items-center hover:text-[var(--text-primary)]"
-            title="X (Twitter)">
-            <svg viewBox="0 0 1024 1024" width="16" height="16" aria-hidden="true">
-              <g
-                fill="none"
-                fill-rule="evenodd"
-                stroke="none"
-                stroke-width="1"
-                transform="translate(112 112)">
-                <path
-                  class="footer-x-bg"
-                  d="M711.111 800H88.89C39.8 800 0 760.2 0 711.111V88.89C0 39.8 39.8 0 88.889 0H711.11C760.2 0 800 39.8 800 88.889V711.11C800 760.2 760.2 800 711.111 800" />
-                <path
-                  class="footer-x-fg"
-                  fill-rule="nonzero"
-                  d="M628 623H484.942L174 179h143.058zm-126.012-37.651h56.96L300.013 216.65h-56.96z" />
-                <path
-                  class="footer-x-fg"
-                  fill-rule="nonzero"
-                  d="M219.296885 623 379 437.732409 358.114212 410 174 623z" />
-                <path
-                  class="footer-x-fg"
-                  fill-rule="nonzero"
-                  d="M409 348.387347 429.212986 377 603 177 558.330417 177z" />
-              </g>
+                d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5c.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34c-.46-1.16-1.11-1.47-1.11-1.47c-.91-.62.07-.6.07-.6c1 .07 1.53 1.03 1.53 1.03c.87 1.52 2.34 1.07 2.91.83c.09-.65.35-1.09.63-1.34c-2.22-.25-4.55-1.11-4.55-4.92c0-1.11.38-2 1.03-2.71c-.1-.25-.45-1.29.1-2.64c0 0 .84-.27 2.75 1.02c.79-.22 1.65-.33 2.5-.33c.85 0 1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02c.55 1.35.2 2.39.1 2.64c.65.71 1.03 1.6 1.03 2.71c0 3.82-2.34 4.66-4.57 4.91c.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2Z" />
             </svg>
           </a>
         </nav>
@@ -686,58 +740,6 @@
     </footer>
   </div>
 </template>
-
-<script setup>
-import { nextTick, onBeforeUnmount, onMounted } from 'vue';
-import { applyBaseSeo } from '../../head/baseSeo.js';
-import odyseeLogoUrl from '../../assets/odysee.svg?url';
-
-const assetPaths = {
-  odysee: odyseeLogoUrl,
-  favicon: '/favicon.ico',
-};
-
-const bodyClasses = ['landing', 'bg-background', 'text-gray-100', 'font-sans'];
-let restoreSeo = null;
-
-function notifyLegacyBridge() {
-  const root = document.getElementById('app');
-  window.dispatchEvent(
-    new CustomEvent('getty-landing-vue-ready', {
-      detail: { root },
-    })
-  );
-  if (typeof window.__GETTY_LANDING_VUE_READY__ === 'function') {
-    try {
-      window.__GETTY_LANDING_VUE_READY__();
-    } catch (error) {
-      console.warn('[landing] failed to notify legacy bridge', error);
-    }
-  }
-}
-
-onMounted(() => {
-  restoreSeo = applyBaseSeo();
-  bodyClasses.forEach((className) => {
-    if (!document.body.classList.contains(className)) {
-      document.body.classList.add(className);
-    }
-  });
-  nextTick(() => {
-    notifyLegacyBridge();
-  });
-});
-
-onBeforeUnmount(() => {
-  bodyClasses.forEach((className) => {
-    document.body.classList.remove(className);
-  });
-  if (typeof restoreSeo === 'function') {
-    restoreSeo();
-    restoreSeo = null;
-  }
-});
-</script>
 
 <style>
 body.landing {

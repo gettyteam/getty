@@ -37,9 +37,7 @@ body.user-dashboard-mode .os-header {
 `;
 
 const LEGACY_SCRIPTS = [
-  { src: '/js/index-ui.js', defer: true },
   { src: '/js/public-wallet-login.js', defer: true },
-  { src: '/js/modules/achievements-widget.js', module: true, defer: true },
 ];
 
 function shouldAugmentUrl(url) {

@@ -1,5 +1,11 @@
 import { createApp } from 'vue';
+import { createPinia } from 'pinia';
 import App from './App.vue';
 import '../../styles/main.css';
+import languageManager from './languageManager';
 
-createApp(App).mount('#app-root');
+languageManager.updatePageLanguage();
+
+const app = createApp(App);
+app.use(createPinia());
+app.mount('#app-root');

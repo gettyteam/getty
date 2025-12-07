@@ -15,18 +15,39 @@
           d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
       </svg>
     </div>
-    <h3 class="text-xl font-bold text-zinc-900 dark:text-white mb-3">Restricted Access</h3>
+    <h3 class="text-xl font-bold text-zinc-900 dark:text-white mb-3">{{ title }}</h3>
     <p class="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-      The configuration for {{ moduleName }} has been temporarily disabled by a moderator.
+      {{ message }}
     </p>
   </div>
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue';
+// @ts-ignore
+import { i18nTrigger } from '../languageManager';
+
+const props = defineProps({
   moduleName: {
     type: String,
     default: 'Module',
   },
+});
+
+const getI18nText = (key, fallback) => {
+  i18nTrigger.value;
+  if (window.languageManager && typeof window.languageManager.getText === 'function') {
+    return window.languageManager.getText(key) || fallback;
+  }
+  return fallback;
+};
+
+const title = computed(() => getI18nText('blockedAccessTitle', 'Restricted Access'));
+const message = computed(() => {
+  const text = getI18nText(
+    'blockedAccessMessage',
+    'The configuration for {moduleName} has been temporarily disabled by a moderator.'
+  );
+  return text.replace('{moduleName}', props.moduleName);
 });
 </script>

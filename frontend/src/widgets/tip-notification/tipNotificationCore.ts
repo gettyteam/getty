@@ -545,7 +545,11 @@ export function mountTipNotification(refs: TipNotificationRefs): void {
         rawAr = AR_TO_USD > 0 ? rawUsd / AR_TO_USD : rawUsd / 5;
       } else {
         rawAr = parseFloat(data.amount || data.credits || 0) || 0;
-        rawUsd = AR_TO_USD > 0 ? rawAr * AR_TO_USD : rawAr * 5;
+        if (data.usd) {
+          rawUsd = parseFloat(data.usd);
+        } else {
+          rawUsd = AR_TO_USD > 0 ? rawAr * AR_TO_USD : rawAr * 5;
+        }
       }
 
       const arAmount = rawAr.toLocaleString('en-US', {
