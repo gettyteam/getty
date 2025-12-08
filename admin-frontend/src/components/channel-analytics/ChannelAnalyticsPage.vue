@@ -713,12 +713,10 @@ function recordRefreshAttempt(rangeKey: ChannelAnalyticsRange) {
     const stored = localStorage.getItem(key);
     const attempts: number[] = stored ? JSON.parse(stored) : [];
     const now = Date.now();
-    // Keep only attempts in last 20 seconds
     const recent = attempts.filter((ts) => now - ts < 20000);
     recent.push(now);
     localStorage.setItem(key, JSON.stringify(recent));
     if (recent.length > 3) {
-      // Block for 72 hours
       const blockedUntil = now + 72 * 60 * 60 * 1000;
       localStorage.setItem(`analytics_refresh_blocked_${rangeKey}`, String(blockedUntil));
       pushToast({ type: 'error', message: t('channelRefreshRateLimited') });
@@ -747,7 +745,7 @@ function recordRefreshAttempt(rangeKey: ChannelAnalyticsRange) {
   border: 1px solid var(--card-border);
   border-radius: 0.75rem;
   padding: 0.5rem 0.9rem;
-  background: transparent;
+  background: rgba(148, 163, 184, 0.12);
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
