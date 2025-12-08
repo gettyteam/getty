@@ -42,19 +42,21 @@ function select(value: ChannelAnalyticsRange) {
 .range-filter {
   display: inline-flex;
   border: 1px solid var(--card-border, rgba(148, 163, 184, 0.3));
-  border-radius: 999px;
+  border-radius: 0.75rem;
   padding: 0.15rem;
   gap: 0.15rem;
   background: rgba(148, 163, 184, 0.12);
 }
 .range-btn {
   border: none;
-  border-radius: 999px;
+  border-radius: 0.75rem;
   padding: 0.35rem 0.9rem;
   font-weight: 600;
   background: transparent;
   color: var(--text-secondary, #475569);
-  transition: background 0.2s ease, color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
 }
 .range-btn:hover {
   background: rgba(148, 163, 184, 0.25);
