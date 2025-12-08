@@ -1331,7 +1331,7 @@ watch(
   align-items: center;
   justify-content: center;
   padding: 6px 14px;
-  border-radius: 999px;
+  border-radius: 6px;
   border: 1px solid rgba(37, 99, 235, 0.35);
   background: var(--primary, #2563eb);
   color: #fff;
@@ -1349,7 +1349,7 @@ watch(
 }
 .share-modal-close {
   padding: 6px 14px;
-  border-radius: 999px;
+  border-radius: 6px;
   border: 1px solid var(--card-border);
   background: transparent;
   font-size: 0.85rem;
