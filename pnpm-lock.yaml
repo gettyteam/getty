@@ -79,8 +79,8 @@ importers:
         specifier: ^8.2.1
         version: 8.2.1(express@5.2.0)
       form-data:
-        specifier: ^4.0.4
-        version: 4.0.4
+        specifier: ^4.0.5
+        version: 4.0.5
       helmet:
         specifier: ^8.1.0
         version: 8.1.0
@@ -4260,8 +4260,8 @@ packages:
     resolution: {integrity: sha512-f0cRzm6dkyVYV3nPoooP8XlccPQukegwhAnpoLcXy+X+A8KfpGOoXwDr9FLZd3wzgLaBGQBE3lY93Zm/i1JvIQ==}
     engines: {node: '>= 6'}
 
-  form-data@4.0.4:
-    resolution: {integrity: sha512-KrGhL9Q4zjj0kiUt5OO4Mr/A/jlI2jDYs5eHBpYHPcBEVSiipAvn2Ko2HnPe20rmcuuvMHNdZFp+4IlGTMF0Ow==}
+  form-data@4.0.5:
+    resolution: {integrity: sha512-8RipRLol37bNs2bhoV67fiTEvdTrbMUYcFTiy3+wuuOnUog2QBHCZWXDRijWQfAkhBj2Uf5UnVaiWwA5vdd82w==}
     engines: {node: '>= 6'}
 
   formidable@1.2.6:
@@ -11546,7 +11546,7 @@ snapshots:
   axios@1.13.2:
     dependencies:
       follow-redirects: 1.15.11
-      form-data: 4.0.4
+      form-data: 4.0.5
       proxy-from-env: 1.1.0
     transitivePeerDependencies:
       - debug
@@ -12825,7 +12825,7 @@ snapshots:
       mime-types: 2.1.35
     optional: true
 
-  form-data@4.0.4:
+  form-data@4.0.5:
     dependencies:
       asynckit: 0.4.0
       combined-stream: 1.0.8
@@ -15626,7 +15626,7 @@ snapshots:
       cookiejar: 2.1.4
       debug: 4.4.3(supports-color@5.5.0)
       fast-safe-stringify: 2.1.1
-      form-data: 4.0.4
+      form-data: 4.0.5
       formidable: 3.5.4
       methods: 1.1.2
       mime: 2.6.0
