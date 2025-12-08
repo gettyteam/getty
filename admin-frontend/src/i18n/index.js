@@ -611,6 +611,7 @@ const adminExtra = {
     configBlockedTitle: 'Restricted Access',
     configBlockedMessage: 'The configuration for {name} has been temporarily disabled.',
     close: 'Close',
+    saveSuccessTipGoal: 'Tip goal configuration saved',
   },
   es: {
     requiredField: 'Requerido',
@@ -1219,6 +1220,7 @@ const adminExtra = {
     configBlockedTitle: 'Acceso Restringido',
     configBlockedMessage: 'La configuración para {name} ha sido deshabilitada temporalmente.',
     close: 'Cerrar',
+    saveSuccessTipGoal: 'Configuración guardada',
   },
 };
 

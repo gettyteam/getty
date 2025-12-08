@@ -727,7 +727,6 @@ function applyTheme(dark, persist = true) {
   if (isDark.value === dark && !persist) return;
   isDark.value = dark;
 
-  // Sync with document root for global styles
   document.documentElement.classList.toggle('dark', dark);
   document.documentElement.classList.toggle('light', !dark);
   if (document.body) {

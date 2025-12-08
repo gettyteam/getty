@@ -448,7 +448,7 @@ function captureInitialSeoState() {
   for (const target of SEO_META_TARGETS) {
     const selector = `${target.attr}:${target.value}`;
     const element = head.querySelector(`meta[${target.attr}="${target.value}"]`);
-    initialSeoState.metas.set(selector, element ? element.getAttribute('content') ?? '' : null);
+    initialSeoState.metas.set(selector, element ? (element.getAttribute('content') ?? '') : null);
   }
   const canonical = head.querySelector('link[rel="canonical"]');
   initialSeoState.canonical = canonical ? canonical.getAttribute('href') || '' : null;
@@ -843,7 +843,16 @@ const payload = ref(null);
 const slug = ref('');
 const tzOffsetMinutes = ref(resolveLocalTimezoneOffset());
 const locale = ref(mapLanguageToLocale(lang.value));
-const bodyClasses = ['profile-page-mode'];
+const bodyClasses = [
+  'profile-page-mode',
+  'bg-background',
+  'text-gray-100',
+  'font-sans',
+  'w-full',
+  'm-0',
+  'p-0',
+  'min-h-screen',
+];
 const isDark = ref(true);
 
 const themeToggleLabel = computed(() =>
@@ -1348,6 +1357,7 @@ async function loadProfile() {
 }
 
 onMounted(() => {
+  document.documentElement.classList.add('bg-background');
   const root = document.documentElement;
   if (root) {
     previousThemeState.rootDark = root.classList.contains('dark');
@@ -1397,6 +1407,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  document.documentElement.classList.remove('bg-background');
   bodyClasses.forEach((cls) => {
     document.body.classList.remove(cls);
   });
@@ -1598,7 +1609,9 @@ if (typeof window !== 'undefined') {
   min-height: 100vh;
   background: var(--profile-bg);
   color: var(--text-primary);
-  transition: background 0.3s ease, color 0.3s ease;
+  transition:
+    background 0.3s ease,
+    color 0.3s ease;
 }
 
 .profile-container {
@@ -1733,7 +1746,9 @@ if (typeof window !== 'undefined') {
   font-weight: 600;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
 }
 
 .lang-option:hover,
@@ -1759,7 +1774,10 @@ if (typeof window !== 'undefined') {
   background: var(--theme-toggle-bg);
   color: var(--text-primary);
   cursor: pointer;
-  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+  transition:
+    color 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease;
 }
 
 .theme-toggle:hover,
@@ -2080,7 +2098,11 @@ if (typeof window !== 'undefined') {
   color: inherit;
   font: inherit;
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease,
+    opacity 0.2s ease;
   appearance: none;
   -webkit-appearance: none;
 }
