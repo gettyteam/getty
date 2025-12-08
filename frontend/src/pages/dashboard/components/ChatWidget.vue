@@ -14,7 +14,7 @@
       <template v-else>
         <div
           v-if="messages.length === 0"
-          class="flex items-center justify-center h-full text-gray-500 text-sm italic"
+          class="flex items-center justify-center h-full text-gray-500 text-sm"
           data-i18n="chatWaiting">
           {{ getI18nText('chatWaiting', 'Waiting for messages...') }}
         </div>

@@ -1,14 +1,15 @@
 <template>
-  <div class="dashboard-page">
+  <div class="dashboard-page min-h-screen flex flex-col">
     <a
       href="#main-content"
-      class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 bg-card text-white rounded px-3 py-2">
+      class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 bg-card text-white rounded px-3 py-2"
+      data-i18n="dashboardSkipToMain">
       Skip to main content
     </a>
-    <div class="max-w-7xl mx-auto p-3">
+    <div class="max-w-7xl mx-auto p-3 w-full flex-1">
       <header class="os-header flex justify-between items-center pb-5 mb-8 border-b border-border">
         <div class="flex items-center gap-4">
-          <a href="/" class="logo-link" aria-label="getty home">
+          <a href="/" class="logo-link" aria-label="getty home" data-i18n-aria="dashboardHome">
             <img
               src="https://aqet2p7rnwvvcvraawg2ojq7sfyals6jav2dh6vm7occr347kfsa.arweave.net/BAk9P_Ftq1FWIAWNpyYfkXAFy8kFdDP6rPuEKO-fUWQ"
               alt="getty"
@@ -23,12 +24,16 @@
               decoding="async"
               height="40" />
           </a>
-          <div id="user-welcome-message" class="hidden text-sm text-gray-300">
-            Welcome, [User Token]
-          </div>
+          <div
+            id="user-welcome-message"
+            class="hidden text-sm text-gray-300"
+            data-i18n="dashboardWelcome"></div>
         </div>
         <div class="flex items-center gap-3">
-          <div class="connection-status" title="Wallet connection status">
+          <div
+            class="connection-status"
+            title="Wallet connection status"
+            data-i18n-title="walletConnectionStatus">
             <span
               class="status-dot"
               :class="store.isConnected ? 'connected' : 'disconnected'"></span>
@@ -44,23 +49,26 @@
           <button
             id="open-admin"
             class="hidden px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors"
-            data-visible="false">
-            Admin
-          </button>
+            data-visible="false"
+            data-i18n="dashboardAdmin"></button>
           <button
             id="logout-inline"
             class="hidden px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors"
             data-visible="false"
             title="Logout"
-            aria-label="Logout">
-            <span data-i18n="walletLogout">Logout</span>
+            aria-label="Logout"
+            data-i18n-title="walletLogout"
+            data-i18n-aria="walletLogout">
+            <span data-i18n="walletLogout"></span>
           </button>
           <button
             class="theme-toggle"
             title="Toggle theme"
             :aria-pressed="isDark"
             aria-label="Toggle dark mode"
-            @click="toggleTheme">
+            @click="toggleTheme"
+            data-i18n-title="dashboardToggleTheme"
+            data-i18n-aria="dashboardToggleDark">
             <svg class="sun-icon" viewBox="0 0 24 24" fill="currentColor">
               <path
                 d="M12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9M12,2L14.39,5.42C13.65,5.15 12.84,5 12,5C11.16,5 10.35,5.15 9.61,5.42L12,2M3.34,7L7.5,6.65C6.9,7.16 6.36,7.78 5.94,8.5C5.52,9.22 5.25,10 5.11,10.79L3.34,7M3.36,17L5.12,13.23C5.26,14 5.53,14.78 5.95,15.5C6.37,16.22 6.91,16.84 7.51,17.35L3.36,17M20.65,7L18.88,10.77C18.74,10 18.47,9.22 18.05,8.5C17.63,7.78 17.09,7.16 16.49,6.65L20.65,7M20.64,17L16.5,17.35C17.1,16.84 17.64,16.22 18.06,15.5C18.48,14.78 18.75,14 18.89,13.21L20.64,17M12,22L9.59,18.56C10.33,18.83 11.14,19 12,19C12.86,19 13.67,18.83 14.41,18.56L12,22Z"></path>
@@ -127,6 +135,10 @@ const bodyClasses = [
   'font-sans',
   'user-dashboard-mode',
   'landing',
+  'min-h-screen',
+  'w-full',
+  'm-0',
+  'p-0',
 ];
 
 const modulesStatus = ref({});
@@ -196,7 +208,6 @@ async function fetchModulesStatus() {
 
     await nextTick();
 
-    // Apply translations after widgets are mounted
     languageManager.updatePageLanguage();
 
     setTimeout(() => {
@@ -230,10 +241,8 @@ onMounted(() => {
   });
   fetchModulesStatus();
 
-  // Initial translation
   languageManager.updatePageLanguage();
 
-  // Watch for language changes
   watch(i18nTrigger, () => {
     nextTick(() => {
       languageManager.updatePageLanguage();

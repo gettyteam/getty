@@ -18,7 +18,7 @@
           <div
             v-if="!currentNotification"
             key="waiting"
-            class="flex items-center justify-center h-full text-gray-500 text-sm italic p-4"
+            class="flex items-center justify-center h-full text-gray-500 text-sm p-4"
             data-i18n="notificationWaiting">
             {{ getI18nText('notificationWaiting', 'Waiting for tips...') }}
           </div>

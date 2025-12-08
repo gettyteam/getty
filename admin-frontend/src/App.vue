@@ -619,6 +619,17 @@ import { confirmDialog } from './services/confirm';
 import WalletLoginButton from './components/WalletLoginButton.vue';
 import WalletLogoutButton from './components/WalletLogoutButton.vue';
 import { useWanderSession } from './wander/store/wanderSession';
+
+const bodyClasses = [
+  'bg-background',
+  'text-gray-100',
+  'font-sans',
+  'w-full',
+  'm-0',
+  'p-0',
+  'min-h-screen',
+];
+
 const logoLight =
   'https://aqet2p7rnwvvcvraawg2ojq7sfyals6jav2dh6vm7occr347kfsa.arweave.net/BAk9P_Ftq1FWIAWNpyYfkXAFy8kFdDP6rPuEKO-fUWQ';
 const logoDark =
@@ -715,6 +726,15 @@ function resolveThemePreference() {
 function applyTheme(dark, persist = true) {
   if (isDark.value === dark && !persist) return;
   isDark.value = dark;
+
+  // Sync with document root for global styles
+  document.documentElement.classList.toggle('dark', dark);
+  document.documentElement.classList.toggle('light', !dark);
+  if (document.body) {
+    document.body.classList.toggle('dark', dark);
+    document.body.classList.toggle('light', !dark);
+  }
+
   const mode = dark ? 'dark' : 'light';
   let allowTransition = true;
   try {
@@ -867,6 +887,12 @@ function setSidebarWidthVar() {
 }
 
 onMounted(() => {
+  document.documentElement.classList.add('bg-background');
+  bodyClasses.forEach((className) => {
+    if (!document.body.classList.contains(className)) {
+      document.body.classList.add(className);
+    }
+  });
   const initialDark = resolveThemePreference();
   applyTheme(initialDark, true);
   window.addEventListener('click', handleClickOutside);
@@ -911,6 +937,7 @@ onMounted(() => {
   if (sc === '1') sidebarCollapsed.value = true;
 });
 onBeforeUnmount(() => {
+  document.documentElement.classList.remove('bg-background');
   window.removeEventListener('click', handleClickOutside);
   window.removeEventListener('getty:tenant-suspended', handleSuspended);
   window.removeEventListener('resize', onResize);
@@ -926,6 +953,9 @@ onBeforeUnmount(() => {
     } catch {}
     layoutResizeFrame = null;
   }
+  bodyClasses.forEach((className) => {
+    document.body.classList.remove(className);
+  });
 });
 
 let suppressNextDirtyPrompt = false;

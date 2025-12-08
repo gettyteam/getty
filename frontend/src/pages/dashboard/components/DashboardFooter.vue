@@ -1,7 +1,8 @@
 <template>
-  <footer class="py-6 border-[var(--background)] text-center text-xs">
-    <div class="max-w-7xl mx-auto px-6">
-      <div class="flex flex-col md:flex-row justify-between items-center">
+  <footer class="text-center text-xs mt-auto">
+    <div class="max-w-7xl mx-auto px-3 w-full">
+      <div
+        class="py-6 border-t border-[var(--border-color)] flex flex-col md:flex-row justify-between items-center">
         <div class="mb-4 md:mb-0">
           <!-- eslint-disable vue/no-v-html -->
           <p

@@ -14,7 +14,16 @@ const assetPaths = {
   favicon: '/favicon.ico',
 };
 
-const bodyClasses = ['landing', 'bg-background', 'text-gray-100', 'font-sans'];
+const bodyClasses = [
+  'landing',
+  'bg-background',
+  'text-gray-100',
+  'font-sans',
+  'w-full',
+  'm-0',
+  'p-0',
+  'min-h-screen',
+];
 let restoreSeo: any = null;
 
 function handleClickOutside(event: MouseEvent) {
@@ -48,6 +57,7 @@ function notifyLegacyBridge() {
 onMounted(() => {
   document.addEventListener('click', handleClickOutside);
   restoreSeo = applyBaseSeo();
+  document.documentElement.classList.add('bg-background');
   bodyClasses.forEach((className) => {
     if (!document.body.classList.contains(className)) {
       document.body.classList.add(className);
@@ -63,6 +73,7 @@ onUnmounted(() => {
 });
 
 onBeforeUnmount(() => {
+  document.documentElement.classList.remove('bg-background');
   bodyClasses.forEach((className) => {
     document.body.classList.remove(className);
   });
@@ -150,33 +161,31 @@ onBeforeUnmount(() => {
             v-show="isMenuOpen"
             class="absolute right-0 mt-2 w-44 bg-card border border-border rounded-xl shadow-lg p-2 z-50"
             role="menu">
-            <p class="px-2 py-1 text-xs uppercase tracking-wide text-[var(--text-secondary)]">
-              Language
-            </p>
+            <p
+              class="px-2 py-1 text-xs uppercase tracking-wide text-[var(--text-secondary)]"
+              data-i18n="languageLabel"></p>
             <ul class="space-y-1">
               <li>
                 <button
                   type="button"
                   class="w-full text-left px-3 py-2 rounded-md text-sm hover:bg-[var(--bg-chat)]"
                   role="menuitem"
+                  data-i18n="languageEnglish"
                   @click="
                     setLanguage('en');
                     closeMenu();
-                  ">
-                  English
-                </button>
+                  "></button>
               </li>
               <li>
                 <button
                   type="button"
                   class="w-full text-left px-3 py-2 rounded-md text-sm hover:bg-[var(--bg-chat)]"
                   role="menuitem"
+                  data-i18n="languageSpanish"
                   @click="
                     setLanguage('es');
                     closeMenu();
-                  ">
-                  Español
-                </button>
+                  "></button>
               </li>
             </ul>
           </div>
