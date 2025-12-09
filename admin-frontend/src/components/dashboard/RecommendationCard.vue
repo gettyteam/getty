@@ -14,7 +14,7 @@
       </p>
       <button
         @click="$emit('configure', module)"
-        class="btn btn-secondary btn-compact-secondary self-center px-6 justify-center hover:bg-[#553fee] hover:text-white transition-colors">
+        class="btn btn-secondary btn-compact-secondary self-center px-6 justify-center hover:bg-[#553fee] transition-colors">
         {{ $t('home.actions.configure') }}
       </button>
     </div>
@@ -27,3 +27,9 @@ defineProps({
 });
 defineEmits(['configure']);
 </script>
+
+<style>
+html:not(.dark) .recommendation-card .btn.btn-secondary:hover {
+  color: white !important;
+}
+</style>

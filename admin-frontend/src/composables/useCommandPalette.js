@@ -98,11 +98,35 @@ export function useCommandPalette() {
       section: 'Navigation'
     },
     { 
+      id: 'nav-integrations', 
+      title: t('externalNotificationsTitle') || 'Integrations', 
+      type: 'navigation', 
+      path: '/admin/integrations', 
+      icon: 'pi pi-share-alt',
+      section: 'Navigation'
+    },
+    { 
       id: 'nav-announcements', 
       title: t('announcementTitle') || 'Announcements', 
       type: 'navigation', 
-      path: '/admin/announcements', 
+      path: '/admin/announcement', 
       icon: 'pi pi-megaphone',
+      section: 'Navigation'
+    },
+    { 
+      id: 'nav-liveviews', 
+      title: t('liveviewsTitle') || 'Live Views', 
+      type: 'navigation', 
+      path: '/admin/liveviews', 
+      icon: 'pi pi-eye',
+      section: 'Navigation'
+    },
+    { 
+      id: 'nav-last-tip', 
+      title: t('lastTipTitle') || 'Last Tip', 
+      type: 'navigation', 
+      path: '/admin/last-tip', 
+      icon: 'pi pi-dollar',
       section: 'Navigation'
     },
     { 
@@ -148,7 +172,6 @@ export function useCommandPalette() {
     if (item.type === 'navigation') {
       router.push(item.path);
     }
-    // Add more action types here
   }
 
   return {

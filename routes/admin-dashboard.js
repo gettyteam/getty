@@ -140,7 +140,7 @@ function registerAdminDashboardRoutes(app, context) {
              if (m.id === 'announcement' && configData.auto === false && !configData.title) {
                  hasConfig = false;
              }
-             if (m.id === 'notifications' && (!configData.discordWebhook && !configData.telegramBotToken)) {
+             if (m.id === 'integrations' && (!configData.discordWebhook && !configData.telegramBotToken && !configData.liveDiscordWebhook)) {
                  hasConfig = false;
              }
              if (m.id === 'chat' && !configData.channelId) {
