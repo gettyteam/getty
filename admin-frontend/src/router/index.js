@@ -1,8 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
 export const routes = [
-  { path: '/admin', redirect: '/admin/status' },
-  { path: '/admin/status', name: 'status', component: () => import('../views/StatusView.vue') },
+  { path: '/admin', redirect: '/admin/home' },
+  { path: '/admin/home', name: 'home', component: () => import('../views/HomeView.vue') },
+  { path: '/admin/stream', name: 'stream', component: () => import('../views/StreamView.vue') },
+  { path: '/admin/status', redirect: '/admin/stream' },
+  { path: '/admin/channel', name: 'channel-analytics', component: () => import('../views/ChannelAnalyticsView.vue') },
+  { path: '/admin/status/channel', redirect: '/admin/channel' },
   { path: '/admin/settings', name: 'settings', component: () => import('../views/SettingsView.vue') },
   { path: '/admin/chat', name: 'chat', component: () => import('../views/ChatView.vue') },
   { path: '/admin/events', name: 'events', component: () => import('../views/EventsView.vue') },
@@ -16,7 +20,6 @@ export const routes = [
   { path: '/admin/achievements', name: 'achievements', component: () => import('../views/AchievementsView.vue') },
   { path: '/admin/tip-goal', name: 'tip-goal', component: () => import('../views/TipGoalView.vue') },
   { path: '/admin/last-tip', name: 'last-tip', component: () => import('../views/LastTipView.vue') },
-  { path: '/admin/status/channel', name: 'channel-analytics', component: () => import('../views/ChannelAnalyticsView.vue') },
 ];
 
 const router = createRouter({

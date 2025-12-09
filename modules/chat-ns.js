@@ -1,5 +1,7 @@
 const WebSocket = require('ws');
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
 
 function resolveWsFromClaimId(claimId) {
   try {
@@ -91,8 +93,37 @@ class ChatNsManager {
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0 Safari/537.36',
     };
     const ws = new WebSocket(url, { headers });
-    const session = { ws, url, connected: false, history: [], reconnectTimer: null };
+    const session = {
+      ws,
+      url,
+      connected: false,
+      history: [],
+      reconnectTimer: null,
+      uniqueChatters: new Set(),
+      lastRedisUpdate: 0,
+      lastHistorySave: 0,
+    };
     this.sessions.set(ns, session);
+
+    this._loadHistory(ns).then((hist) => {
+      if (hist && Array.isArray(hist) && hist.length > 0) {
+        const s = this.sessions.get(ns);
+        if (s) {
+          if (s.history.length === 0) {
+            s.history = hist;
+          } else {
+            const existingSigs = new Set(
+              s.history.map((m) => `${m.userId}|${m.timestamp}|${m.message}`)
+            );
+            const newItems = hist.filter(
+              (m) => !existingSigs.has(`${m.userId}|${m.timestamp}|${m.message}`)
+            );
+            s.history = [...newItems, ...s.history];
+            if (s.history.length > 20) s.history = s.history.slice(-20);
+          }
+        }
+      }
+    });
 
     ws.on('open', () => {
       session.connected = true;
@@ -359,9 +390,29 @@ class ChatNsManager {
       } catch {}
       try {
         const s = this.sessions.get(ns);
-        if (s && Array.isArray(s.history)) {
-          s.history.push(chatMessage);
-          if (s.history.length > 200) s.history.shift();
+        if (s) {
+          if (chatMessage.userId) {
+            s.uniqueChatters.add(chatMessage.userId);
+            if (this.store && this.store.redis) {
+              const now = Date.now();
+              if (now - (s.lastRedisUpdate || 0) > 10000) {
+                s.lastRedisUpdate = now;
+                this.store.redis
+                  .set(`getty:chatters:${ns}`, s.uniqueChatters.size, 'EX', 300)
+                  .catch(() => {});
+              }
+            }
+          }
+          if (Array.isArray(s.history)) {
+            s.history.push(chatMessage);
+            if (s.history.length > 20) s.history.shift();
+            
+            const now = Date.now();
+            if (now - (s.lastHistorySave || 0) > 5000) {
+              s.lastHistorySave = now;
+              this._persistHistory(ns, s.history);
+            }
+          }
         }
       } catch {}
       try {
@@ -403,6 +454,43 @@ class ChatNsManager {
     } catch {
       return [];
     }
+  }
+
+  async _persistHistory(ns, history) {
+    try {
+      if (this.store && this.store.redis) {
+        await this.store.redis.set(
+          `getty:chat:history:${ns}`,
+          JSON.stringify(history),
+          'EX',
+          86400
+        );
+      } else {
+        const dataDir = path.join(process.cwd(), 'data');
+        if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+        const file = path.join(dataDir, `chat-history-${ns || 'global'}.json`);
+        fs.writeFileSync(file, JSON.stringify(history));
+      }
+    } catch (e) {
+      console.warn('[chat-ns] failed to persist history', e.message);
+    }
+  }
+
+  async _loadHistory(ns) {
+    try {
+      if (this.store && this.store.redis) {
+        const raw = await this.store.redis.get(`getty:chat:history:${ns}`);
+        if (raw) return JSON.parse(raw);
+      } else {
+        const file = path.join(process.cwd(), 'data', `chat-history-${ns || 'global'}.json`);
+        if (fs.existsSync(file)) {
+          return JSON.parse(fs.readFileSync(file, 'utf8'));
+        }
+      }
+    } catch (e) {
+      console.warn('[chat-ns] failed to load history', e.message);
+    }
+    return [];
   }
 }
 

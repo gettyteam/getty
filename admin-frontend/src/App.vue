@@ -6,6 +6,7 @@
     :filename="configBlockedFilename"
     :details="configBlockedDetails"
     @close="configBlockedModalOpen = false" />
+  <CommandPalette :is-open="commandPaletteOpen" @close="commandPaletteOpen = false" />
   <div class="admin-container mx-auto px-6 py-4 max-w-[1330px]" :class="{ dark: isDark }">
     <header
       class="os-header flex items-center justify-between pb-5 mb-8 border-b border-border"
@@ -39,6 +40,21 @@
         </RouterLink>
       </div>
       <div class="flex items-center gap-3 relative">
+        <button
+          @click="commandPaletteOpen = true"
+          class="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-card hover:text-foreground transition-colors mr-2 w-48 lg:w-64"
+          aria-label="Search">
+          <i class="pi pi-search"></i>
+          <span>{{ t('commonSearch') || 'Search...' }}</span>
+          <span class="ml-auto text-xs border border-border rounded px-1.5 opacity-70">Ctrl K</span>
+        </button>
+        <button
+          @click="commandPaletteOpen = true"
+          class="md:hidden flex items-center justify-center w-9 h-9 rounded-lg border border-border hover:bg-card transition-colors"
+          aria-label="Search">
+          <i class="pi pi-search"></i>
+        </button>
+
         <WalletLoginButton />
         <a
           href="/index.html"
@@ -170,7 +186,28 @@
           </svg>
         </button>
         <div class="sidebar-section">
-          <h3 class="sidebar-title" v-if="!sidebarCollapsed">Widgets</h3>
+          <nav class="sidebar-nav">
+            <RouterLink class="sidebar-link os-nav-link" active-class="active" to="/admin/home">
+              <span class="icon os-icon" aria-hidden="true">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                  <polyline points="9 22 9 12 15 12 15 22" />
+                </svg>
+              </span>
+              <span>{{ t('sidebarHome') }}</span>
+            </RouterLink>
+          </nav>
+        </div>
+        <div class="sidebar-section">
+          <h3 class="sidebar-title" v-if="!sidebarCollapsed">
+            {{ t('sidebarWidgetsAndModules') }}
+          </h3>
           <nav class="sidebar-nav">
             <div class="sidebar-collapsible">
               <button
@@ -206,12 +243,15 @@
                   </svg>
                 </span>
               </button>
-              <div class="sidebar-submenu" v-show="analyticsMenuOpen">
+              <div
+                class="sidebar-submenu"
+                v-show="analyticsMenuOpen"
+                :class="{ 'full-threadline': !analyticsActive }">
                 <RouterLink
                   class="sidebar-sublink os-nav-link"
                   active-class="active"
                   :aria-label="sidebarCollapsed ? t('statusOverviewNav') : undefined"
-                  to="/admin/status">
+                  to="/admin/stream">
                   <i class="pi pi-chart-line sidebar-sublink-icon" aria-hidden="true"></i>
                   <span class="sublink-label">{{ t('statusOverviewNav') }}</span>
                 </RouterLink>
@@ -219,7 +259,7 @@
                   class="sidebar-sublink os-nav-link"
                   active-class="active"
                   :aria-label="sidebarCollapsed ? t('channelAnalyticsNav') : undefined"
-                  to="/admin/status/channel">
+                  to="/admin/channel">
                   <i class="pi pi-chart-bar sidebar-sublink-icon" aria-hidden="true"></i>
                   <span class="sublink-label">{{ t('channelAnalyticsNav') }}</span>
                 </RouterLink>
@@ -284,11 +324,11 @@
                   stroke-width="2"
                   stroke-linecap="round"
                   stroke-linejoin="round">
-                  <rect x="3" y="3" width="6" height="6" rx="1" />
-                  <rect x="15" y="3" width="6" height="6" rx="1" />
-                  <rect x="9" y="9" width="6" height="6" rx="1" />
-                  <rect x="3" y="15" width="6" height="6" rx="1" />
-                  <rect x="15" y="15" width="6" height="6" rx="1" />
+                  <rect x="3" y="8" width="18" height="4" rx="1" />
+                  <path d="M12 8v13" />
+                  <path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" />
+                  <path
+                    d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5" />
                 </svg>
               </span>
               <span>{{ t('raffleTitle') }}</span>
@@ -615,6 +655,7 @@ import SidebarSuggestion from './components/shared/SidebarSuggestion.vue';
 import OsConfirmDialog from './components/os/OsConfirmDialog.vue';
 import SuspendedModal from './components/SuspendedModal.vue';
 import ConfigBlockedModal from './components/ConfigBlockedModal.vue';
+import CommandPalette from './components/shared/CommandPalette.vue';
 import { confirmDialog } from './services/confirm';
 import WalletLoginButton from './components/WalletLoginButton.vue';
 import WalletLogoutButton from './components/WalletLogoutButton.vue';
@@ -657,11 +698,17 @@ const mobileSidebarOpen = ref(false);
 const analyticsMenuOpen = ref(false);
 const suspendedModalOpen = ref(false);
 const configBlockedModalOpen = ref(false);
+const commandPaletteOpen = ref(false);
 const configBlockedFilename = ref('');
 const configBlockedDetails = ref(null);
 
 const currentLocaleLabel = computed(() => (locale.value === 'es' ? 'ES' : 'EN'));
-const analyticsActive = computed(() => route.path.startsWith('/admin/status'));
+const analyticsActive = computed(
+  () =>
+    route.path.startsWith('/admin/status') ||
+    route.path.startsWith('/admin/stream') ||
+    route.path.startsWith('/admin/channel')
+);
 
 const wanderSession = useWanderSession();
 const LAYOUT_RESIZE_EVENT = 'admin:layout-resized';
@@ -694,7 +741,11 @@ watch(
 watch(
   () => route.path,
   (path) => {
-    if (path.startsWith('/admin/status')) {
+    if (
+      path.startsWith('/admin/status') ||
+      path.startsWith('/admin/stream') ||
+      path.startsWith('/admin/channel')
+    ) {
       analyticsMenuOpen.value = true;
     } else {
       analyticsMenuOpen.value = false;
@@ -793,11 +844,7 @@ function toggleMenu() {
   menuOpen.value = !menuOpen.value;
 }
 function toggleAnalyticsMenu() {
-  const next = !analyticsMenuOpen.value;
-  analyticsMenuOpen.value = next;
-  if (next && !route.path.startsWith('/admin/status')) {
-    router.push('/admin/status');
-  }
+  analyticsMenuOpen.value = !analyticsMenuOpen.value;
 }
 function handleClickOutside(e) {
   if (!menuOpen.value) return;
@@ -911,6 +958,10 @@ onMounted(() => {
   window.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') setMobileSidebar(false);
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault();
+      commandPaletteOpen.value = true;
+    }
   });
 
   storageHandler = (event) => {
@@ -1086,42 +1137,62 @@ router.afterEach(() => {
   margin-left: 20px;
 }
 .sidebar-sublink {
-  font-size: 13px;
-  padding: 6px 10px;
-  display: flex;
   align-items: center;
-  gap: 8px;
   border-radius: 0.5rem;
   color: var(--sidebar-link-color);
-  position: relative;
+  display: flex;
+  font-size: 13px;
+  gap: 8px;
   margin-left: 12px;
   margin-right: 8px;
+  padding: 6px 10px;
+  position: relative;
 }
-.sidebar-sublink::before {
+
+.sidebar-sublink:before {
   content: '';
-  position: absolute;
-  left: -17px;
-  top: 0;
   height: 50%;
+  left: -17px;
+  position: absolute;
+  top: 0;
   width: 15px;
 }
-.sidebar-sublink.active::before {
-  border-left: 2px solid var(--border-color);
+
+.sidebar-sublink.active:before {
   border-bottom: 2px solid var(--border-color);
   border-bottom-left-radius: 10px;
-}
-.sidebar-sublink:not(:last-child):not(.active)::after {
-  content: '';
-  position: absolute;
-  left: -16px;
-  top: 0;
-  bottom: -6px;
   border-left: 2px solid var(--border-color);
+}
+
+.sidebar-sublink:not(:last-child):not(.active):after {
+  border-left: 2px solid var(--border-color);
+  bottom: -6px;
+  content: '';
+  left: -16px;
+  position: absolute;
+  top: 0;
 }
 .sidebar-sublink-icon {
   font-size: 14px;
   opacity: 0.8;
 }
+
+.sidebar-submenu.full-threadline {
+  position: relative;
+}
+.sidebar-submenu.full-threadline::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 16px;
+  border-left: 2px solid var(--border-color);
+  margin-left: -5px;
+}
+.sidebar-submenu.full-threadline .sidebar-sublink::after {
+  display: none;
+}
+
 .sidebar-collapsed .sidebar-submenu {
   padding-left: 0;
   margin-left: 0;
