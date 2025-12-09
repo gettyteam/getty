@@ -42,7 +42,7 @@
                 <span
                   class="message-text-inline"
                   :class="{ 'has-donation': msg.credits > 0 }"
-                  v-html="sanitize(formatWithMapping(msg.message))"></span>
+                  v-html="sanitize(formatWithMapping(msg.message, store.emojiMapping))"></span>
                 <!-- eslint-enable vue/no-v-html -->
               </div>
               <span v-if="msg.credits > 0" class="message-donation">${{ msg.credits }} USD</span>
@@ -50,7 +50,7 @@
               <div
                 v-if="msg.sticker"
                 class="message-sticker-container"
-                v-html="sanitize(msg.sticker)"></div>
+                v-html="sanitize(formatWithMapping(msg.sticker, store.emojiMapping))"></div>
               <!-- eslint-enable vue/no-v-html -->
             </div>
           </div>

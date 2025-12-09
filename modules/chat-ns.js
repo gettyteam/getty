@@ -456,6 +456,17 @@ class ChatNsManager {
     }
   }
 
+  async clearHistory(ns) {
+    try {
+      const s = this.sessions.get(ns);
+      if (s) {
+        s.history = [];
+      }
+      await this._persistHistory(ns, []);
+      this._broadcastBoth(ns, { type: 'chatHistoryClear' });
+    } catch {}
+  }
+
   async _persistHistory(ns, history) {
     try {
       if (this.store && this.store.redis) {

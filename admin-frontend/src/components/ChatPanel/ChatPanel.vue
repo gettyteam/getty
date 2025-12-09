@@ -70,7 +70,7 @@
           </div>
           <div class="chat-actions-row">
             <button
-              class="btn"
+              class="btn btn-secondary btn-compact-secondary btn-save-style"
               :disabled="saving"
               @click="save"
               :aria-busy="saving ? 'true' : 'false'">
@@ -81,7 +81,14 @@
               class="btn btn-secondary btn-compact-secondary"
               @click="resetColors"
               :aria-label="t('resetColors')">
-              {{ t('resetColors') }}
+              <i class="pi pi-palette"></i>{{ t('resetColors') }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary btn-compact-secondary"
+              @click="clearHistory"
+              :title="t('clearHistory') || 'Clear History'">
+              <i class="pi pi-eraser"></i>{{ t('clearHistory') }}
             </button>
           </div>
           <div class="chat-save-row">
@@ -347,7 +354,8 @@
               class="btn btn-secondary btn-compact-secondary"
               :disabled="testSending"
               @click="sendTest('message')">
-              {{
+              <i class="pi pi-sparkles"></i
+              >{{
                 testSending && testKind === 'message'
                   ? t('sending') || 'Sending…'
                   : t('sendTestMessage') || 'Send test message'
@@ -357,7 +365,8 @@
               class="btn btn-secondary btn-compact-secondary"
               :disabled="testSending"
               @click="sendTest('donation')">
-              {{
+              <i class="pi pi-dollar"></i
+              >{{
                 testSending && testKind === 'donation'
                   ? t('sending') || 'Sending…'
                   : t('sendTestDonation') || 'Send test donation'
@@ -438,6 +447,7 @@ const {
   refreshPrice,
   isBlocked,
   blockDetails,
+  clearHistory,
 } = state;
 </script>
 <style scoped src="./ChatPanel.css"></style>

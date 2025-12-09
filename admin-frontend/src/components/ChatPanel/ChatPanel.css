@@ -184,3 +184,13 @@
   outline: none;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--switch-color, #553fee) 35%, transparent);
 }
+
+html .chat-root .btn-secondary.btn-save-style {
+  background-color: #553fee !important;
+  border-color: #553fee !important;
+  color: #ffffff !important;
+}
+html .chat-root .btn-secondary.btn-save-style:hover {
+  background-color: #6366f1 !important;
+  border-color: #6366f1 !important;
+}

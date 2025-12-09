@@ -26,7 +26,7 @@
           <img
             src="https://static.odycdn.com/stickers/ROCKET%20SPACEMAN/PNG/rocket-spaceman_with-border.png"
             alt="rocket spaceman"
-            class="absolute -right-6 -bottom-6 w-32 opacity-80 pointer-events-none transform" />
+            class="absolute -right-6 -bottom-6 w-32 opacity-90 pointer-events-none transform" />
         </template>
       </DashboardCard>
 
@@ -44,7 +44,14 @@
         :subtitle="$t('home.cards.community.subtitle')"
         :metrics="communityMetrics"
         icon="pi pi-users"
-        type="info" />
+        type="info">
+        <template #decoration>
+          <img
+            src="https://static.odycdn.com/stickers/MISC/PNG/thumbs_up.png"
+            alt="thumbs up"
+            class="absolute -right-6 -bottom-6 w-32 opacity-90 pointer-events-none transform" />
+        </template>
+      </DashboardCard>
     </div>
 
     <section class="recommendations-section relative" v-if="unconfiguredModules.length > 0">

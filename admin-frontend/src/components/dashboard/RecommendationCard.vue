@@ -9,7 +9,7 @@
       </h3>
     </div>
     <div class="card-content flex-1 flex flex-col justify-between">
-      <p class="text-muted-foreground mb-4">
+      <p class="text-muted-foreground mb-4" style="font-size: 0.8rem">
         {{ $t(`home.recommendations.modules.${module.id}.description`, module.description) }}
       </p>
       <button

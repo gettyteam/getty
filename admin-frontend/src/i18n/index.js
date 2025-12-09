@@ -155,7 +155,7 @@ const adminExtra = {
     socialMediaBorderColor: 'Left Border Color',
     socialMediaGradient: 'Use Gradient',
     socialMediaGradientTo: 'Gradient To',
-    socialMediaReset: 'Reset to Default',
+    socialMediaReset: 'Reset to default',
     externalNotificationsTitle: 'Integrations',
     externalDiscordWebhook: 'Discord Webhook URL',
     externalTelegramBotToken: 'Telegram Bot Token',

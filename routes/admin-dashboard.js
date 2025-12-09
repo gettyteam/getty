@@ -94,7 +94,7 @@ function registerAdminDashboardRoutes(app, context) {
         name: 'Events',
         description: 'Configure event overlays and settings',
         configurationPath: '/admin/events',
-        icon: 'pi pi-list',
+        icon: 'pi pi-star',
         priority: 9,
         configFile: 'events-settings.json'
       },
