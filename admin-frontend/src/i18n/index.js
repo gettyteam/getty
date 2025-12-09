@@ -797,7 +797,7 @@ const adminExtra = {
         duration: "Duración",
         lastStreamDate: "Último Stream",
         followers: "Nuevos seguidores",
-        totalViews: "Visualizaciones totales",
+        totalViews: "Visualizaciones",
         totalContent: "Contenido total",
         totalFollowers: "Seguidores"
       },
