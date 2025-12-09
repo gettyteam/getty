@@ -641,6 +641,8 @@ const registerTipNotificationRoutes = require('./routes/tip-notification');
 const registerAnnouncementRoutes = require('./routes/announcement');
 const { AchievementsModule } = require('./modules/achievements');
 const registerAchievementsRoutes = require('./routes/achievements');
+const registerAdminDashboardRoutes = require('./routes/admin-dashboard');
+
 const { AnnouncementModule } = require('./modules/announcement');
 const RaffleModule = require('./modules/raffle');
 const { registerUserRoutes } = require('./routes/user');
@@ -1566,6 +1568,7 @@ try {
 const announcementModule = new AnnouncementModule(wssBound, { store });
 const chat = new ChatModule(wssBound, { store });
 const chatNs = new ChatNsManager(wssBound, store);
+app.locals.chatNs = chatNs;
 
 const announcementLimiters = {
   config: (_req, _res, next) => next(),
@@ -1897,7 +1900,24 @@ if (!store || !store.redis)
             }
           } catch {}
           if (!Array.isArray(hist.samples)) hist.samples = [];
-          hist.samples.push({ ts: Date.now(), live: nowLive, viewers: viewerCount });
+          let currentChatters = 0;
+          try {
+            if (chatNs && chatNs.sessions) {
+              for (const s of chatNs.sessions.values()) {
+                if (s.url && claim && s.url.includes(claim)) {
+                  currentChatters = s.uniqueChatters ? s.uniqueChatters.size : 0;
+                  break;
+                }
+              }
+            }
+          } catch {}
+
+          hist.samples.push({
+            ts: Date.now(),
+            live: nowLive,
+            viewers: viewerCount,
+            chatters: currentChatters,
+          });
           const cutoff = Date.now() - 400 * 86400000;
           hist.samples = hist.samples.filter((s) => s.ts >= cutoff);
           if (hist.samples.length > 200000) hist.samples.splice(0, hist.samples.length - 200000);
@@ -2798,12 +2818,12 @@ registerTipGoalRoutes(
 
 registerGoalAudioRoutes(app, wss, strictLimiter, GOAL_AUDIO_UPLOADS_DIR);
 registerAchievementsAudioRoutes(app, wss, strictLimiter);
-
 registerExternalNotificationsRoutes(app, externalNotifications, strictLimiter, { store });
 registerLiveviewsRoutes(app, strictLimiter, { store });
 registerChannelAnalyticsRoutes(app, strictLimiter, { store });
 registerAnnouncementRoutes(app, announcementModule, announcementLimiters);
 registerAchievementsRoutes(app, achievements, strictLimiter, { store });
+registerAdminDashboardRoutes(app, { store });
 registerEventsSettingsRoutes(app, strictLimiter, { store });
 registerUserRoutes(app, { store });
 registerStorageRoutes(app);
@@ -5506,6 +5526,15 @@ wss.on('connection', async (ws) => {
         }
 
         initPayload.raffle = await raffle.getPublicState(ns);
+        
+        if (chatNs) {
+          try {
+            const hist = chatNs.getHistory(ns);
+            if (hist && hist.length > 0) {
+              initPayload.chatHistory = hist;
+            }
+          } catch {}
+        }
       } catch {}
     } else {
       initPayload.raffle = shouldRequireSession

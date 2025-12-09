@@ -143,6 +143,7 @@ api.interceptors.response.use(
                           errorData?.code === 'TURBO_INSUFFICIENT_BALANCE' ||
                           errorData?.error === 'CONFIGURATION_BLOCKED' ||
                           errorData?.error === 'configuration_blocked' ||
+                          errorData?.error === 'missing_claim' ||
                           (errorData?.error && (
                             errorData.error.includes('File too large') || 
                             errorData.error.includes('Insufficient balance')

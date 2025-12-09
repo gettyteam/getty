@@ -1,0 +1,16 @@
+{
+  "en": {
+    "version": "1.1.4",
+    "title": "Welcome to the new dashboard!",
+    "message": "We've updated getty to help you manage your stream better on Odysee. More details about this important update coming soon.",
+    "link": "https://getty.sh/",
+    "linkText": "Visit our blog"
+  },
+  "es": {
+    "version": "1.1.4",
+    "title": "¡Bienvenido al nuevo panel!",
+    "message": "Hemos actualizado getty para ayudarte a gestionar mejor tu stream en Odysee. Pronto más detalles de esta importante actualización.",
+    "link": "https://getty.sh/es/",
+    "linkText": "Visita nuestro blog"
+  }
+}

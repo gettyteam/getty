@@ -1,9 +1,107 @@
 import enShared from 'shared-i18n/en.json';
 import esShared from 'shared-i18n/es.json';
+import bannerMessages from './banner.json';
 import { createI18n } from 'vue-i18n';
 
 const adminExtra = {
   en: {
+    sidebarHome: 'Home',
+    sidebarWidgetsAndModules: 'Widgets and Modules',
+    home: {
+      title: "Admin Dashboard",
+      welcome: "Hello again, {channelName}!",
+      default: {
+        creator: "creator"
+      },
+      subtitle: "Welcome to your streaming dashboard",
+      banner: bannerMessages.en,
+      cards: {
+        stream: {
+          title: "Hello!",
+          subtitle: "Your community would love to see you live streaming. Give them that pleasure with a weekly stream. <a href='https://odysee.com/$/livestream' target='_blank' class='font-bold hover:underline'>Go Live on Odysee.</a>"
+        },
+        achievements: {
+          title: "Your stream pulse!",
+          chatters: "{count} people chatted in your last stream!"
+        },
+        community: {
+          title: "Your channel pulse!",
+          subtitle: "Your community is growing!"
+        }
+      },
+      recommendations: {
+        title: "Recommendations for you",
+        subtitle: "Discover ways to improve and promote your channel",
+        modules: {
+          integrations: {
+            title: "Integrations",
+            description: "Integrate Discord or Telegram in your experience. Handle webhooks to send notifications when your channel is live, you upload new content or receive tips."
+          },
+          notifications: {
+            title: "Notifications",
+            description: "Customize Odysee's tip alerts, creating unique notifications that highlight each contribution and strengthen the connection with your community."
+          },
+          chat: {
+            title: "Chat",
+            description: "Activate the chat of your broadcast so that your viewers can send instant messages. Receive tips during the stream or customize the chat."
+          },
+          achievements: {
+            title: "Achievements",
+            description: "Unlock achievements and celebrate with your most loyal viewers. You can also set up giveaways and send gifts to your viewers."
+          },
+          raffle: {
+            title: "Raffle",
+            description: "Create attractive raffles to capture your audience's attention, incentivize participation and reward their loyalty with exciting prizes."
+          },
+          "tip-goal": {
+            title: "Tip Goal",
+            description: "Set a tipping goal to inspire your audience to support your content with their donations. Set your tipping goals now!"
+          },
+          "social-media": {
+            title: "Social Media",
+            description: "Share your social media profiles as a widget to connect more, increase followers and sync posts directly from Odysee."
+          },
+          announcement: {
+            title: "Announcements",
+            description: "Create custom banners to display key information in your stream, such as announcements or promotions."
+          },
+          events: {
+            title: "Events",
+            description: "Configure event overlays to display recent activities like tips and achievements on your stream."
+          },
+          "last-tip": {
+            title: "Last Tip",
+            description: "Display the most recent tip received on your stream with a customizable widget."
+          },
+          liveviews: {
+            title: "Live Views",
+            description: "Show your current viewer count and stream status directly on your overlay."
+          },
+          "user-profile": {
+            title: "User Profile",
+            description: "Customize your public profile page to showcase your stream stats and recent activity."
+          }
+        }
+      },
+      metrics: {
+        chatters: "Chatters",
+        viewers: "Viewers",
+        duration: "Duration",
+        lastStreamDate: "Last Stream",
+        followers: "New Followers",
+        totalViews: "Total Views",
+        totalContent: "Total Content",
+        totalFollowers: "Followers"
+      },
+      actions: {
+        summary: "Stream summary",
+        configure: "Configure now",
+        view: "View details"
+      }
+    },
+    stream: {
+      title: "Live Stream Dashboard"
+    },
     requiredField: 'Required',
     invalidUrl: 'Invalid URL',
     invalidRange: 'Out of range',
@@ -612,8 +710,106 @@ const adminExtra = {
     configBlockedMessage: 'The configuration for {name} has been temporarily disabled.',
     close: 'Close',
     saveSuccessTipGoal: 'Tip goal configuration saved',
+    commonSearch: 'Search...',
   },
   es: {
+    sidebarHome: 'Inicio',
+    sidebarWidgetsAndModules: 'Widgets y Módulos',
+    home: {
+      title: "Panel de administración",
+      welcome: "¡Hola de nuevo, {channelName}!",
+      default: {
+        creator: "creador"
+      },
+      subtitle: "Bienvenido a tu panel de streaming",
+      banner: bannerMessages.es,
+      cards: {
+        stream: {
+          title: "¡Hola!",
+          subtitle: "A tu comunidad le encantaría verte streamear en vivo. Dales ese gusto con un stream semanal. <a href='https://odysee.com/$/livestream' target='_blank' class='font-bold hover:underline'>Ve en vivo en Odysee.</a>"
+        },
+        achievements: {
+          title: "Tu pulso de stream",
+          chatters: "¡{count} personas chatearon en tu último stream!"
+        },
+        community: {
+          title: "Tu pulso de canal",
+          subtitle: "¡Tu comunidad está creciendo!"
+        }
+      },
+      recommendations: {
+        title: "Recomendaciones para ti",
+        subtitle: "Descubre formas de mejorar y promover tu canal",
+        modules: {
+          integrations: {
+            title: "Integraciones",
+            description: "Integra Discord o Telegram en tu experiencia. Maneja webhooks para enviar notificaciones cuando estés en vivo, subas contenido o recibas propinas."
+          },
+          notifications: {
+            title: "Notificaciones",
+            description: "Personaliza las alertas de propinas de Odysee, creando notificaciones únicas que destacan cada contribución y fortalecen la conexión con tu comunidad."
+          },
+          chat: {
+            title: "Chat",
+            description: "Activa el chat de tu retransmisión para que tus espectadores puedan enviar mensajes instantáneos. Recibe propinas durante la retransmisión o personaliza el chat."
+          },
+          achievements: {
+            title: "Logros",
+            description: "Desbloquea logros y celebra con tus espectadores más leales. También puedes configurar sorteos y enviar regalos a tus espectadores."
+          },
+          raffle: {
+            title: "Sorteos",
+            description: "Planifica sorteos para captar la atención de tu audiencia, incentivar la participación y recompensar su lealtad con premios emocionantes."
+          },
+          "tip-goal": {
+            title: "Meta de propinas",
+            description: "Establece una meta de propinas para inspirar a tu audiencia a apoyar tu contenido con sus donaciones. ¡Configura tus metas de propinas ahora!"
+          },
+          "social-media": {
+            title: "Redes sociales",
+            description: "Comparte tus perfiles de redes sociales como un widget para conectar más, aumentar seguidores y sincronizar publicaciones directamente desde Odysee."
+          },
+          announcement: {
+            title: "Anuncios",
+            description: "Crea banners personalizados para mostrar información clave en tu stream, como anuncios o promociones."
+          },
+          events: {
+            title: "Eventos",
+            description: "Configura superposiciones de eventos para mostrar actividades recientes como propinas y logros en tu stream."
+          },
+          "last-tip": {
+            title: "Última propina",
+            description: "Muestra la propina más reciente recibida en tu stream con un widget personalizable."
+          },
+          liveviews: {
+            title: "Vistas en vivo",
+            description: "Muestra tu conteo actual de espectadores y el estado del stream directamente en tu superposición."
+          },
+          "user-profile": {
+            title: "Perfil de usuario",
+            description: "Personaliza tu página de perfil público para mostrar tus estadísticas de stream y actividad reciente."
+          }
+        }
+      },
+      metrics: {
+        chatters: "Chatters",
+        viewers: "Espectadores",
+        duration: "Duración",
+        lastStreamDate: "Último Stream",
+        followers: "Nuevos seguidores",
+        totalViews: "Visualizaciones totales",
+        totalContent: "Contenido total",
+        totalFollowers: "Seguidores"
+      },
+      actions: {
+        summary: "Resumen de stream",
+        configure: "Configurar ahora",
+        view: "Ver detalles"
+      }
+    },
+    stream: {
+      title: "Panel de transmisión en vivo"
+    },
     requiredField: 'Requerido',
     invalidUrl: 'URL inválida',
     invalidRange: 'Fuera de rango',
@@ -1221,6 +1417,7 @@ const adminExtra = {
     configBlockedMessage: 'La configuración para {name} ha sido deshabilitada temporalmente.',
     close: 'Cerrar',
     saveSuccessTipGoal: 'Configuración guardada',
+    commonSearch: 'Buscar...',
   },
 };
 
