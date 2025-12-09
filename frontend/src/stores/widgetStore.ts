@@ -14,6 +14,7 @@ export const useWidgetStore = defineStore('widgets', () => {
   const sharedAudioSettings = ref<any>({ enabled: true, volume: 0.5, audioSource: 'remote' });
   const arPrice = ref<number>(0);
   const isConnected = ref(false);
+  const emojiMapping = ref<Record<string, string>>({});
   let ws: WebSocket | null = null;
 
   const RAFFLE_WINNER_KEY = 'raffle-winner-data';
@@ -105,6 +106,14 @@ export const useWidgetStore = defineStore('widgets', () => {
         }
       }
 
+      const chatHistoryRes = await fetch('/api/chat/history').catch(() => null);
+      if (chatHistoryRes && chatHistoryRes.ok) {
+        const history = await chatHistoryRes.json();
+        if (Array.isArray(history)) {
+          chatMessages.value = history;
+        }
+      }
+
       const audioRes = await fetch('/api/goal-audio-settings').catch(() => null);
       if (audioRes && audioRes.ok) {
         const json = await audioRes.json();
@@ -114,6 +123,11 @@ export const useWidgetStore = defineStore('widgets', () => {
           enabled: typeof json.enabled === 'boolean' ? json.enabled : true,
           volume: typeof json.volume === 'number' ? json.volume : 0.5,
         };
+      }
+
+      const emojiRes = await fetch('/emojis.json').catch(() => null);
+      if (emojiRes && emojiRes.ok) {
+        emojiMapping.value = await emojiRes.json();
       }
 
     } catch (e) {
@@ -230,6 +244,7 @@ export const useWidgetStore = defineStore('widgets', () => {
     sharedAudioSettings,
     arPrice,
     isConnected,
+    emojiMapping,
     fetchArPrice,
     fetchInitialData,
     initWebSocket

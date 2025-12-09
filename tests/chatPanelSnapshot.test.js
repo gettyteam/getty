@@ -13,7 +13,7 @@ const messages = {
     charsUsed: '{used}/{max} chars',
     generalColors: 'General',
     donationColors: 'Donations',
-    resetColors: 'Reset to default colors',
+    resetColors: 'Reset to default',
     connected: 'Connected',
     disconnected: 'Disconnected',
     commonSaving: 'Saving...',

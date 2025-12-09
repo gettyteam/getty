@@ -94,6 +94,28 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
     }
   });
 
+  app.get('/api/chat/history', async (req, res) => {
+    try {
+      const ns = req.ns && (req.ns.admin || req.ns.pub) ? req.ns.admin || req.ns.pub : null;
+      if (!chatNs) return res.json([]);
+      const history = chatNs.getHistory(ns);
+      res.json(history);
+    } catch (e) {
+      res.status(500).json({ error: 'Error loading chat history', details: e.message });
+    }
+  });
+
+  app.delete('/api/chat/history', async (req, res) => {
+    try {
+      const ns = req.ns && (req.ns.admin || req.ns.pub) ? req.ns.admin || req.ns.pub : null;
+      if (!chatNs) return res.status(500).json({ error: 'Chat module not available' });
+      await chatNs.clearHistory(ns);
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: 'Error clearing chat history', details: e.message });
+    }
+  });
+
   app.post('/api/chat', limiter, async (req, res) => {
     try {
       const nsCheck = req?.ns?.admin || req?.ns?.pub || null;

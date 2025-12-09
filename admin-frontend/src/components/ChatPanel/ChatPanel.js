@@ -1,6 +1,7 @@
 import { reactive, computed, onMounted, onUnmounted, watch, ref } from 'vue';
 import api from '../../services/api';
 import { pushToast } from '../../services/toast';
+import { confirmDialog } from '../../services/confirm';
 import { useDirty } from '../../composables/useDirtyRegistry';
 import { usePublicToken } from '../../composables/usePublicToken';
 
@@ -363,6 +364,22 @@ export function createChatPanel(t) {
   function refreshPrice() {
     fetchPrice(true);
   }
+  async function clearHistory() {
+    const confirmed = await confirmDialog({
+      title: t('clearHistory') || 'Clear history',
+      description: t('confirmClearHistory') || 'Are you sure you want to clear the chat history?',
+      confirmText: t('commonDelete') || 'Delete',
+      danger: true,
+    });
+    if (!confirmed) return;
+
+    try {
+      await api.delete('/api/chat/history');
+      pushToast({ type: 'success', message: t('historyCleared') || 'Chat history cleared' });
+    } catch {
+      pushToast({ type: 'error', message: t('clearHistoryFailed') || 'Failed to clear history' });
+    }
+  }
 
   onMounted(() => {
     fetchPrice(false);
@@ -405,5 +422,6 @@ export function createChatPanel(t) {
     blockDetails,
     price,
     refreshPrice,
+    clearHistory,
   };
 }
