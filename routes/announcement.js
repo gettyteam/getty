@@ -161,7 +161,12 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
     try {
       const ns = req?.ns?.admin || req?.ns?.pub || null;
       if (ns) return ns;
-      const token = typeof req.query?.token === 'string' ? req.query.token : null;
+      const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+      const walletOnly = process.env.GETTY_MULTI_TENANT_WALLET === '1';
+      const legacyTokenAuthEnabled = process.env.GETTY_ENABLE_LEGACY_TOKEN_AUTH === '1';
+      const allowQueryToken = legacyTokenAuthEnabled && !(hostedMode && walletOnly);
+
+      const token = allowQueryToken && typeof req.query?.token === 'string' ? req.query.token : null;
       if (token && req.app && req.app.get && req.app.get('store')) {
         const st = req.app.get('store');
         try {

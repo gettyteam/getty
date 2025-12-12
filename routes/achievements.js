@@ -1,13 +1,29 @@
 const express = require('express');
+const { canWriteConfig } = require('../lib/authz');
 
 module.exports = function registerAchievementsRoutes(app, achievements, limiter, _opts = {}) {
   const router = express.Router();
   const { store } = _opts;
 
+  function isHostedMode() {
+    return !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+  }
+
+  function requireSessionForWrite(req, res) {
+    if (!isHostedMode()) return true;
+    const ns = req?.ns?.admin || req?.ns?.pub || null;
+    if (!ns) {
+      res.status(401).json({ error: 'session_required' });
+      return false;
+    }
+    return true;
+  }
+
   async function getNs(req) {
     try {
       let ns = req?.ns?.admin || req?.ns?.pub || null;
-      if (!ns && req.query && req.query.ns) ns = String(req.query.ns);
+
+      if (!ns && !isHostedMode() && req.query && req.query.ns) ns = String(req.query.ns);
       return ns;
     } catch {
       return null;
@@ -48,6 +64,8 @@ module.exports = function registerAchievementsRoutes(app, achievements, limiter,
 
   router.post('/config', limiter, express.json(), async (req, res) => {
     try {
+      if (!requireSessionForWrite(req, res)) return;
+      if (!canWriteConfig(req)) return res.status(403).json({ error: 'write_not_allowed' });
       const ns = await getNs(req);
 
       if (store && store.isConfigBlocked && await store.isConfigBlocked(ns, 'achievements-config.json')) {
@@ -96,6 +114,7 @@ module.exports = function registerAchievementsRoutes(app, achievements, limiter,
       const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
       const shouldRequireSession = requireSessionFlag || !!process.env.REDIS_URL;
       if (shouldRequireSession && !ns) return res.status(401).json({ error: 'session_required' });
+      if (!canWriteConfig(req)) return res.status(403).json({ error: 'write_not_allowed' });
       const { id } = req.params;
       if (!id) return res.status(400).json({ error: 'missing_id' });
 
@@ -112,6 +131,7 @@ module.exports = function registerAchievementsRoutes(app, achievements, limiter,
 
   router.post('/poll-viewers', limiter, async (req, res) => {
     try {
+      if (!requireSessionForWrite(req, res)) return;
       const ns = await getNs(req);
       await achievements.pollViewersOnce(ns);
       res.json({ ok: true });
@@ -120,34 +140,23 @@ module.exports = function registerAchievementsRoutes(app, achievements, limiter,
     }
   });
 
-  router.post('/test-notification', limiter, async (req, res) => {
+  router.post('/poll-channel', limiter, async (req, res) => {
     try {
+      if (!requireSessionForWrite(req, res)) return;
       const ns = await getNs(req);
-      const defs = achievements.getDefinitions();
-      const pick = defs[Math.floor(Math.random() * defs.length)];
-      const now = Date.now();
-
-      const data = {
-        id: pick.id,
-        titleKey: pick.titleKey,
-        descKey: pick.descKey,
-        title: achievements._t('en', pick.titleKey, pick.title || ''),
-        desc: achievements._t('en', pick.descKey, pick.desc || ''),
-        category: pick.category,
-        ts: now,
-        test: true,
-      };
-      const payload = { type: 'achievement', data };
-
-      achievements._broadcast(ns, payload);
+      if (typeof achievements.pollChannelOnce === 'function') {
+        await achievements.pollChannelOnce(ns);
+      }
       res.json({ ok: true });
     } catch (e) {
-      res.status(500).json({ error: 'failed_to_test_notification', details: e?.message });
+      res.status(500).json({ error: 'failed_to_poll_channel', details: e?.message });
     }
   });
 
-  router.get('/test-notification', limiter, async (req, res) => {
+  router.post('/test-notification', limiter, async (req, res) => {
     try {
+      if (!requireSessionForWrite(req, res)) return;
+      if (!canWriteConfig(req)) return res.status(403).json({ error: 'write_not_allowed' });
       const ns = await getNs(req);
       const defs = achievements.getDefinitions();
       const pick = defs[Math.floor(Math.random() * defs.length)];

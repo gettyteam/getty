@@ -29,17 +29,12 @@ export async function pollAchievementsViewers() {
   return r.data;
 }
 
-export async function testAchievementsNotification(namespace) {
-  const url = namespace
-    ? `/api/achievements/test-notification?ns=${encodeURIComponent(namespace)}`
-    : '/api/achievements/test-notification';
-  console.warn('Making POST request to:', url);
-  try {
-    const r = await api.post(url);
-    console.warn('POST request successful:', r);
-    return r.data;
-  } catch (error) {
-    console.error('POST request failed:', error);
-    throw error;
-  }
+export async function pollAchievementsChannel() {
+  const r = await api.post('/api/achievements/poll-channel');
+  return r.data;
+}
+
+export async function testAchievementsNotification(_namespace) {
+  const r = await api.post('/api/achievements/test-notification');
+  return r.data;
 }

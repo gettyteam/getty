@@ -379,16 +379,7 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
 
   app.post('/api/raffle/pause', async (req, res) => {
     try {
-      let adminNs = req?.ns?.admin || null;
-      if (!adminNs && req.query && req.query.ns) adminNs = String(req.query.ns);
-      if (
-        !adminNs &&
-        process.env.GETTY_MULTI_TENANT_WALLET === '1' &&
-        req.walletSession &&
-        req.walletSession.walletHash
-      ) {
-        adminNs = req.walletSession.walletHash;
-      }
+      const adminNs = resolveAdminNamespace(req);
       if (!isOpenTestMode() && shouldRequireSession && !adminNs)
         return res.status(401).json({ success: false, error: 'session_required' });
       const { canWriteConfig } = require('../lib/authz');
@@ -716,16 +707,7 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
 
   app.post('/api/raffle/clear-image', async (req, res) => {
     try {
-      let adminNs = req?.ns?.admin || null;
-      if (!adminNs && req.query && req.query.ns) adminNs = String(req.query.ns);
-      if (
-        !adminNs &&
-        process.env.GETTY_MULTI_TENANT_WALLET === '1' &&
-        req.walletSession &&
-        req.walletSession.walletHash
-      ) {
-        adminNs = req.walletSession.walletHash;
-      }
+      const adminNs = resolveAdminNamespace(req);
       if (!isOpenTestMode() && shouldRequireSession && !adminNs)
         return res.status(401).json({ success: false, error: 'session_required' });
 

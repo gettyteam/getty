@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const LanguageConfig = require('./language-config');
 const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
+const { fetchChannelSubscriberCount, fetchChannelStats, isClaimId } = require('../services/channel-analytics');
 
 class AchievementsModule {
   constructor(wss, opts = {}) {
@@ -11,6 +12,9 @@ class AchievementsModule {
       opts.liveviewsCfgFile || path.join(process.cwd(), 'config', 'liveviews-config.json');
     this.configFile =
       opts.configFile || path.join(process.cwd(), 'config', 'achievements-config.json');
+    this.channelAnalyticsCfgFile =
+      opts.channelAnalyticsCfgFile ||
+      path.join(process.cwd(), 'config', 'channel-analytics-config.json');
     this.stateFile = opts.stateFile || path.join(process.cwd(), 'data', 'achievements-state.json');
     this.namespaced = !!this.store;
     this.languageConfig = new LanguageConfig();
@@ -210,6 +214,8 @@ class AchievementsModule {
           bag.progress.weeklyHoursLive = 0;
         } else if (m === 'monthlyHoursLive') {
           bag.progress.monthlyHoursLive = 0;
+        } else if (m === 'channelFollowers') {
+          bag.progress.channelFollowers = 0;
         } else {
           bag.progress[m] = 0;
         }
@@ -307,6 +313,54 @@ class AchievementsModule {
 
   getDefinitions() {
     return [
+      {
+        id: 'ch_10',
+        category: 'channel',
+        titleKey: 'ach.def.ch_10.title',
+        descKey: 'ach.def.ch_10.desc',
+        target: 10,
+        metric: 'channelFollowers',
+      },
+      {
+        id: 'ch_100',
+        category: 'channel',
+        titleKey: 'ach.def.ch_100.title',
+        descKey: 'ach.def.ch_100.desc',
+        target: 100,
+        metric: 'channelFollowers',
+      },
+      {
+        id: 'ch_1000',
+        category: 'channel',
+        titleKey: 'ach.def.ch_1000.title',
+        descKey: 'ach.def.ch_1000.desc',
+        target: 1000,
+        metric: 'channelFollowers',
+      },
+      {
+        id: 'ch_10000',
+        category: 'channel',
+        titleKey: 'ach.def.ch_10000.title',
+        descKey: 'ach.def.ch_10000.desc',
+        target: 10000,
+        metric: 'channelFollowers',
+      },
+      {
+        id: 'ch_50000',
+        category: 'channel',
+        titleKey: 'ach.def.ch_50000.title',
+        descKey: 'ach.def.ch_50000.desc',
+        target: 50000,
+        metric: 'channelFollowers',
+      },
+      {
+        id: 'ch_100000',
+        category: 'channel',
+        titleKey: 'ach.def.ch_100000.title',
+        descKey: 'ach.def.ch_100000.desc',
+        target: 100000,
+        metric: 'channelFollowers',
+      },
       {
         id: 'v_5',
         category: 'viewers',
@@ -584,6 +638,9 @@ class AchievementsModule {
       items,
       completedIds: Array.from(bag._completedSet),
       notifications: bag.notifications.slice(-20),
+      meta: {
+        channelFollowersUpdatedAt: Number(bag.progress?.channelFollowersUpdatedAt || 0) || null,
+      },
     };
   }
 
@@ -602,6 +659,74 @@ class AchievementsModule {
       const resp = await axios.get(url, { timeout: 5000 });
       const viewers = Number(resp?.data?.data?.ViewerCount || 0) || 0;
       this.onViewerSample(ns, viewers);
+    } catch {}
+  }
+
+  async _getChannelAnalyticsSecrets(ns) {
+    try {
+      const envClaimId = (process.env.ODYSEE_ANALYTICS_CLAIM_ID || '').trim();
+      const envAuthToken = (process.env.ODYSEE_ANALYTICS_AUTH_TOKEN || '').trim();
+      const envIdToken = (process.env.ODYSEE_ANALYTICS_ID_TOKEN || '').trim();
+      const envLbryId = (process.env.ODYSEE_ANALYTICS_LBRY_ID || '').trim();
+
+      let claimId = envClaimId;
+      let authToken = envAuthToken;
+      let idToken = envIdToken;
+      let lbryId = envLbryId;
+
+      try {
+        const reqShim = { ns: { admin: ns } };
+        const wrapped = await loadTenantConfig(
+          reqShim,
+          this.store,
+          this.channelAnalyticsCfgFile,
+          'channel-analytics-config.json'
+        );
+        const cfg = wrapped && wrapped.data ? wrapped.data : {};
+        if (!claimId && typeof cfg.claimId === 'string') claimId = cfg.claimId.trim();
+        if (!authToken && typeof cfg.authToken === 'string') authToken = cfg.authToken.trim();
+        if (!idToken && typeof cfg.idToken === 'string') idToken = cfg.idToken.trim();
+        if (!lbryId && typeof cfg.lbryId === 'string') lbryId = cfg.lbryId.trim();
+      } catch {}
+
+      if (!claimId) {
+        try {
+          const achCfg = await this.getConfigEffective(ns);
+          if (achCfg && typeof achCfg.claimid === 'string') claimId = achCfg.claimid.trim();
+        } catch {}
+      }
+
+      if (!isClaimId(claimId)) return null;
+      if (!authToken) return null;
+      return { claimId, authToken, idToken, lbryId };
+    } catch {
+      return null;
+    }
+  }
+
+  async pollChannelOnce(ns) {
+    try {
+      const secrets = await this._getChannelAnalyticsSecrets(ns);
+      if (!secrets) return;
+      let followers = await fetchChannelSubscriberCount(secrets);
+      if (!followers) {
+        const stats = await fetchChannelStats({
+          authToken: secrets.authToken,
+          claimId: secrets.claimId,
+        });
+        const fallback = Number(stats?.ChannelSubs);
+        if (Number.isFinite(fallback) && fallback > 0) {
+          followers = fallback;
+        }
+      }
+      const bag = this._getNs(ns);
+      if (!bag.progress) bag.progress = {};
+      const next = Number(followers || 0) || 0;
+      const prev = Number(bag.progress.channelFollowers || 0) || 0;
+      bag.progress.channelFollowers = Math.max(prev, next);
+      bag.progress.channelFollowersUpdatedAt = Date.now();
+      this._evaluateAll(ns);
+      this._saveStateToDisk();
     } catch {}
   }
 

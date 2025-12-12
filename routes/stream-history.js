@@ -1544,10 +1544,17 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
         const admin = await store.get(req.ns.pub, 'adminToken', null);
         return typeof admin === 'string' && admin ? admin : null;
       }
-      const token = (req.query?.token || '').toString();
-      if (token) {
-        const mapped = await store.get(token, 'adminToken', null);
-        return mapped ? mapped : token;
+      const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+      const walletOnly = process.env.GETTY_MULTI_TENANT_WALLET === '1';
+      const legacyTokenAuthEnabled = process.env.GETTY_ENABLE_LEGACY_TOKEN_AUTH === '1';
+      const allowQueryToken = legacyTokenAuthEnabled && !(hostedMode && walletOnly);
+
+      if (allowQueryToken) {
+        const token = (req.query?.token || '').toString();
+        if (token) {
+          const mapped = await store.get(token, 'adminToken', null);
+          return mapped ? mapped : token;
+        }
       }
     } catch {}
     return null;
@@ -2079,13 +2086,6 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     try {
       let nsCheck = req?.ns?.admin || req?.ns?.pub || null;
       if (((store && store.redis) || requireSessionFlag) && !nsCheck) {
-        try {
-          const token = (req.query?.token || '').toString();
-          if (token && store) {
-            const mapped = await store.get(token, 'adminToken', null);
-            nsCheck = mapped ? mapped : token;
-          }
-        } catch {}
         if (!nsCheck) return res.status(401).json({ error: 'session_required' });
       }
       const live = !!req.body?.live;
@@ -2223,13 +2223,6 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     try {
       let nsCheck = req?.ns?.admin || req?.ns?.pub || null;
       if (((store && store.redis) || requireSessionFlag) && !nsCheck) {
-        try {
-          const token = (req.query?.token || '').toString();
-          if (token && store) {
-            const mapped = await store.get(token, 'adminToken', null);
-            nsCheck = mapped ? mapped : token;
-          }
-        } catch {}
         if (!nsCheck) return res.status(401).json({ error: 'session_required' });
       }
       const hours = Math.max(1, Math.min(24 * 30, parseInt(req.body?.hours || '0', 10)));
@@ -2267,13 +2260,6 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     try {
       let nsCheck = req?.ns?.admin || req?.ns?.pub || null;
       if (((store && store.redis) || requireSessionFlag) && !nsCheck) {
-        try {
-          const token = (req.query?.token || '').toString();
-          if (token && store) {
-            const mapped = await store.get(token, 'adminToken', null);
-            nsCheck = mapped ? mapped : token;
-          }
-        } catch {}
         if (!nsCheck) return res.status(401).json({ error: 'session_required' });
       }
       const empty = { segments: [], samples: [] };
@@ -2299,13 +2285,6 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     try {
       let nsCheck = req?.ns?.admin || req?.ns?.pub || null;
       if (((store && store.redis) || requireSessionFlag) && !nsCheck) {
-        try {
-          const token = (req.query?.token || '').toString();
-          if (token && store) {
-            const mapped = await store.get(token, 'adminToken', null);
-            nsCheck = mapped ? mapped : token;
-          }
-        } catch {}
         if (!nsCheck) return res.status(401).json({ error: 'session_required' });
       }
       const incoming = req.body || {};

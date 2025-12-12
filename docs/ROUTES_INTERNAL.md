@@ -3,7 +3,14 @@
 This document maps HTTP endpoints to their route modules and main responsibilities. Annotations:
 
 - [RL] rate-limited (via limiter/strictLimiter)
-- [Session] may require session in hosted mode or if `GETTY_REQUIRE_SESSION=1`
+- [Session] requires a resolved tenant namespace in hosted mode (wallet session / cookies); querystring overrides are not accepted for unsafe methods
+
+## Security notes
+
+- Hosted mode is when `REDIS_URL` is set or `GETTY_REQUIRE_SESSION=1`.
+- Wallet-only multi-tenant mode uses `GETTY_MULTI_TENANT_WALLET=1`.
+- `?token=` may be used for read-only GET/HEAD widget/config requests; it is not accepted for unsafe methods (POST/PUT/PATCH/DELETE).
+- Querystring namespace selection (e.g. `?ns=`) is blocked for unsafe methods in hosted mode.
 
 ## Text-to-Speech — `routes/tts.js`
 
@@ -143,22 +150,33 @@ This document maps HTTP endpoints to their route modules and main responsibiliti
 - DELETE `/api/announcement/messages` — bulk clear with optional `?mode=all|test` [RL]
 - GET `/api/announcement/favicon` — fetch & cache site favicon as data URI (requires `?url=`) [RL]
 
+## Achievements — `routes/achievements.js`
+
+- GET `/api/achievements/config`
+- POST `/api/achievements/config` [RL][Session] (requires write permission in hosted mode)
+- GET `/api/achievements/status`
+- POST `/api/achievements/reset/:id` [RL][Session] (requires write permission in hosted mode)
+- POST `/api/achievements/poll-viewers` [RL][Session]
+- POST `/api/achievements/poll-channel` [RL][Session]
+- POST `/api/achievements/test-notification` [RL][Session] (requires write permission in hosted mode)
+
+## Tenant config management (admin) — in `createServer.js`
+
+- GET `/api/admin/tenant/config-status` [Session] (admin only)
+- GET `/api/admin/tenant/config-export` [Session] (admin only)
+- POST `/api/admin/tenant/config-import` [Session] (admin only; requires write permission)
+
 ## Session & Import/Export — in `server.js`
 
-- GET `/api/session/status`
-- GET `/api/session/new` (alias: `/new-session`) [sets cookies]
-- GET `/new-session`
-- GET `/api/session/public-token` [Session]
-- POST `/api/session/regenerate-public` [Session]
-- GET `/api/session/export` [Session in hosted mode]
-- POST `/api/session/import` [Session in hosted mode]
+- Legacy session endpoints are removed in wallet-only mode and return HTTP 410:
+  - `/api/session/status`, `/api/session/new`, `/new-session`, `/api/session/public-token`, `/api/session/regenerate-public`, `/api/session/export`, `/api/session/import`
 
 ## Activity & System — in `server.js`
 
 - GET `/api/activity` — recent logs
 - POST `/api/activity/clear` [RL]
 - GET `/api/activity/export`
-- GET `/api/modules` — module status aggregator (sanitized)
+- GET `/api/modules` — module status aggregator (requires `widgetToken` or other widget auth by default; `?public=1` returns sanitized payload)
 - GET `/api/channel/avatar` — resolve Odysee channel avatar/title by claimId
 - GET `/api/ar-price` — AR/USD price (cached)
 - GET `/api/metrics` — server metrics snapshot

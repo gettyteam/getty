@@ -457,6 +457,9 @@ async function fetchSubscriptionCount(authToken, claimId, extras = {}) {
   }
 }
 
+async function fetchChannelSubscriberCount({ authToken, claimId, idToken, lbryId } = {}) {
+  return fetchSubscriptionCount(authToken, claimId, { idToken, lbryId });
+}
 
 async function fetchViewCounts(authToken, claimTargets, extras = {}) {
   const map = new Map();
@@ -755,6 +758,7 @@ module.exports = {
   normalizeRangeKey,
   SUPPORTED_RANGES,
   fetchChannelStats,
+  fetchChannelSubscriberCount,
   fetchChannelIdentity,
   fetchChannelStreams,
   isClaimId,

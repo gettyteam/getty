@@ -870,8 +870,6 @@ function initRedisClientFromEnv() {
   }
 }
 
-// initRedisClientFromEnv(); // Moved to secretsLoaded
-
 setupMiddlewares(app, {
   store,
   historyStore,
@@ -900,7 +898,6 @@ if (viteDevServerPromise) {
     }
   });
 }
-
 const ADMIN_COOKIE = 'getty_admin_token';
 const PUBLIC_COOKIE = 'getty_public_token';
 function SECURE_COOKIE(req) {
@@ -909,11 +906,10 @@ function SECURE_COOKIE(req) {
     if (process.env.COOKIE_SECURE === '0') return false;
 
     const forwardedProto = req?.headers?.['x-forwarded-proto'];
-    const forwardedVal = Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto;
-    const viaForwardedHttps =
-      typeof forwardedVal === 'string' &&
-      forwardedVal.split(',')[0].trim().toLowerCase() === 'https';
-    const requestSecure = !!(req?.secure || viaForwardedHttps);
+    const requestSecure =
+      typeof forwardedProto === 'string'
+        ? forwardedProto.toLowerCase().includes('https')
+        : req?.secure;
     if (requestSecure) return true;
 
     if (!req) return process.env.NODE_ENV === 'production';
@@ -928,6 +924,13 @@ app.use(async (req, res, next) => {
     let nsAdmin = req.cookies?.[ADMIN_COOKIE] || null;
     let nsPub = req.cookies?.[PUBLIC_COOKIE] || null;
 
+    const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+    const walletOnly = process.env.GETTY_MULTI_TENANT_WALLET === '1';
+    const legacyTokenAuthEnabled = process.env.GETTY_ENABLE_LEGACY_TOKEN_AUTH === '1';
+    const method = (req.method || 'GET').toUpperCase();
+    const isUnsafe = method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE';
+    const blockBearerTokenAuth = hostedMode && walletOnly && !legacyTokenAuthEnabled;
+
     const auth = typeof req.headers?.authorization === 'string' ? req.headers.authorization : '';
     let bearerToken = '';
     try {
@@ -937,11 +940,12 @@ app.use(async (req, res, next) => {
       }
     } catch {}
 
-    const qToken =
-      typeof req.query?.token === 'string' && req.query.token.trim() ? req.query.token.trim() : '';
-    const incomingToken = qToken || bearerToken;
+    if (blockBearerTokenAuth) bearerToken = '';
 
-    const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+    const qTokenRaw =
+      typeof req.query?.token === 'string' && req.query.token.trim() ? req.query.token.trim() : '';
+    const qToken = hostedMode && isUnsafe ? '' : qTokenRaw;
+    const incomingToken = qToken || bearerToken;
     let acceptedToken = '';
     let presentedRole = null;
     if (incomingToken) {
@@ -967,7 +971,8 @@ app.use(async (req, res, next) => {
           `${req.protocol || 'http'}://${req.headers.host || 'localhost'}`
         );
         const qpNs = urlObj.searchParams.get('ns');
-        if (qpNs) {
+
+        if (qpNs && !(blockBearerTokenAuth || (hostedMode && isUnsafe))) {
           nsPub = qpNs.slice(0, 64);
         }
       } catch {}
@@ -1002,9 +1007,7 @@ app.use(async (req, res, next) => {
         req.walletSession &&
         req.walletSession.walletHash
       ) {
-        if (!req.ns.admin) {
-          req.ns.admin = req.walletSession.walletHash;
-        }
+        req.ns.admin = req.walletSession.walletHash;
       }
     } catch {}
 
@@ -1039,7 +1042,7 @@ app.use(async (req, res, next) => {
           }
 
           try {
-            if (!req.cookies?.[ADMIN_COOKIE]) {
+            if (req.cookies?.[ADMIN_COOKIE] !== req.ns.admin) {
               const cookieOpts = {
                 httpOnly: true,
                 sameSite: 'Lax',
@@ -1096,9 +1099,13 @@ app.use(async (req, res, next) => {
 
 app.use((req, res, next) => {
   try {
+    const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+    if (hostedMode) return next();
+
     if (req.query && typeof req.query.tenant === 'string' && req.query.tenant.trim()) {
       const tenantHash = req.query.tenant.trim();
-      if (/^[a-f0-9]{16,64}$/i.test(tenantHash)) {
+
+      if (/^[A-Za-z0-9_-]{8,120}$/.test(tenantHash)) {
         req.tenant = { walletHash: tenantHash };
       }
     }
@@ -3502,7 +3509,7 @@ const __serverStartTime = Date.now();
 try {
   app.get('/api/admin/tenant/config-status', async (req, res) => {
     try {
-      if (!process.env.GETTY_MULTI_TENANT_WALLET === '1') {
+      if (process.env.GETTY_MULTI_TENANT_WALLET !== '1') {
         return res.status(400).json({ error: 'multi_tenant_disabled' });
       }
       const adminNs = await resolveAdminNsFromReq(req);
@@ -3647,7 +3654,7 @@ try {
 try {
   app.get('/api/admin/tenant/config-export', async (req, res) => {
     try {
-      if (!process.env.GETTY_MULTI_TENANT_WALLET === '1') {
+      if (process.env.GETTY_MULTI_TENANT_WALLET !== '1') {
         return res.status(400).json({ error: 'multi_tenant_disabled' });
       }
       const adminNs = await resolveAdminNsFromReq(req);
@@ -3657,6 +3664,12 @@ try {
 
       const { loadTenantConfig } = require('./lib/tenant-config');
       const path = require('path');
+
+      function keyFromFilename(filename) {
+        if (typeof filename !== 'string') return '';
+        if (filename.endsWith('-config.json')) return filename.replace(/-config\.json$/i, '');
+        return filename.replace(/\.json$/i, '');
+      }
 
       const configFiles = [
         'announcement-config.json',
@@ -3668,28 +3681,27 @@ try {
         'chat-config.json',
         'liveviews-config.json',
         'external-notifications-config.json',
+        'tip-notification-config.json',
+        'channel-analytics-config.json',
+        'live-announcement-config.json',
+        'audio-settings.json',
+        'audio-library.json',
+        'achievements-audio-settings.json',
+        'goal-audio-settings.json',
+        'announcement-image-library.json',
+        'raffle-image-library.json',
+        'tip-notification-gif-library.json',
+        'user-profile-share-index.json',
       ];
 
-      const globalPaths = {
-        'announcement-config.json': path.join(process.cwd(), 'config', 'announcement-config.json'),
-        'socialmedia-config.json': path.join(process.cwd(), 'config', 'socialmedia-config.json'),
-        'tip-goal-config.json': path.join(process.cwd(), 'config', 'tip-goal-config.json'),
-        'last-tip-config.json': path.join(process.cwd(), 'config', 'last-tip-config.json'),
-        'raffle-config.json': path.join(process.cwd(), 'config', 'raffle-config.json'),
-        'achievements-config.json': path.join(process.cwd(), 'config', 'achievements-config.json'),
-        'chat-config.json': path.join(process.cwd(), 'config', 'chat-config.json'),
-        'liveviews-config.json': path.join(process.cwd(), 'config', 'liveviews-config.json'),
-        'external-notifications-config.json': path.join(
-          process.cwd(),
-          'config',
-          'external-notifications-config.json'
-        ),
-      };
+      const globalPaths = Object.fromEntries(
+        configFiles.map((filename) => [filename, path.join(process.cwd(), 'config', filename)])
+      );
 
       const exportData = {
         namespace: adminNs,
         timestamp: new Date().toISOString(),
-        version: '1.0',
+        version: '1.1',
         configs: {},
       };
 
@@ -3702,7 +3714,7 @@ try {
             filename
           );
           if (loadResult && loadResult.data) {
-            exportData.configs[filename.replace('-config.json', '')] = loadResult.data;
+            exportData.configs[keyFromFilename(filename)] = loadResult.data;
           }
         } catch {
           // Skip files that can't be loaded
@@ -3722,7 +3734,7 @@ try {
 try {
   app.post('/api/admin/tenant/config-import', express.json({ limit: '10mb' }), async (req, res) => {
     try {
-      if (!process.env.GETTY_MULTI_TENANT_WALLET === '1') {
+      if (process.env.GETTY_MULTI_TENANT_WALLET !== '1') {
         return res.status(400).json({ error: 'multi_tenant_disabled' });
       }
       const adminNs = await resolveAdminNsFromReq(req);
@@ -3730,11 +3742,44 @@ try {
 
       if (!req.auth || !req.auth.isAdmin) return res.status(401).json({ error: 'admin_required' });
 
+      try {
+        const { canWriteConfig } = require('./lib/authz');
+        if (!canWriteConfig(req)) return res.status(403).json({ error: 'write_not_allowed' });
+      } catch {}
+
       const { saveTenantConfig } = require('./lib/tenant-config');
 
       const importData = req.body;
       if (!importData || typeof importData !== 'object' || !importData.configs) {
         return res.status(400).json({ error: 'invalid_import_data' });
+      }
+
+      function kebabToCamel(str) {
+        return String(str || '').replace(/-([a-z])/g, (_m, letter) => letter.toUpperCase());
+      }
+      function camelToKebab(str) {
+        return String(str || '')
+          .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+          .replace(/_/g, '-')
+          .toLowerCase();
+      }
+      function keyFromFilename(filename) {
+        if (typeof filename !== 'string') return '';
+        if (filename.endsWith('-config.json')) return filename.replace(/-config\.json$/i, '');
+        return filename.replace(/\.json$/i, '');
+      }
+      function pickConfig(configs, key) {
+        if (!configs || typeof configs !== 'object') return undefined;
+
+        const variants = new Set();
+        variants.add(key);
+        variants.add(kebabToCamel(key));
+        variants.add(camelToKebab(key));
+        variants.add(camelToKebab(kebabToCamel(key)));
+        for (const k of variants) {
+          if (Object.prototype.hasOwnProperty.call(configs, k)) return configs[k];
+        }
+        return undefined;
       }
 
       const configFiles = [
@@ -3747,29 +3792,28 @@ try {
         'chat-config.json',
         'liveviews-config.json',
         'external-notifications-config.json',
+        'tip-notification-config.json',
+        'channel-analytics-config.json',
+        'live-announcement-config.json',
+        'audio-settings.json',
+        'audio-library.json',
+        'achievements-audio-settings.json',
+        'goal-audio-settings.json',
+        'announcement-image-library.json',
+        'raffle-image-library.json',
+        'tip-notification-gif-library.json',
+        'user-profile-share-index.json',
       ];
 
-      const globalPaths = {
-        'announcement-config.json': path.join(process.cwd(), 'config', 'announcement-config.json'),
-        'socialmedia-config.json': path.join(process.cwd(), 'config', 'socialmedia-config.json'),
-        'tip-goal-config.json': path.join(process.cwd(), 'config', 'tip-goal-config.json'),
-        'last-tip-config.json': path.join(process.cwd(), 'config', 'last-tip-config.json'),
-        'raffle-config.json': path.join(process.cwd(), 'config', 'raffle-config.json'),
-        'achievements-config.json': path.join(process.cwd(), 'config', 'achievements-config.json'),
-        'chat-config.json': path.join(process.cwd(), 'config', 'chat-config.json'),
-        'liveviews-config.json': path.join(process.cwd(), 'config', 'liveviews-config.json'),
-        'external-notifications-config.json': path.join(
-          process.cwd(),
-          'config',
-          'external-notifications-config.json'
-        ),
-      };
+      const globalPaths = Object.fromEntries(
+        configFiles.map((filename) => [filename, path.join(process.cwd(), 'config', filename)])
+      );
 
       const results = {};
 
       for (const filename of configFiles) {
-        const configKey = filename.replace('-config.json', '');
-        const configData = importData.configs[configKey];
+        const configKey = keyFromFilename(filename);
+        const configData = pickConfig(importData.configs, configKey);
 
         if (configData !== undefined) {
           try {
