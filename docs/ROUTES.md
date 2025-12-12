@@ -44,7 +44,8 @@ The following widget URLs are available for embedding:
 
 - All endpoints support CORS for web integration
 - Rate limiting may apply to prevent abuse
-- Some features may require proper session/authentication
+- In hosted / wallet-only mode, write endpoints require an authenticated admin session (cookies/wallet session). Querystring-based namespace selection (e.g. `?ns=`) is not supported for writes.
+- Widgets may use a token for read-only config/landing requests (e.g. `?token=` on GET). Tokens are not accepted for unsafe methods (POST/PUT/PATCH/DELETE).
 - Endpoints may change without notice - check the application for current availability
 
 ## Development

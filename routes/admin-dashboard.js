@@ -206,7 +206,15 @@ function registerAdminDashboardRoutes(app, context) {
         
         let uniqueChatters = 0;
         const chatNs = req.app.locals.chatNs;
-        const ns = req.ns?.admin || req.walletSession?.walletHash || req.query?.token;
+        const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+        const walletOnly = process.env.GETTY_MULTI_TENANT_WALLET === '1';
+        const legacyTokenAuthEnabled = process.env.GETTY_ENABLE_LEGACY_TOKEN_AUTH === '1';
+        const allowQueryToken = legacyTokenAuthEnabled && !(hostedMode && walletOnly);
+
+        const ns =
+          req.ns?.admin ||
+          req.walletSession?.walletHash ||
+          (allowQueryToken ? req.query?.token : null);
 
         if (chatNs && ns) {
           try {

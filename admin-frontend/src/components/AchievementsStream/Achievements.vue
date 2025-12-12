@@ -190,6 +190,110 @@
                 </div>
               </div>
             </div>
+
+            <div class="ach-group-box" :aria-label="t('achievementsGroupChannel')">
+              <div class="ach-group-head">
+                <HeaderIcon>
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                </HeaderIcon>
+                <span class="ach-head-title">{{ t('achievementsGroupChannel') }}</span>
+                <div
+                  v-if="hasChannelAuth && channelFollowersUpdatedAt"
+                  class="ach-group-head-right">
+                  <span class="ach-sync-tip" tabindex="0">
+                    <span class="chip ach-sync-chip" aria-hidden="true">
+                      <svg
+                        class="ach-sync-icon"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12a9 9 0 1 1-3-6.7" />
+                        <path d="M21 3v6h-6" />
+                      </svg>
+                    </span>
+                    <span class="ach-help-bubble">
+                      {{ t('achievementsChannelLastSync') }}: {{ channelFollowersSyncLabel }}
+                    </span>
+                  </span>
+                </div>
+              </div>
+
+              <div v-if="channelCfgLoading" class="ach-setting-item">
+                <div class="ach-setting-text">
+                  <div class="ach-setting-desc">{{ t('loading') }}</div>
+                </div>
+              </div>
+
+              <div v-else class="ach-setting-item is-vertical">
+                <div class="ach-setting-text">
+                  <div class="ach-setting-title">{{ t('achievementsChannelMetricsTitle') }}</div>
+                  <div v-if="!hasChannelAuth" class="ach-setting-desc">
+                    {{ t('achievementsChannelAuthWarning') }}
+                  </div>
+                </div>
+
+                <div v-if="hasChannelAuth" class="ach-setting-control w-full ach-channel-metrics">
+                  <div class="ach-metrics-grid">
+                    <div class="ach-metric">
+                      <div class="ach-metric-label">
+                        {{ t('achievementsChannelMetricFollowers') }}
+                      </div>
+                      <div class="ach-metric-value-row">
+                        <div class="ach-metric-value">
+                          {{ channelTotals ? fmtInt(channelTotals.subscribers) : '—' }}
+                        </div>
+                        <div class="ach-metric-delta" :data-sign="deltaSign(channelDeltaSubs)">
+                          {{ fmtDelta(channelDeltaSubs) }}
+                        </div>
+                      </div>
+                    </div>
+                    <div class="ach-metric">
+                      <div class="ach-metric-label">{{ t('achievementsChannelMetricViews') }}</div>
+                      <div class="ach-metric-value-row">
+                        <div class="ach-metric-value">
+                          {{ channelTotals ? fmtInt(channelTotals.views) : '—' }}
+                        </div>
+                        <div class="ach-metric-delta" :data-sign="deltaSign(channelDeltaViews)">
+                          {{ fmtDelta(channelDeltaViews) }}
+                        </div>
+                      </div>
+                    </div>
+                    <div class="ach-metric">
+                      <div class="ach-metric-label">
+                        {{ t('achievementsChannelMetricContent') }}
+                      </div>
+                      <div class="ach-metric-value-row">
+                        <div class="ach-metric-value">
+                          {{ channelTotals ? fmtInt(channelTotals.videos) : '—' }}
+                        </div>
+                        <div class="ach-metric-delta" :data-sign="deltaSign(channelDeltaVideos)">
+                          {{ fmtDelta(channelDeltaVideos) }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-if="channelMetricsError" class="ach-setting-desc mt-2">
+                    {{ channelMetricsError }}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="ach-settings-col">
@@ -297,13 +401,6 @@
               <div class="ach-preview">
                 <div class="ach-preview-title flex items-center justify-between">
                   <span>{{ t('achievementsGroupPreview') }}</span>
-                  <button
-                    type="button"
-                    class="btn-secondary btn-compact-secondary px-2 py-1 text-[11px]"
-                    @click="testNotif"
-                    :disabled="saving">
-                    {{ t('achievementsTestNotificationBtn') }}
-                  </button>
                 </div>
                 <div class="ach-live-demo" :data-theme="cfg.theme">
                   <div class="ald-item">
@@ -368,22 +465,31 @@
                 </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        <div class="actions">
-          <button class="btn-save" @click="save" :disabled="saving">{{ t('saveSettings') }}</button>
-          <button
-            class="btn-secondary btn-compact-secondary ach-test-btn"
-            @click="testNotif"
-            :disabled="saving">
-            {{ t('achievementsTestNotificationBtn') }}
-          </button>
+            <div class="actions">
+              <button
+                class="btn btn-secondary btn-compact-secondary btn-save-style"
+                @click="save"
+                :disabled="saving">
+                {{ t('saveSettings') }}
+              </button>
+              <button
+                class="btn-secondary btn-compact-secondary ach-test-btn"
+                @click="testNotif"
+                :disabled="saving">
+                <i class="pi pi-sparkles" aria-hidden="true"></i>
+                {{ t('achievementsTestNotificationBtn') }}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
       <div>
-        <h4 class="section-title">{{ t('achievementsProgressTitle') }}</h4>
+        <h4 class="section-title flex items-center gap-2">
+          <i class="pi pi-trophy opacity-80" aria-hidden="true"></i>
+          <span>{{ t('achievementsProgressTitle') }}</span>
+        </h4>
 
         <div v-if="loading" class="space-y-6">
           <div v-for="i in 2" :key="i" class="ach-group">
@@ -415,6 +521,19 @@
                   <circle cx="12" cy="12" r="3" />
                 </svg>
                 <svg
+                  v-else-if="g.cat === 'channel'"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+                <svg
                   v-else-if="g.cat === 'chat'"
                   viewBox="0 0 24 24"
                   fill="none"
@@ -432,11 +551,8 @@
                   stroke-width="2"
                   stroke-linecap="round"
                   stroke-linejoin="round">
-                  <path d="M12 17v4" />
-                  <path d="M8 21h8" />
-                  <path d="M7 4h10v5a5 5 0 0 1-10 0V4Z" />
-                  <path d="M17 9a5 5 0 0 0 5-5h-5" />
-                  <path d="M7 9a5 5 0 0 1-5-5h5" />
+                  <line x1="12" x2="12" y1="2" y2="22" />
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                 </svg>
                 <svg
                   v-else-if="g.cat === 'time'"
@@ -518,14 +634,16 @@
                 <button
                   v-if="
                     it.category !== 'viewers' &&
+                    it.category !== 'channel' &&
                     it.id !== 't_first' &&
                     (it.category === 'time'
                       ? (it.id.startsWith('time_weekly_') || it.id.startsWith('time_monthly_')) &&
                         (it.progress?.percent || 0) >= 100
                       : (it.progress?.percent || 0) > 1)
                   "
-                  class="badge-action"
+                  class="btn btn-secondary btn-compact-secondary badge-action"
                   @click="reset(it.id)"
+                  :disabled="saving"
                   :title="t('reset')">
                   {{ t('reset') }}
                 </button>
@@ -550,7 +668,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref, computed, watch } from 'vue';
+import { onMounted, onBeforeUnmount, reactive, ref, computed, watch } from 'vue';
 import LegacyAudioControls from '../shared/LegacyAudioControls.vue';
 import CopyField from '../shared/CopyField.vue';
 import HeaderIcon from '../shared/HeaderIcon.vue';
@@ -564,7 +682,13 @@ import {
   getAchievementsStatus,
   resetAchievement,
   testAchievementsNotification,
+  pollAchievementsViewers,
+  pollAchievementsChannel,
 } from './Achievements.js';
+import {
+  fetchChannelAnalytics,
+  fetchChannelAnalyticsConfig,
+} from '../../services/channelAnalytics';
 import { usePublicToken } from '../../composables/usePublicToken';
 import { useStorageProviders } from '../../composables/useStorageProviders';
 import BlockedState from '../shared/BlockedState.vue';
@@ -578,7 +702,7 @@ const cfg = reactive({
   historySize: 10,
   sound: { enabled: false, url: '', volume: 0.5, storageProvider: '' },
 });
-const status = reactive({ items: [] });
+const status = reactive({ items: [], meta: null });
 const achMeta = ref(null);
 const loading = ref(false);
 const saving = ref(false);
@@ -593,6 +717,71 @@ const widgetUrl = computed(() => withToken(`${location.origin}/widgets/achieveme
 const channelAvatarUrl = ref('');
 const avatarError = ref(false);
 const avatarLoading = ref(false);
+const channelCfgLoading = ref(false);
+const channelMetricsLoading = ref(false);
+const channelAnalyticsCfg = ref(null);
+const channelAnalyticsOverview = ref(null);
+const channelMetricsError = ref('');
+const hasChannelAuth = computed(() => !!channelAnalyticsCfg.value?.hasAuthToken);
+const channelTotals = computed(() => channelAnalyticsOverview.value?.totals || null);
+const channelHighlights = computed(() => channelAnalyticsOverview.value?.highlights || null);
+const channelDeltaSubs = computed(() => {
+  const value = channelHighlights.value?.subsChange;
+  return Number.isFinite(value) ? value : null;
+});
+const channelDeltaViews = computed(() => {
+  const value = channelHighlights.value?.viewsChange;
+  return Number.isFinite(value) ? value : null;
+});
+const channelDeltaVideos = computed(() => {
+  const bars = channelAnalyticsOverview.value?.bars;
+  if (!Array.isArray(bars) || !bars.length) return null;
+  const last = bars[bars.length - 1]?.videos;
+  if (!Number.isFinite(last)) return null;
+  const prev = bars.length > 1 ? bars[bars.length - 2]?.videos : 0;
+  const prevSafe = Number.isFinite(prev) ? prev : 0;
+  return last - prevSafe;
+});
+
+const channelFollowersUpdatedAt = computed(() => {
+  const raw =
+    status.meta && typeof status.meta === 'object' ? status.meta.channelFollowersUpdatedAt : null;
+  const numeric = Number(raw);
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+});
+
+const channelFollowersSyncLabel = computed(() => {
+  if (!hasChannelAuth.value) return '—';
+  if (!channelFollowersUpdatedAt.value) return '—';
+  try {
+    return new Date(channelFollowersUpdatedAt.value).toLocaleString();
+  } catch {
+    return '—';
+  }
+});
+
+const metricNumberFormatter = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
+function fmtInt(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return '—';
+  return metricNumberFormatter.format(numeric);
+}
+
+function fmtDelta(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return '—';
+  if (numeric === 0) return '0';
+  const prefix = numeric > 0 ? '+' : '';
+  return `${prefix}${metricNumberFormatter.format(numeric)}`;
+}
+
+function deltaSign(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 'unknown';
+  if (numeric > 0) return 'pos';
+  if (numeric < 0) return 'neg';
+  return 'zero';
+}
 const historyNumberId = 'ach-history-number';
 const fallbackInitial = computed(() => {
   const id = (cfg.claimid || '').trim();
@@ -663,6 +852,7 @@ const REMOTE_ACH_SOUND_URL =
 
 function monogram(cat) {
   if (cat === 'viewers') return 'V';
+  if (cat === 'channel') return 'S';
   if (cat === 'chat') return 'C';
   if (cat === 'tips') return 'T';
   if (cat === 'time') return 'H';
@@ -671,6 +861,7 @@ function monogram(cat) {
 
 function labelFor(cat) {
   if (cat === 'viewers') return t('achievementsGroupViewers');
+  if (cat === 'channel') return t('achievementsGroupChannel');
   if (cat === 'chat') return t('achievementsGroupChat');
   if (cat === 'tips') return t('achievementsGroupTips');
   if (cat === 'time') return t('achievementsGroupTime');
@@ -678,7 +869,7 @@ function labelFor(cat) {
 }
 
 const grouped = computed(() => {
-  const order = ['viewers', 'chat', 'time', 'tips'];
+  const order = ['viewers', 'channel', 'chat', 'time', 'tips'];
   const byCat = Object.create(null);
   for (const it of status.items || []) {
     const key = order.includes(it.category) ? it.category : 'misc';
@@ -748,15 +939,17 @@ async function refreshAudioState() {
 
 async function loadAll() {
   loading.value = true;
+  channelCfgLoading.value = true;
   isBlocked.value = false;
   try {
-    const [rConfig, rStatus, rAudio] = await Promise.allSettled([
+    const [rConfig, rStatus, rAudio, rChannelCfg] = await Promise.allSettled([
       fetchAchievementsConfig(),
       getAchievementsStatus(),
       api.get('/api/achievements-audio-settings'),
+      fetchChannelAnalyticsConfig(),
     ]);
 
-    const blockedError = [rConfig, rStatus, rAudio].find(
+    const blockedError = [rConfig, rStatus, rAudio, rChannelCfg].find(
       (r) =>
         r.status === 'rejected' &&
         (r.reason?.response?.data?.error === 'CONFIGURATION_BLOCKED' ||
@@ -796,6 +989,11 @@ async function loadAll() {
     if (rStatus.status === 'fulfilled') {
       const st = rStatus.value;
       status.items = Array.isArray(st.items) ? st.items : [];
+      status.meta = st && typeof st === 'object' ? st.meta || null : null;
+    }
+
+    if (rChannelCfg.status === 'fulfilled') {
+      channelAnalyticsCfg.value = rChannelCfg.value;
     }
 
     if (rAudio.status === 'fulfilled') {
@@ -805,9 +1003,51 @@ async function loadAll() {
     try {
       await refreshChannelAvatar();
     } catch {}
+
+    try {
+      await refreshChannelAnalytics();
+    } catch {}
   } finally {
     loading.value = false;
+    channelCfgLoading.value = false;
   }
+}
+
+async function refreshChannelAnalytics() {
+  channelMetricsError.value = '';
+  if (!hasChannelAuth.value) {
+    channelAnalyticsOverview.value = null;
+    return;
+  }
+  channelMetricsLoading.value = true;
+  try {
+    channelAnalyticsOverview.value = await fetchChannelAnalytics('week');
+  } catch (e) {
+    channelAnalyticsOverview.value = null;
+    const status = e?.response?.status;
+    if (status === 401) channelMetricsError.value = 'Invalid or missing auth token';
+    else if (status === 404) channelMetricsError.value = 'Channel not found';
+    else channelMetricsError.value = 'Failed to fetch channel metrics';
+  } finally {
+    channelMetricsLoading.value = false;
+  }
+}
+
+async function refreshStatusOnly() {
+  try {
+    const st = await getAchievementsStatus();
+    status.items = Array.isArray(st.items) ? st.items : [];
+    status.meta = st && typeof st === 'object' ? st.meta || null : null;
+  } catch {}
+}
+
+let pollTimer = null;
+async function pollRealtime() {
+  try {
+    await Promise.allSettled([pollAchievementsViewers(), pollAchievementsChannel()]);
+  } catch {}
+  await refreshStatusOnly();
+  await refreshChannelAnalytics();
 }
 async function save() {
   saving.value = true;
@@ -898,9 +1138,16 @@ onMounted(async () => {
   await refresh();
   await storage.fetchProviders();
   await loadAll();
+  await pollRealtime();
+  pollTimer = setInterval(pollRealtime, 30000);
 });
 onMounted(() => {
   settingsCollapsed.value = readCollapsed();
+});
+
+onBeforeUnmount(() => {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = null;
 });
 
 watch(

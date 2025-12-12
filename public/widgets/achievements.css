@@ -122,6 +122,10 @@
   background-color: #64297b;
   background-image: none;
 }
+.ach-icon[data-cat='channel'] {
+  background-color: #553fee;
+  background-image: none;
+}
 .ach-content {
   flex: 1;
   min-width: 0;

@@ -137,13 +137,21 @@ function registerUserProfileRoutes(app, options = {}) {
           if (mapped) return mapped;
         }
       } catch {}
-      const token = (req?.query?.token || req?.body?.token || '').toString();
-      if (token) {
-        try {
-          const mapped = await store.get(token, 'adminToken', null);
-          return mapped || token;
-        } catch {
-          return token;
+
+      const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+      const walletOnly = process.env.GETTY_MULTI_TENANT_WALLET === '1';
+      const legacyTokenAuthEnabled = process.env.GETTY_ENABLE_LEGACY_TOKEN_AUTH === '1';
+      const allowTokenNs = legacyTokenAuthEnabled && !(hostedMode && walletOnly);
+
+      if (allowTokenNs) {
+        const token = (req?.query?.token || req?.body?.token || '').toString();
+        if (token) {
+          try {
+            const mapped = await store.get(token, 'adminToken', null);
+            return mapped || token;
+          } catch {
+            return token;
+          }
         }
       }
     }
@@ -394,6 +402,15 @@ function registerUserProfileRoutes(app, options = {}) {
       if ((requireSessionFlag || store) && !adminNs && !hasSession) {
         return res.status(401).json({ error: 'session_required' });
       }
+
+      try {
+        const { canWriteConfig } = require('../lib/authz');
+        const hosted = !!process.env.REDIS_URL || requireSessionFlag;
+        if (hosted && !canWriteConfig(req)) {
+          return res.status(403).json({ error: 'forbidden_untrusted_remote_write' });
+        }
+      } catch {}
+
       const incoming = req.body || {};
       const incomingSections =
         incoming.sections && typeof incoming.sections === 'object' ? incoming.sections : {};

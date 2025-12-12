@@ -201,6 +201,24 @@ async function getJson(url) {
   return response.json();
 }
 
+async function postNoBody(url) {
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      cache: 'no-store',
+      credentials: 'include'
+    });
+    if (!response.ok) throw new Error(`http ${response.status}`);
+    try {
+      return await response.json();
+    } catch {
+      return {};
+    }
+  } catch {
+    return null;
+  }
+}
+
 let cfg = {
   enabled: true,
   theme: 'light',
@@ -476,6 +494,10 @@ async function boot() {
   } catch {}
 
   connectWebSocket();
+
+  setInterval(() => {
+    postNoBody('/api/achievements/poll-channel');
+  }, 30000);
 
   setInterval(async () => {
     const newNamespace = tokenFromUrl ? tokenFromUrl : await getCurrentNamespace();
