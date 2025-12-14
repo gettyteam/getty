@@ -93,6 +93,32 @@ module.exports = [
       'no-legacy-token-direct/no-legacy-token-direct': 'off'
     }
   },
+
+  {
+    files: [
+      'jest.preload.js',
+      'jest.teardown.js',
+      'jest.teardown.cjs',
+      'jest.environment.cjs'
+    ],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'commonjs',
+      globals: {
+        require: 'readonly',
+        module: 'readonly',
+        __dirname: 'readonly',
+        process: 'readonly',
+        Buffer: 'readonly',
+        global: 'readonly',
+        setImmediate: 'readonly'
+      }
+    },
+    rules: {
+      'no-undef': 'off',
+      'no-legacy-token-direct/no-legacy-token-direct': 'off'
+    }
+  },
   {
     files: ['admin-frontend/src/**/*.{js,vue}', 'public/js/**/*.js', '!public/js/lib/token-compat.js'],
     languageOptions: {
