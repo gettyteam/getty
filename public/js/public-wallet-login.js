@@ -855,7 +855,7 @@ class WanderWalletLogin {
               </div>
               </form>
               <div class="getty-login-chooser__odyseeImageWrap" aria-hidden="true">
-                <img class="getty-login-chooser__odyseeImage" src="/assets/odysee-sign-up_d.webp" alt="" loading="lazy" decoding="async" />
+                <img class="getty-login-chooser__odyseeImage" src="/img/odysee-sign-up_d.webp" alt="" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22480%22%20height%3D%22280%22%20viewBox%3D%220%200%20480%20280%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23e5e7eb%22%20offset%3D%220%22/%3E%3Cstop%20stop-color%3D%22%23f3f4f6%22%20offset%3D%221%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width%3D%22480%22%20height%3D%22280%22%20rx%3D%2224%22%20fill%3D%22url(%23g)%22/%3E%3Cpath%20d%3D%22M96%20156c42-64%2090-82%20136-82%2056%200%2098%2030%20118%2068%2019%2037%2060%2043%20102%2022%22%20fill%3D%22none%22%20stroke%3D%22%23d1d5db%22%20stroke-width%3D%2212%22%20stroke-linecap%3D%22round%22/%3E%3Ccircle%20cx%3D%22210%22%20cy%3D%22132%22%20r%3D%2228%22%20fill%3D%22%23ffffff%22%20stroke%3D%22%23d1d5db%22%20stroke-width%3D%224%22/%3E%3Ccircle%20cx%3D%22210%22%20cy%3D%22132%22%20r%3D%2212%22%20fill%3D%22%23d1d5db%22/%3E%3Crect%20x%3D%22300%22%20y%3D%2296%22%20width%3D%22112%22%20height%3D%2272%22%20rx%3D%2216%22%20fill%3D%22%23ffffff%22%20stroke%3D%22%23d1d5db%22%20stroke-width%3D%224%22/%3E%3Cpath%20d%3D%22M328%20132h56%22%20stroke%3D%22%23d1d5db%22%20stroke-width%3D%228%22%20stroke-linecap%3D%22round%22/%3E%3Cpath%20d%3D%22M132%20214h216%22%20stroke%3D%22%23d1d5db%22%20stroke-width%3D%228%22%20stroke-linecap%3D%22round%22/%3E%3Cpath%20d%3D%22M164%20240h152%22%20stroke%3D%22%23e5e7eb%22%20stroke-width%3D%228%22%20stroke-linecap%3D%22round%22/%3E%3C/svg%3E';" />
               </div>
             </div>
             <div class="getty-login-chooser__error hidden" data-role="error"></div>
@@ -1116,9 +1116,6 @@ class WanderWalletLogin {
         ...(useMagicLink ? { useMagicLink: true } : {}),
       });
       if (!resp || !resp.success) {
-        try {
-          console.warn('[odysee-login] failed', resp);
-        } catch {}
         if (resp?.error === 'email_verification_required') {
           setErr(this.t('publicAuth.emailVerificationRequired'));
           try {
@@ -1131,6 +1128,10 @@ class WanderWalletLogin {
           this.__startOdyseeMagicLinkWatcher(root, { email, walletAddress, password, useMagicLink });
           return;
         }
+
+        try {
+          console.warn('[odysee-login] failed', resp);
+        } catch {}
         if (resp?.error === 'odysee_email_not_found') {
           setErr(this.t('publicAuth.emailNotFound'));
           return;

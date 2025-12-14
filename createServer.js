@@ -2823,6 +2823,10 @@ try {
         const ODYSEE_WEB_ORIGIN =
           (typeof process.env.ODYSEE_WEB_ORIGIN === 'string' && process.env.ODYSEE_WEB_ORIGIN.trim()) ||
           'https://odysee.com';
+        const GETTY_PUBLIC_BASE_URL =
+          typeof process.env.GETTY_PUBLIC_BASE_URL === 'string'
+            ? process.env.GETTY_PUBLIC_BASE_URL.trim().replace(/\/+$/, '')
+            : '';
         const LBRY_API_BASE =
           (
             (typeof process.env.LBRY_API_URL === 'string' && process.env.LBRY_API_URL.trim()) ||
@@ -2836,6 +2840,14 @@ try {
             : 'getty_odysee_auth_token';
 
         const getBaseUrlFromReq = (req) => {
+          if (GETTY_PUBLIC_BASE_URL) {
+            try {
+              const u = new URL(GETTY_PUBLIC_BASE_URL);
+              if (u.protocol === 'http:' || u.protocol === 'https:') {
+                return `${u.protocol}//${u.host}`;
+              }
+            } catch {}
+          }
           const xfProto = typeof req.headers?.['x-forwarded-proto'] === 'string' ? req.headers['x-forwarded-proto'] : '';
           const xfHost = typeof req.headers?.['x-forwarded-host'] === 'string' ? req.headers['x-forwarded-host'] : '';
           const proto = (xfProto || req.protocol || 'http').split(',')[0].trim();
@@ -3203,6 +3215,7 @@ try {
               const walletHint = (providedWallet && isArweaveAddress(providedWallet)) ? providedWallet : '';
               const VERIFY_STATE_COOKIE = 'getty_odysee_verify_state';
               const verifyState = crypto.randomBytes(16).toString('hex');
+              let redirectUrlSet = false;
               try {
                 const secureCookie = SECURE_COOKIE(req);
                 res.cookie(VERIFY_STATE_COOKIE, verifyState, {
@@ -3224,6 +3237,7 @@ try {
                   redirectUrl = `${baseUrl}/odysee/verify`;
                 }
               }
+              redirectUrlSet = !!redirectUrl;
               await lbryioCall(
                 'user_email',
                 'resend_token',
@@ -3231,11 +3245,18 @@ try {
                   auth_token: authToken,
                   email,
                   only_if_expired: true,
-                  ...(redirectUrl ? { redirect_url: redirectUrl } : {}),
+                  ...(redirectUrl
+                    ? {
+                        redirect_url: redirectUrl,
+                        redirect: redirectUrl,
+                      }
+                    : {}),
                 },
                 'post'
               );
               resendOk = true;
+
+              res.locals.__odyseeRedirectUrlSet = redirectUrlSet;
             } catch (e) {
               if (looksLikeEmailNotFound(e) || (e?.status === 404)) {
                 return res.status(404).json({
@@ -3247,7 +3268,14 @@ try {
 
             return res.status(409).json({
               error: 'email_verification_required',
-              details: { origin: 'lbry', method: 'user_email/resend_token', status: 409, resendOk, skipResend },
+              details: {
+                origin: 'lbry',
+                method: 'user_email/resend_token',
+                status: 409,
+                resendOk,
+                skipResend,
+                redirectUrlSet: !!res.locals?.__odyseeRedirectUrlSet,
+              },
             });
           }
 
@@ -3436,7 +3464,12 @@ try {
                     auth_token: authToken,
                     email,
                     only_if_expired: true,
-                    ...(redirectUrl ? { redirect_url: redirectUrl } : {}),
+                      ...(redirectUrl
+                        ? {
+                            redirect_url: redirectUrl,
+                            redirect: redirectUrl,
+                          }
+                        : {}),
                   },
                   'post'
                 );
@@ -3925,8 +3958,8 @@ try {
             `<meta name="viewport" content="width=device-width,initial-scale=1"/>` +
             `<style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:24px;max-width:720px;margin:0 auto}button{padding:10px 14px;font-size:16px}p{line-height:1.4}</style>` +
             `<h1>Confirm email verification</h1>` +
-            `<p>To finish signing in, click the button below.</p>` +
-            `<form method="post" action="/odysee/verify">` +
+            `<p>Finishing sign-in…</p>` +
+            `<form method="post" action="/odysee/verify" id="odysee-verify-form">` +
             `<input type="hidden" name="auth_token" value="${esc(authToken)}"/>` +
             `<input type="hidden" name="email" value="${esc(email)}"/>` +
             `<input type="hidden" name="verification_token" value="${esc(verificationToken)}"/>` +
@@ -3935,6 +3968,8 @@ try {
             `<input type="hidden" name="state" value="${esc(state)}"/>` +
             `<button type="submit">Continue</button>` +
             `</form>` +
+            `<script>(function(){try{var f=document.getElementById('odysee-verify-form');if(!f)return;var submitted=false;var go=function(){if(submitted)return;submitted=true;try{f.submit()}catch{}};setTimeout(go,50);}catch{}})();</script>` +
+            `<noscript><p>JavaScript is disabled. Click “Continue” to finish signing in.</p></noscript>` +
             `<p><a href="${target}">Return</a></p>`
         );
       } catch {
