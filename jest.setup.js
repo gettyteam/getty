@@ -107,6 +107,12 @@ if (process.env.NODE_ENV === 'test') {
 
   const nock = require('nock');
   nock.disableNetConnect();
+  try {
+    nock.enableNetConnect((host) => {
+      const h = String(host || '').toLowerCase();
+      return h.includes('127.0.0.1') || h.includes('localhost') || h.includes('::1');
+    });
+  } catch {}
 
   const arweaveHosts = [
     'arweave.net',

@@ -101,7 +101,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import DashboardCard from '@/components/dashboard/DashboardCard.vue';
@@ -154,8 +154,32 @@ const communityMetrics = ref({
 
 const unconfiguredModules = ref([]);
 
+let sessionUpdatedHandler = null;
+
 onMounted(async () => {
   await loadDashboardData();
+});
+
+onMounted(() => {
+  try {
+    sessionUpdatedHandler = async () => {
+      try {
+        channelConfig.value = await fetchChannelAnalyticsConfig();
+      } catch (e) {
+        console.warn('Failed to load channel config', e);
+      }
+    };
+    window.addEventListener('getty-session-updated', sessionUpdatedHandler);
+  } catch {}
+});
+
+onUnmounted(() => {
+  try {
+    if (sessionUpdatedHandler) {
+      window.removeEventListener('getty-session-updated', sessionUpdatedHandler);
+    }
+  } catch {}
+  sessionUpdatedHandler = null;
 });
 
 async function loadDashboardData() {

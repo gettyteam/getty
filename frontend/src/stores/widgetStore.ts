@@ -21,6 +21,37 @@ export const useWidgetStore = defineStore('widgets', () => {
   const RAFFLE_STATE_KEY = 'raffle-active-state';
   const RAFFLE_EXPIRATION_DAYS = 7;
 
+  function getWidgetTokenHint(): string {
+    try {
+      const params = new URLSearchParams(window.location.search || '');
+      const fromQuery = (params.get('widgetToken') || params.get('token') || '').trim();
+      if (fromQuery) return fromQuery;
+    } catch {}
+
+    try {
+      const el = document.getElementById('dashboard-bootstrap');
+      const raw = (el && 'textContent' in el ? (el as any).textContent : '') || '';
+      if (!raw) return '';
+      const parsed = JSON.parse(raw);
+      const token = typeof parsed?.widgetToken === 'string' ? parsed.widgetToken.trim() : '';
+      return token;
+    } catch {}
+
+    return '';
+  }
+
+  function withWidgetToken(url: string): string {
+    try {
+      const token = getWidgetTokenHint();
+      if (!token) return url;
+      const u = new URL(url, window.location.origin);
+      if (!u.searchParams.has('widgetToken')) u.searchParams.set('widgetToken', token);
+      return u.pathname + u.search + u.hash;
+    } catch {
+      return url;
+    }
+  }
+
   function loadRaffleData() {
     try {
       const savedWinner = localStorage.getItem(RAFFLE_WINNER_KEY);
@@ -70,9 +101,14 @@ export const useWidgetStore = defineStore('widgets', () => {
 
   async function fetchInitialData() {
     try {
-      const res = await fetch('/api/modules');
-      if (res.ok) {
-        const data = await res.json();
+      const res = await fetch(withWidgetToken('/api/modules'), {
+        credentials: 'include',
+        cache: 'no-store',
+      }).catch(() => null);
+
+      if (res && res.ok) {
+        const data = await res.json().catch(() => null);
+        if (!data) return;
         if (data.lastTip) {
           lastTipConfig.value = {
             title: data.lastTip.title,
@@ -90,33 +126,49 @@ export const useWidgetStore = defineStore('widgets', () => {
         if (data.tipGoal) {
           tipGoal.value = data.tipGoal;
         }
+      } else if (res && !res.ok) {
+        console.warn('Failed to fetch /api/modules', res.status);
       }
 
-      const achConfigRes = await fetch('/api/achievements/config').catch(() => null);
+      const achConfigRes = await fetch(withWidgetToken('/api/achievements/config'), {
+        credentials: 'include',
+        cache: 'no-store',
+      }).catch(() => null);
       if (achConfigRes && achConfigRes.ok) {
-        const json = await achConfigRes.json();
+        const json = await achConfigRes.json().catch(() => null);
+        if (!json) return;
         achievementConfig.value = json.data || {};
       }
       
-      const achStatusRes = await fetch('/api/achievements/status').catch(() => null);
+      const achStatusRes = await fetch(withWidgetToken('/api/achievements/status'), {
+        credentials: 'include',
+        cache: 'no-store',
+      }).catch(() => null);
       if (achStatusRes && achStatusRes.ok) {
-        const json = await achStatusRes.json();
+        const json = await achStatusRes.json().catch(() => null);
         if (json && Array.isArray(json.notifications)) {
            achievements.value = json.notifications.slice(-20);
         }
       }
 
-      const chatHistoryRes = await fetch('/api/chat/history').catch(() => null);
+      const chatHistoryRes = await fetch(withWidgetToken('/api/chat/history'), {
+        credentials: 'include',
+        cache: 'no-store',
+      }).catch(() => null);
       if (chatHistoryRes && chatHistoryRes.ok) {
-        const history = await chatHistoryRes.json();
+        const history = await chatHistoryRes.json().catch(() => null);
         if (Array.isArray(history)) {
           chatMessages.value = history;
         }
       }
 
-      const audioRes = await fetch('/api/goal-audio-settings').catch(() => null);
+      const audioRes = await fetch(withWidgetToken('/api/goal-audio-settings'), {
+        credentials: 'include',
+        cache: 'no-store',
+      }).catch(() => null);
       if (audioRes && audioRes.ok) {
-        const json = await audioRes.json();
+        const json = await audioRes.json().catch(() => null);
+        if (!json) return;
         sharedAudioSettings.value = {
           audioSource: json.audioSource || 'remote',
           hasCustomAudio: !!json.hasCustomAudio,

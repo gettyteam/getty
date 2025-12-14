@@ -24,6 +24,7 @@ module.exports = {
     '/node_modules/(?!(?:\\.pnpm/[^/]+/node_modules/)?(@?vue|vue-i18n|@intlify)/)'
   ],
   testMatch: ['**/tests/**/*.test.js'],
+  setupFiles: ['<rootDir>/jest.preload.js'],
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   globalTeardown: '<rootDir>/jest.teardown.js'
 };

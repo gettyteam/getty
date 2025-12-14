@@ -13,10 +13,17 @@
   "include": [
     "frontend/src/**/*",
     "admin-frontend/src/**/*",
+    "public/js/**/*.js",
     "scripts/**/*",
     "modules/**/*",
     "routes/**/*",
     "lib/**/*"
+  ],
+  "exclude": [
+    "node_modules/**/*",
+    "dist/**/*",
+    "dist-frontend/**/*",
+    "public/js/min/**/*"
   ],
   "vueCompilerOptions": {
     "globalTypesPath": "frontend/types/vue-global.d.ts"

@@ -23,16 +23,23 @@ function bytesToB64Url(bytes: ArrayBuffer | Uint8Array | unknown): string {
           ? new Uint8Array(bytes)
           : new Uint8Array(bytes as ArrayBufferLike);
     let str = '';
-    for (let i = 0; i < view.length; i++) str += String.fromCharCode(view[i]);
+    for (const b of view) {
+      if (typeof b !== 'number') continue;
+      str += String.fromCharCode(b);
+    }
     return b64ToUrl(btoa(str));
   } catch {
     return '';
   }
 }
 
-function adaptWindowProvider(raw: RawWalletProvider | null | undefined): WalletAdapter | null {
+function adaptWindowProvider(
+  raw: RawWalletProvider | null | undefined,
+  meta?: { name?: string }
+): WalletAdapter | null {
   if (!raw) return null;
   const provider = raw;
+  const providerName = meta?.name || '';
   const cache = {
     address: '' as string,
     addressTs: 0,
@@ -187,10 +194,10 @@ function adaptWindowProvider(raw: RawWalletProvider | null | undefined): WalletA
 
   async function signMessage(message: unknown): Promise<WalletSignature> {
     const win = typeof window !== 'undefined' ? window : ({} as Window & typeof globalThis);
-    const debug = win.GETTY_WALLET_AUTH_DEBUG === '1';
-    if (!win.__wanderDebug) win.__wanderDebug = {};
     const signMessageFn = provider.signMessage?.bind(provider);
-    if (!signMessageFn) throw new Error('No wallet signMessage implementation available');
+    const signatureFn = (provider as unknown as { signature?: (...args: unknown[]) => Promise<unknown> })
+      .signature?.bind(provider);
+    if (!signMessageFn && !signatureFn) throw new Error('No wallet signMessage/signature implementation available');
 
     const cacheKey = '__wallet_sig_strategy_v1';
 
@@ -206,9 +213,36 @@ function adaptWindowProvider(raw: RawWalletProvider | null | undefined): WalletA
       return encoder.encode(String(input ?? ''));
     };
 
-    const originalMessage = message;
     const bytes = toBytes(message);
-    const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+
+    const bytesCopy = (() => {
+      try {
+        const out = new Uint8Array(bytes.byteLength);
+        out.set(bytes);
+        return out;
+      } catch {
+        return new Uint8Array();
+      }
+    })();
+    const bufferCopy = bytesCopy.buffer;
+    const bufferSlice = (() => {
+      try {
+        return bufferCopy.slice(0);
+      } catch {
+        return bufferCopy;
+      }
+    })();
+
+    const arrayBufferExact = (() => {
+      try {
+        const ab = new ArrayBuffer(bytesCopy.byteLength);
+        new Uint8Array(ab).set(bytesCopy);
+        return ab;
+      } catch {
+        return bufferSlice;
+      }
+    })();
+
     const errors: string[] = [];
     let successLabel: string | null = null;
 
@@ -216,41 +250,51 @@ function adaptWindowProvider(raw: RawWalletProvider | null | undefined): WalletA
       try {
         const result = await fn();
         if (result) {
-          if (debug) console.warn('[walletProvider][attempt-ok]', label);
           return result;
         }
       } catch (error: unknown) {
         const errMsg = error instanceof Error ? error.message : String(error);
         errors.push(`${label}: ${errMsg}`);
-        if (debug) console.warn('[walletProvider][attempt-fail]', label, errMsg);
       }
       return null;
     };
 
     let signed: unknown = null;
 
-    if (!signed) {
-      signed = await attempt('signMessage(ArrayBuffer)', () => signMessageFn(buffer));
-      if (signed) successLabel = 'signMessage(ArrayBuffer)';
-    }
+    const isWanderInjected = providerName === 'wander' || providerName === 'arweaveWallet';
 
-    if (!signed) {
-      signed = await attempt('signMessage(Uint8Array)', () => signMessageFn(bytes));
+    if (!signed && signMessageFn) {
+      signed = await attempt('signMessage(Uint8Array)', () => signMessageFn(bytesCopy));
       if (signed) successLabel = 'signMessage(Uint8Array)';
+
+      if (!signed) {
+        signed = await attempt('signMessage(ArrayBuffer:exact)', () => signMessageFn(arrayBufferExact));
+        if (signed) successLabel = 'signMessage(ArrayBuffer:exact)';
+      }
+
+      if (!signed) {
+        signed = await attempt('signMessage(ArrayBuffer:slice)', () => signMessageFn(bufferSlice));
+        if (signed) successLabel = 'signMessage(ArrayBuffer:slice)';
+      }
+
+      if (!signed) {
+        signed = await attempt('signMessage(ArrayBuffer:buffer)', () => signMessageFn(bufferCopy));
+        if (signed) successLabel = 'signMessage(ArrayBuffer:buffer)';
+      }
+    }
+
+    if (!signed && !signMessageFn && signatureFn) {
+      const algo = { name: 'RSA-PSS', saltLength: 32 };
+      signed = await attempt('signature(Uint8Array,RSA-PSS)', () => signatureFn(bytesCopy, algo));
+      if (signed) successLabel = 'signature(Uint8Array,RSA-PSS)';
+
+      if (!signed) {
+        signed = await attempt('signature(ArrayBuffer,RSA-PSS)', () => signatureFn(arrayBufferExact, algo));
+        if (signed) successLabel = 'signature(ArrayBuffer,RSA-PSS)';
+      }
     }
 
     if (!signed) {
-      signed = await attempt('signMessage({data})', () => signMessageFn({ data: buffer }));
-      if (signed) successLabel = 'signMessage({data})';
-    }
-
-    if (!signed) {
-      signed = await attempt('signMessage(string)', () => signMessageFn(String(originalMessage ?? '')));
-      if (signed) successLabel = 'signMessage(string)';
-    }
-
-    if (!signed) {
-      win.__wanderDebug.lastSignatureAttempts = errors.slice();
       throw new Error(`Wander signMessage API failed: ${errors.join(' | ')}`);
     }
 
@@ -290,11 +334,6 @@ function adaptWindowProvider(raw: RawWalletProvider | null | undefined): WalletA
       }
     }
 
-    win.__wanderDebug.signatureSuccess = true;
-    win.__wanderDebug.signatureErrors = errors.slice();
-    win.__wanderDebug.successStrategy = successLabel;
-    if (import.meta.env.DEV && debug) console.warn('[walletProvider] sign success via', successLabel, 'errors=', errors.length);
-
     return { signature, publicKey, strategy: successLabel, method: successLabel } satisfies WalletSignature;
   }
 
@@ -317,13 +356,16 @@ function adaptWindowProvider(raw: RawWalletProvider | null | undefined): WalletA
 
 export async function getWalletProvider(): Promise<WalletAdapter> {
   const win = typeof window !== 'undefined' ? window : ({} as Window & typeof globalThis);
-  const candidates: Array<RawWalletProvider | undefined> = [win.wander, win.arweaveWallet, win.arconnect];
-  for (const provider of candidates) {
-    const adapted = adaptWindowProvider(provider);
-    if (adapted) return adapted;
-  }
-  if (import.meta.env.VITE_WANDER_SDK_PKG) {
-    console.warn('[walletProvider] VITE_WANDER_SDK_PKG is defined but ignored (extension-only mode).');
+  const candidates: Array<{ name: string; provider: RawWalletProvider | undefined }> = [
+    { name: 'wander', provider: win.wander },
+    { name: 'arweaveWallet', provider: win.arweaveWallet },
+    { name: 'arconnect', provider: win.arconnect }
+  ];
+  for (const { name, provider } of candidates) {
+    const adapted = adaptWindowProvider(provider, { name });
+    if (adapted) {
+      return adapted;
+    }
   }
   return {
     hasProvider: false,

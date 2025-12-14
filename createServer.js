@@ -1183,7 +1183,8 @@ try {
       if (
         req.path === '/api/auth/wander/nonce' ||
         req.path === '/api/auth/wander/verify' ||
-        req.path === '/api/auth/wander/logout'
+        req.path === '/api/auth/wander/logout' ||
+        req.path === '/api/auth/odysee/login'
       ) {
         return next();
       }
@@ -2703,6 +2704,23 @@ try {
       standardHeaders: true,
     });
 
+    const odyseeWindowMs = parseInt(process.env.GETTY_ODYSEE_RL_WINDOW_MS || '60000', 10);
+    const odyseeLoginMax = parseInt(process.env.GETTY_ODYSEE_RL_MAX || '10', 10);
+    const odyseeLoginLimiter =
+      process.env.NODE_ENV === 'test'
+        ? (_req, _res, next) => next()
+        : rateLimit({
+            windowMs: odyseeWindowMs,
+            max: odyseeLoginMax,
+            legacyHeaders: false,
+            standardHeaders: true,
+            handler: (_req, res) =>
+              res.status(429).json({
+                error: 'rate_limited',
+                details: { windowMs: odyseeWindowMs, max: odyseeLoginMax },
+              }),
+          });
+
     const { issueNonce } = walletAuth;
 
     app.post('/api/auth/wander/nonce', wanderNonceLimiter, express.json(), async (req, res) => {
@@ -2789,6 +2807,1138 @@ try {
         return res.json({ success: true });
       } catch (e) {
         return res.status(500).json({ error: 'wander_logout_failed', details: e?.message });
+      }
+    });
+
+    app.post('/api/auth/odysee/login', odyseeLoginLimiter, express.json(), async (req, res) => {
+      try {
+        if (!walletAuth) return res.status(503).json({ error: 'wallet_auth_disabled' });
+        const axios = require('axios');
+        const crypto = require('crypto');
+        const path = require('path');
+
+        const ODYSEE_PROXY_URL =
+          (typeof process.env.ODYSEE_PROXY_URL === 'string' && process.env.ODYSEE_PROXY_URL.trim()) ||
+          'https://api.na-backend.odysee.com/api/v1/proxy';
+        const ODYSEE_WEB_ORIGIN =
+          (typeof process.env.ODYSEE_WEB_ORIGIN === 'string' && process.env.ODYSEE_WEB_ORIGIN.trim()) ||
+          'https://odysee.com';
+        const LBRY_API_BASE =
+          (
+            (typeof process.env.LBRY_API_URL === 'string' && process.env.LBRY_API_URL.trim()) ||
+            (typeof process.env.ODYSEE_AUTH_API_URL === 'string' && process.env.ODYSEE_AUTH_API_URL.trim()) ||
+            'https://api.lbry.com/'
+          ).replace(/\/*$/, '/')
+
+        const ODYSEE_DEVICE_COOKIE =
+          (typeof process.env.ODYSEE_DEVICE_COOKIE === 'string' && process.env.ODYSEE_DEVICE_COOKIE.trim())
+            ? process.env.ODYSEE_DEVICE_COOKIE.trim()
+            : 'getty_odysee_auth_token';
+
+        const getBaseUrlFromReq = (req) => {
+          const xfProto = typeof req.headers?.['x-forwarded-proto'] === 'string' ? req.headers['x-forwarded-proto'] : '';
+          const xfHost = typeof req.headers?.['x-forwarded-host'] === 'string' ? req.headers['x-forwarded-host'] : '';
+          const proto = (xfProto || req.protocol || 'http').split(',')[0].trim();
+          const host = (xfHost || req.get('host') || '').split(',')[0].trim();
+          if (!host) return '';
+          return `${proto}://${host}`;
+        };
+
+        const safeRedirectPath = (v) => {
+          if (typeof v !== 'string') return '';
+          const s = v.trim();
+          if (!s) return '';
+          if (!s.startsWith('/')) return '';
+          if (s.startsWith('//') || s.includes('\\')) return '';
+          return s;
+        };
+
+        const providedWallet =
+          typeof req.body?.walletAddress === 'string' ? req.body.walletAddress.trim() : '';
+        const providedAuthToken =
+          typeof req.body?.authToken === 'string' ? req.body.authToken.trim() : '';
+        const email = typeof req.body?.email === 'string' ? req.body.email.trim() : '';
+        const password = typeof req.body?.password === 'string' ? String(req.body.password) : '';
+        const recaptcha =
+          typeof req.body?.recaptcha === 'string'
+            ? req.body.recaptcha.trim()
+            : typeof req.body?.recaptchaToken === 'string'
+              ? req.body.recaptchaToken.trim()
+              : typeof req.body?.captcha === 'string'
+                ? req.body.captcha.trim()
+                : '';
+
+        const isArweaveAddress = (value) => /^[A-Za-z0-9_-]{43,64}$/.test(String(value || '').trim());
+
+        const isClaimId = (value) => /^[a-f0-9]{40}$/i.test(String(value || '').trim());
+
+        const findClaimIdInObject = (obj) => {
+          if (!obj || typeof obj !== 'object') return '';
+          const directKeys = [
+            'claim_id',
+            'claimId',
+            'primary_claim_id',
+            'primaryClaimId',
+            'channel_claim_id',
+            'channelClaimId',
+          ];
+          for (const k of directKeys) {
+            const v = obj?.[k];
+            if (typeof v === 'string' && isClaimId(v)) return v.trim();
+          }
+          for (const v of Object.values(obj)) {
+            if (typeof v === 'string' && isClaimId(v)) return v.trim();
+            if (v && typeof v === 'object') {
+              const nested = findClaimIdInObject(v);
+              if (nested) return nested;
+            }
+          }
+          return '';
+        };
+
+        const findWalletInObject = (obj) => {
+          if (!obj || typeof obj !== 'object') return '';
+          const directKeys = [
+            'walletAddress',
+            'wallet_address',
+            'arweaveAddress',
+            'arweave_address',
+            'arweaveWalletAddress',
+            'arweave_wallet_address',
+          ];
+          for (const k of directKeys) {
+            const v = obj?.[k];
+            if (typeof v === 'string' && isArweaveAddress(v)) return v.trim();
+          }
+          for (const v of Object.values(obj)) {
+            if (typeof v === 'string' && isArweaveAddress(v)) return v.trim();
+            if (v && typeof v === 'object') {
+              const nested = findWalletInObject(v);
+              if (nested) return nested;
+            }
+          }
+          return '';
+        };
+
+        const looksLikeToken = (v) => {
+          if (typeof v !== 'string') return false;
+          const s = v.trim();
+          if (s.length < 10) return false;
+          if (!/[A-Za-z0-9]/.test(s)) return false;
+          if (s.includes('@') || s.includes(' ')) return false;
+          return true;
+        };
+
+        const findAuthTokenInObject = (obj) => {
+          if (!obj) return '';
+          if (typeof obj === 'string') return looksLikeToken(obj) ? obj.trim() : '';
+          if (typeof obj !== 'object') return '';
+          const directKeys = ['auth_token', 'authToken', 'token', 'access_token', 'accessToken'];
+          for (const k of directKeys) {
+            const v = obj?.[k];
+            if (looksLikeToken(v)) return v.trim();
+          }
+          for (const v of Object.values(obj)) {
+            if (looksLikeToken(v)) return v.trim();
+            if (v && typeof v === 'object') {
+              const nested = findAuthTokenInObject(v);
+              if (nested) return nested;
+            }
+          }
+          return '';
+        };
+
+        let authToken = providedAuthToken;
+        let walletAddressFromLogin = '';
+
+        if (!authToken) {
+          try {
+            const cookieToken = req.cookies?.[ODYSEE_DEVICE_COOKIE];
+            if (typeof cookieToken === 'string' && cookieToken.trim()) authToken = cookieToken.trim();
+          } catch {}
+        }
+
+        const rpcCall = async (method, params, authHeaderToken) => {
+          const headers = {
+            Origin: ODYSEE_WEB_ORIGIN,
+            Referer: `${ODYSEE_WEB_ORIGIN}/`,
+            Accept: 'application/json, text/plain, */*',
+          };
+          if (authHeaderToken) {
+            headers['X-Lbry-Auth-Token'] = authHeaderToken;
+            headers.Cookie = `auth_token=${authHeaderToken}`;
+          }
+          const resp = await axios.post(
+            ODYSEE_PROXY_URL,
+            { method, params },
+            { timeout: 9000, headers }
+          );
+          if (resp?.data?.error || resp?.data?.data?.error) {
+            const err = resp?.data?.error || resp?.data?.data?.error;
+            const e = new Error(err?.message || 'rpc_error');
+            e.rpcError = err;
+            throw e;
+          }
+          return resp?.data?.result || resp?.data?.data?.result || null;
+        };
+
+        const classifyRpcError = (rpcErr) => {
+          const msg =
+            typeof rpcErr === 'string'
+              ? rpcErr
+              : rpcErr && typeof rpcErr === 'object'
+                ? String(rpcErr.message || rpcErr.error || '')
+                : '';
+          const msgLower = (msg || '').toLowerCase();
+          const isCaptcha = msgLower.includes('captcha') || msgLower.includes('recaptcha');
+          const isMissingAuthToken = msgLower.includes('authentication token missing');
+          const isUnauthorized =
+            msgLower.includes('not authorized') ||
+            msgLower.includes('unauthorized') ||
+            msgLower.includes('internal-api error: you are not authorized');
+          return { msg, isCaptcha, isMissingAuthToken, isUnauthorized };
+        };
+
+        const extractCookieValue = (setCookieHeader, cookieName) => {
+          if (!setCookieHeader || !cookieName) return '';
+          const raw = Array.isArray(setCookieHeader) ? setCookieHeader.join(',') : String(setCookieHeader);
+          const parts = raw.split(',');
+          for (const part of parts) {
+            const match = part.match(new RegExp(`(?:^|\\s)${cookieName}=([^;]+)`));
+            if (match && match[1]) {
+              try {
+                return decodeURIComponent(match[1]);
+              } catch {
+                return match[1];
+              }
+            }
+          }
+          return '';
+        };
+
+        const bootstrapAuthTokenFromWeb = async () => {
+          try {
+            const resp = await axios.get(ODYSEE_WEB_ORIGIN, {
+              timeout: 9000,
+              maxRedirects: 0,
+              validateStatus: (s) => s >= 200 && s < 400,
+              headers: {
+                Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'User-Agent':
+                  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              },
+            });
+            const token = extractCookieValue(resp?.headers?.['set-cookie'], 'auth_token');
+            return typeof token === 'string' ? token.trim() : '';
+          } catch {
+            return '';
+          }
+        };
+
+        const lbryioCall = async (resource, action, params = {}, method = 'post') => {
+          const { URLSearchParams } = require('node:url');
+          const fullParams = { ...(params || {}) };
+          for (const key of Object.keys(fullParams)) {
+            const v = fullParams[key];
+            if (typeof v === 'object' && v !== null) fullParams[key] = JSON.stringify(v);
+          }
+          const search = new URLSearchParams();
+          for (const [k, v] of Object.entries(fullParams)) {
+            if (v === undefined || v === null) continue;
+            search.append(k, String(v));
+          }
+          const encoded = search.toString();
+          let url = `${LBRY_API_BASE}${String(resource || '').replace(/^\/+/, '')}/${String(action || '').replace(/^\/+/, '')}`;
+          const headers = {
+            Accept: 'application/json, text/plain, */*',
+            'Content-Type': 'application/x-www-form-urlencoded',
+          };
+
+          const lower = String(method || 'post').toLowerCase();
+          const isGet = lower === 'get';
+          if (isGet) {
+            headers['Content-Type'] = undefined;
+            url = encoded ? `${url}?${encoded}` : url;
+          }
+
+          const resp = await axios({
+            method: isGet ? 'GET' : 'POST',
+            url,
+            data: isGet ? undefined : encoded,
+            timeout: 9000,
+            headers,
+            validateStatus: () => true,
+          });
+
+          if (!resp || typeof resp.status !== 'number' || resp.status < 200 || resp.status >= 300) {
+            const err = new Error(
+              (resp?.data && typeof resp.data === 'object' && (resp.data.error || resp.data.message))
+                ? String(resp.data.error || resp.data.message)
+                : `lbry_api_error_${resp?.status || 'unknown'}`
+            );
+            err.status = resp?.status;
+            err.body = resp?.data;
+            throw err;
+          }
+
+          return resp?.data && typeof resp.data === 'object' && resp.data.data !== undefined ? resp.data.data : resp.data;
+        };
+
+        if (!authToken) {
+          let newRes = null;
+          try {
+            newRes = await lbryioCall('user', 'new', { auth_token: '', language: 'en' }, 'post');
+            authToken = findAuthTokenInObject(newRes) || newRes?.auth_token || '';
+          } catch (e) {
+
+            if (e?.status && Number(e.status) >= 400 && Number(e.status) < 500) {
+              return res.status(502).json({
+                error: 'odysee_auth_failed',
+                details: {
+                  origin: 'lbry',
+                  method: 'user/new',
+                  status: e.status,
+                  message: e?.message,
+                  body: e?.body,
+                },
+              });
+            }
+
+            const rpcError = e?.rpcError || e?.message || null;
+            const classified = classifyRpcError(rpcError);
+            try {
+              const appId = crypto.randomBytes(16).toString('hex');
+
+              const seedAuthToken = crypto.randomUUID();
+              newRes = await rpcCall(
+                'user_new',
+                { auth_token: seedAuthToken, language: 'en', app_id: appId },
+                seedAuthToken
+              );
+              authToken = findAuthTokenInObject(newRes) || seedAuthToken;
+            } catch (rpcErr) {
+              const rpcError2 = rpcErr?.rpcError || rpcErr?.message || rpcError;
+              const classified2 = classifyRpcError(rpcError2);
+              if (classified2?.isMissingAuthToken || classified2?.isUnauthorized) {
+                const bootstrapped = await bootstrapAuthTokenFromWeb();
+                if (bootstrapped) {
+                  authToken = bootstrapped;
+                  newRes = null;
+                } else {
+                  return res.status(502).json({
+                    error: 'odysee_auth_failed',
+                    details: { method: 'user_new', rpcError: rpcError2, message: classified2?.msg },
+                  });
+                }
+              } else {
+                return res.status(502).json({
+                  error: 'odysee_auth_failed',
+                  details: { method: 'user_new', rpcError: rpcError2, message: classified?.msg },
+                });
+              }
+            }
+          }
+          if (!authToken) {
+            return res.status(502).json({
+              error: 'odysee_auth_failed',
+              details: { reason: 'user_new_missing_auth_token', loginResultType: newRes === null ? 'null' : typeof newRes },
+            });
+          }
+        }
+
+        let odyseeSecureCookie = false;
+        try {
+          odyseeSecureCookie = SECURE_COOKIE(req);
+        } catch {}
+        const odyseeDeviceCookieTtlMs = Math.max(7 * 24 * 60 * 60 * 1000, 30 * 24 * 60 * 60 * 1000);
+
+        try {
+          res.cookie(ODYSEE_DEVICE_COOKIE, authToken, {
+            httpOnly: true,
+            sameSite: 'lax',
+            secure: odyseeSecureCookie,
+            maxAge: odyseeDeviceCookieTtlMs,
+          });
+        } catch {}
+
+        const useMagicLinkRequested = !!req.body?.useMagicLink;
+        const skipResend = !!req.body?.skipResend;
+        const hasPassword = typeof password === 'string' && password.length > 0;
+        if (!email || (!useMagicLinkRequested && !hasPassword)) {
+          return res.status(400).json({ error: 'missing_credentials' });
+        }
+
+        const ODYSEE_VERIFY_CONFIRMED_COOKIE = 'getty_odysee_verify_confirmed';
+
+        let signedIn = false;
+        let odyseeUser = null;
+        let magicLinkConfirmed = false;
+
+        const looksLikeEmailNotFound = (err) => {
+          const msgLower = String(
+            err?.message || err?.body?.error || err?.body?.message || err?.body?.data?.error || ''
+          )
+            .toLowerCase()
+            .trim();
+          if (!msgLower) return false;
+          return (
+            msgLower.includes('email') &&
+              (msgLower.includes('not found') ||
+                msgLower.includes('does not exist') ||
+                msgLower.includes("doesn't exist") ||
+                msgLower.includes('no such user') ||
+                msgLower.includes('user not found'))
+          );
+        };
+
+        if (useMagicLinkRequested && !hasPassword) {
+          if (!skipResend) {
+            try {
+              res.clearCookie(ODYSEE_VERIFY_CONFIRMED_COOKIE);
+            } catch {}
+            let resendOk = false;
+            try {
+              const baseUrl = getBaseUrlFromReq(req);
+              const redirect = safeRedirectPath(req.body?.redirect);
+              const walletHint = (providedWallet && isArweaveAddress(providedWallet)) ? providedWallet : '';
+              const VERIFY_STATE_COOKIE = 'getty_odysee_verify_state';
+              const verifyState = crypto.randomBytes(16).toString('hex');
+              try {
+                const secureCookie = SECURE_COOKIE(req);
+                res.cookie(VERIFY_STATE_COOKIE, verifyState, {
+                  httpOnly: true,
+                  sameSite: 'lax',
+                  secure: secureCookie,
+                  maxAge: 2 * 60 * 60 * 1000,
+                });
+              } catch {}
+              let redirectUrl = '';
+              if (baseUrl) {
+                try {
+                  const u = new URL(`${baseUrl}/odysee/verify`);
+                  u.searchParams.set('state', verifyState);
+                  if (walletHint) u.searchParams.set('walletAddress', walletHint);
+                  if (redirect) u.searchParams.set('redirect', redirect);
+                  redirectUrl = u.toString();
+                } catch {
+                  redirectUrl = `${baseUrl}/odysee/verify`;
+                }
+              }
+              await lbryioCall(
+                'user_email',
+                'resend_token',
+                {
+                  auth_token: authToken,
+                  email,
+                  only_if_expired: true,
+                  ...(redirectUrl ? { redirect_url: redirectUrl } : {}),
+                },
+                'post'
+              );
+              resendOk = true;
+            } catch (e) {
+              if (looksLikeEmailNotFound(e) || (e?.status === 404)) {
+                return res.status(404).json({
+                  error: 'odysee_email_not_found',
+                  details: { origin: 'lbry', method: 'user_email/resend_token', status: e?.status, message: e?.message },
+                });
+              }
+            }
+
+            return res.status(409).json({
+              error: 'email_verification_required',
+              details: { origin: 'lbry', method: 'user_email/resend_token', status: 409, resendOk, skipResend },
+            });
+          }
+
+          const confirmed =
+            typeof req.cookies?.[ODYSEE_VERIFY_CONFIRMED_COOKIE] === 'string'
+              ? req.cookies[ODYSEE_VERIFY_CONFIRMED_COOKIE].trim()
+              : '';
+
+          if (!confirmed) {
+
+            return res.status(409).json({
+              error: 'email_verification_required',
+              details: {
+                origin: 'lbry',
+                method: 'verify_confirm',
+                status: 409,
+                resendOk: false,
+                skipResend,
+              },
+            });
+          }
+
+          if (confirmed) {
+            magicLinkConfirmed = true;
+
+            try {
+              const maybeMe = await lbryioCall('user', 'me', { auth_token: authToken }, 'get');
+              if (maybeMe) {
+                odyseeUser = maybeMe;
+                signedIn = true;
+              }
+            } catch {
+              // Upstream may still report unauthorized; proceed with a principal-only session.
+            }
+
+            if (!signedIn) signedIn = true;
+          }
+        }
+
+        const signinMethods = ['user_signin', 'user_sign_in', 'user_login'];
+        let lastMethod = null;
+        let lastRpcError = null;
+
+        if (!signedIn) {
+          try {
+            const signRes = await lbryioCall(
+              'user',
+              'signin',
+              {
+                auth_token: authToken,
+                email,
+                ...(hasPassword ? { password } : {}),
+                ...(recaptcha ? { recaptcha } : {}),
+              },
+              'post'
+            );
+            walletAddressFromLogin = walletAddressFromLogin || findWalletInObject(signRes);
+            lastRpcError = null;
+            signedIn = true;
+          } catch (e) {
+          let err = e;
+          let status = err?.status;
+
+          const msgLower = String(err?.message || err?.body?.error || err?.body?.message || '').toLowerCase();
+          const alreadySignedIn =
+            status === 400 && msgLower.includes('already signed in') && msgLower.includes('sign out');
+          if (alreadySignedIn) {
+            const originalToken = authToken;
+
+            try {
+              await lbryioCall('user', 'signout', { auth_token: originalToken }, 'post');
+            } catch {}
+
+            try {
+              const retryRes = await lbryioCall(
+                'user',
+                'signin',
+                {
+                  auth_token: originalToken,
+                  email,
+                  ...(hasPassword ? { password } : {}),
+                  ...(recaptcha ? { recaptcha } : {}),
+                },
+                'post'
+              );
+              walletAddressFromLogin = walletAddressFromLogin || findWalletInObject(retryRes);
+              lastRpcError = null;
+              signedIn = true;
+              authToken = originalToken;
+            } catch (retryErr1) {
+              err = retryErr1;
+              status = retryErr1?.status;
+            }
+
+            if (!signedIn) {
+              try {
+                res.clearCookie(ODYSEE_DEVICE_COOKIE);
+              } catch {}
+
+              try {
+                const newRes = await lbryioCall('user', 'new', { auth_token: '', language: 'en' }, 'post');
+                const newToken = findAuthTokenInObject(newRes) || newRes?.auth_token || '';
+                if (newToken && typeof newToken === 'string') authToken = newToken.trim();
+              } catch {}
+
+              if (authToken) {
+                try {
+                  res.cookie(ODYSEE_DEVICE_COOKIE, authToken, {
+                    httpOnly: true,
+                    sameSite: 'lax',
+                    secure: odyseeSecureCookie,
+                    maxAge: odyseeDeviceCookieTtlMs,
+                  });
+                } catch {}
+
+                try {
+                  const retryRes2 = await lbryioCall(
+                    'user',
+                    'signin',
+                    {
+                      auth_token: authToken,
+                      email,
+                      ...(hasPassword ? { password } : {}),
+                      ...(recaptcha ? { recaptcha } : {}),
+                    },
+                    'post'
+                  );
+                  walletAddressFromLogin = walletAddressFromLogin || findWalletInObject(retryRes2);
+                  lastRpcError = null;
+                  signedIn = true;
+                } catch (retryErr2) {
+                  err = retryErr2;
+                  status = retryErr2?.status;
+                }
+              }
+            }
+          }
+
+          if (signedIn) {
+            // ok
+          } else if (status === 409 || status === 417 || status === 412) {
+            try {
+              const maybeMe = await lbryioCall('user', 'me', { auth_token: authToken }, 'get');
+              if (maybeMe) {
+                odyseeUser = maybeMe;
+                signedIn = true;
+              }
+            } catch {}
+
+            if (signedIn && odyseeUser) {
+              lastRpcError = null;
+            } else {
+            let resendOk = false;
+            if (!skipResend) {
+              try {
+                const baseUrl = getBaseUrlFromReq(req);
+                  const redirect = safeRedirectPath(req.body?.redirect);
+                  const walletHint = (providedWallet && isArweaveAddress(providedWallet)) ? providedWallet : '';
+                  const VERIFY_STATE_COOKIE = 'getty_odysee_verify_state';
+                  const verifyState = crypto.randomBytes(16).toString('hex');
+                  try {
+                    const secureCookie = SECURE_COOKIE(req);
+                    res.cookie(VERIFY_STATE_COOKIE, verifyState, {
+                      httpOnly: true,
+                      sameSite: 'lax',
+                      secure: secureCookie,
+                      maxAge: 2 * 60 * 60 * 1000,
+                    });
+                  } catch {}
+                  let redirectUrl = '';
+                  if (baseUrl) {
+                    try {
+                      const u = new URL(`${baseUrl}/odysee/verify`);
+                      u.searchParams.set('state', verifyState);
+                      if (walletHint) u.searchParams.set('walletAddress', walletHint);
+                      if (redirect) u.searchParams.set('redirect', redirect);
+                      redirectUrl = u.toString();
+                    } catch {
+                      redirectUrl = `${baseUrl}/odysee/verify`;
+                    }
+                  }
+                await lbryioCall(
+                  'user_email',
+                  'resend_token',
+                  {
+                    auth_token: authToken,
+                    email,
+                    only_if_expired: true,
+                    ...(redirectUrl ? { redirect_url: redirectUrl } : {}),
+                  },
+                  'post'
+                );
+                resendOk = true;
+              } catch {}
+            }
+            return res.status(status).json({
+              error: 'email_verification_required',
+              details: { origin: 'lbry', method: 'user/signin', status, resendOk, skipResend },
+            });
+            }
+          }
+          if (!signedIn && (status === 401 || status === 400 || status === 403)) {
+            return res.status(401).json({
+              error: 'odysee_login_failed',
+              details: { origin: 'lbry', method: 'user/signin', status, message: err?.message, body: err?.body },
+            });
+          }
+
+          if (!signedIn) {
+            signedIn = false;
+            lastRpcError = err?.body || err?.message || null;
+          }
+          }
+        }
+
+        if (!signedIn && hasPassword) {
+
+          lastRpcError = null;
+          for (const method of signinMethods) {
+            try {
+              lastMethod = method;
+              const params = {
+                auth_token: authToken,
+                email,
+                password,
+                ...(recaptcha ? { recaptcha } : {}),
+              };
+              const signRes = await rpcCall(method, params, authToken);
+              walletAddressFromLogin = walletAddressFromLogin || findWalletInObject(signRes);
+              signedIn = true;
+              break;
+            } catch (e) {
+              lastRpcError = e?.rpcError || e?.message || null;
+              continue;
+            }
+          }
+        }
+
+        if (!signedIn && lastRpcError) {
+          const { msg, isCaptcha, isMissingAuthToken } = classifyRpcError(lastRpcError);
+          if (isMissingAuthToken) {
+            return res.status(502).json({
+              error: 'odysee_login_failed',
+              details: {
+                reason: 'upstream_missing_auth_token_param',
+                method: lastMethod,
+                rpcError: lastRpcError,
+                message: msg,
+              },
+            });
+          }
+          if (isCaptcha) {
+            return res.status(403).json({
+              error: 'recaptcha_required',
+              details: { method: lastMethod, rpcError: lastRpcError, message: msg, needsRecaptcha: true },
+            });
+          }
+          return res.status(401).json({
+            error: 'odysee_login_failed',
+            details: { method: lastMethod, rpcError: lastRpcError, message: msg },
+          });
+        }
+
+        if (!authToken || authToken.length < 10) {
+          return res.status(400).json({ error: 'missing_auth_token' });
+        }
+
+        if (!odyseeUser && !magicLinkConfirmed) {
+          try {
+            odyseeUser = await lbryioCall('user', 'me', { auth_token: authToken }, 'get');
+          } catch (e) {
+
+          if (e?.status && Number(e.status) >= 400 && Number(e.status) < 500) {
+            return res.status(401).json({
+              error: 'invalid_auth_token',
+              details: { origin: 'lbry', method: 'user/me', status: e.status, message: e?.message, body: e?.body },
+            });
+          }
+          try {
+            odyseeUser = await rpcCall('user_me', { auth_token: authToken }, authToken);
+          } catch (rpcE) {
+            const rpcError = rpcE?.rpcError || rpcE?.message || null;
+            const classified = classifyRpcError(rpcError);
+            if (classified?.isCaptcha) {
+              return res.status(403).json({
+                error: 'recaptcha_required',
+                details: { method: 'user_me', rpcError, message: classified.msg, needsRecaptcha: true },
+              });
+            }
+            return res.status(401).json({ error: 'invalid_auth_token', details: { method: 'user_me', rpcError } });
+          }
+          }
+        }
+
+        let walletAddress = '';
+        let walletVerified = false;
+
+        if (providedWallet && isArweaveAddress(providedWallet)) walletAddress = providedWallet;
+        if (!walletAddress && walletAddressFromLogin) walletAddress = walletAddressFromLogin;
+        if (!walletAddress) walletAddress = findWalletInObject(odyseeUser);
+
+        try {
+          const detected = typeof walletAddress === 'string' ? walletAddress.trim() : '';
+          if (detected && isArweaveAddress(detected) && !walletVerified) {
+            let verifiedAddr = '';
+            let verifiedHasWrite = false;
+
+            try {
+              const sessAddr = req.walletSession?.addr;
+              const sessCaps = req.walletSession?.caps;
+              if (typeof sessAddr === 'string' && isArweaveAddress(sessAddr)) {
+                verifiedAddr = sessAddr.trim();
+                verifiedHasWrite = Array.isArray(sessCaps) && sessCaps.includes('config.write');
+              }
+            } catch {}
+
+            if (!verifiedAddr) {
+              try {
+                const raw = req.cookies?.getty_wallet_session;
+                if (raw && walletAuth && typeof walletAuth.verifySessionCookie === 'function') {
+                  const parsed = walletAuth.verifySessionCookie(raw);
+                  const addr = parsed?.addr;
+                  const caps = parsed?.caps;
+                  if (typeof addr === 'string' && isArweaveAddress(addr)) {
+                    verifiedAddr = addr.trim();
+                    verifiedHasWrite = Array.isArray(caps) && caps.includes('config.write');
+                  }
+                }
+              } catch {}
+            }
+
+            if (verifiedHasWrite && verifiedAddr && verifiedAddr === detected) {
+              walletVerified = true;
+            }
+          }
+        } catch {}
+
+        if (!walletAddress) {
+          try {
+            const sessAddr = req.walletSession?.addr;
+            const sessCaps = req.walletSession?.caps;
+            const sessHasWrite = Array.isArray(sessCaps) && sessCaps.includes('config.write');
+            if (typeof sessAddr === 'string' && isArweaveAddress(sessAddr)) {
+              walletAddress = sessAddr.trim();
+              walletVerified = !!sessHasWrite;
+            }
+          } catch {}
+        }
+        if (!walletAddress) {
+          try {
+            const raw = req.cookies?.getty_wallet_session;
+            if (raw && walletAuth && typeof walletAuth.verifySessionCookie === 'function') {
+              const parsed = walletAuth.verifySessionCookie(raw);
+              const addr = parsed?.addr;
+              const caps = parsed?.caps;
+              const hasWrite = Array.isArray(caps) && caps.includes('config.write');
+              if (typeof addr === 'string' && isArweaveAddress(addr)) {
+                walletAddress = addr.trim();
+                walletVerified = !!hasWrite;
+              }
+            }
+          } catch {}
+        }
+
+        if (!walletAddress) {
+          const claimId = findClaimIdInObject(odyseeUser);
+          const userId =
+            (odyseeUser && (odyseeUser.id || odyseeUser.user_id || odyseeUser.userId))
+              ? String(odyseeUser.id || odyseeUser.user_id || odyseeUser.userId).trim()
+              : '';
+          const seed = claimId || userId || crypto.createHash('sha256').update(email.toLowerCase()).digest('hex').slice(0, 16);
+          walletAddress = `odysee:${seed}`;
+          walletVerified = false;
+        }
+
+        const effectiveAddress = String(walletAddress || '').trim();
+        const realWalletAddress = isArweaveAddress(effectiveAddress) ? effectiveAddress : '';
+        const principalAddress = realWalletAddress ? '' : effectiveAddress;
+        const needsWalletAddress = !realWalletAddress;
+
+        const now = Date.now();
+        const ttl = walletAuth.getSessionTtlMs ? walletAuth.getSessionTtlMs() : 24 * 60 * 60 * 1000;
+        const walletHash = walletAuth.deriveWalletHash(effectiveAddress);
+        const sess = {
+          sid: crypto.randomUUID(),
+          addr: effectiveAddress,
+          walletHash,
+          iat: now,
+          exp: now + ttl,
+          caps: walletVerified ? ['config.read', 'config.write'] : ['config.read'],
+          mode: 'odysee',
+        };
+        const widgetToken = crypto.randomUUID();
+        sess.widgetToken = widgetToken;
+        const signed = walletAuth.signSession(sess);
+
+        if (store && widgetToken && walletHash) {
+          try {
+            await store.set(widgetToken, 'walletHash', walletHash, { ttl: Math.ceil(ttl / 1000) });
+          } catch (e) {
+            try {
+              console.warn('Failed to store widget token:', e.message);
+            } catch {}
+          }
+        }
+
+        req.walletSession = sess;
+        try {
+          if (!req.tenant) req.tenant = { walletAddress: effectiveAddress, walletHash };
+        } catch {}
+
+        try {
+          const { loadTenantConfig, saveTenantConfig } = require('./lib/tenant-config');
+          const cfgName = 'channel-analytics-config.json';
+          const cfgPath = path.join(process.cwd(), 'config', cfgName);
+          const wrapped = await loadTenantConfig(req, store, cfgPath, cfgName);
+          const current = wrapped?.data || {};
+          if (!current.authToken) {
+            const merged = {
+              ...current,
+              authToken,
+              updatedAt: new Date().toISOString(),
+            };
+            await saveTenantConfig(req, store, cfgPath, cfgName, merged);
+          }
+        } catch {}
+
+        const secureCookie = SECURE_COOKIE(req);
+        res.cookie('getty_wallet_session', signed, {
+          httpOnly: true,
+          sameSite: 'lax',
+          secure: secureCookie,
+          maxAge: ttl,
+        });
+
+        try {
+          res.clearCookie(ODYSEE_VERIFY_CONFIRMED_COOKIE);
+        } catch {}
+
+        return res.json({
+          success: true,
+          walletAddress: realWalletAddress,
+          principalAddress,
+          walletHash,
+          expiresAt: new Date(sess.exp).toISOString(),
+          capabilities: sess.caps,
+          needsWalletVerification: !walletVerified,
+          needsWalletAddress,
+          mode: 'odysee',
+          widgetToken,
+        });
+      } catch (e) {
+        return res.status(500).json({ error: 'odysee_login_failed', details: e?.message });
+      }
+    });
+
+    app.post('/odysee/verify', express.urlencoded({ extended: false }), async (req, res) => {
+      try {
+        if (!walletAuth) return res.status(503).send('wallet_auth_disabled');
+        const axios = require('axios');
+
+        const LBRY_API_BASE =
+          (
+            (typeof process.env.LBRY_API_URL === 'string' && process.env.LBRY_API_URL.trim()) ||
+            (typeof process.env.ODYSEE_AUTH_API_URL === 'string' && process.env.ODYSEE_AUTH_API_URL.trim()) ||
+            'https://api.lbry.com/'
+          ).replace(/\/*$/, '/');
+
+        const ODYSEE_DEVICE_COOKIE =
+          (typeof process.env.ODYSEE_DEVICE_COOKIE === 'string' && process.env.ODYSEE_DEVICE_COOKIE.trim())
+            ? process.env.ODYSEE_DEVICE_COOKIE.trim()
+            : 'getty_odysee_auth_token';
+
+        const VERIFY_STATE_COOKIE = 'getty_odysee_verify_state';
+        const ODYSEE_VERIFY_CONFIRMED_COOKIE = 'getty_odysee_verify_confirmed';
+
+        const authToken = typeof req.body?.auth_token === 'string' ? req.body.auth_token.trim() : '';
+        const email = typeof req.body?.email === 'string' ? req.body.email.trim() : '';
+        const verificationToken =
+          typeof req.body?.verification_token === 'string' ? req.body.verification_token.trim() : '';
+        const recaptcha = typeof req.body?.recaptcha === 'string' ? req.body.recaptcha.trim() : '';
+        const redirectPath = typeof req.body?.redirect === 'string' ? req.body.redirect.trim() : '';
+        const state = typeof req.body?.state === 'string' ? req.body.state.trim() : '';
+
+        const safeRedirectPath = (v) => {
+          if (typeof v !== 'string') return '';
+          const s = v.trim();
+          if (!s) return '';
+          if (!s.startsWith('/')) return '';
+          if (s.startsWith('//') || s.includes('\\')) return '';
+          return s;
+        };
+
+        const redirect = safeRedirectPath(redirectPath);
+        const target = redirect || '/';
+
+        const cookieState = typeof req.cookies?.[VERIFY_STATE_COOKIE] === 'string' ? req.cookies[VERIFY_STATE_COOKIE].trim() : '';
+        if (!state || !cookieState || state !== cookieState) {
+          res.status(400);
+          return res.send(
+            `<!doctype html><meta charset="utf-8"/><title>Verification blocked</title>` +
+            `<p>This verification link must be opened on the same browser that requested it.</p>` +
+            `<p><a href="${target}">Return</a></p>`
+          );
+        }
+
+        if (!authToken || authToken.length < 10 || !email || !verificationToken) {
+          res.status(400);
+          return res.send(
+            `<!doctype html><meta charset="utf-8"/><title>Verification failed</title>` +
+            `<p>Missing verification parameters.</p>` +
+            `<p><a href="${target}">Return</a></p>`
+          );
+        }
+
+        const lbryioCall = async (resource, action, params = {}, method = 'post') => {
+          const { URLSearchParams } = require('node:url');
+          const fullParams = { ...(params || {}) };
+          for (const key of Object.keys(fullParams)) {
+            const v = fullParams[key];
+            if (typeof v === 'object' && v !== null) fullParams[key] = JSON.stringify(v);
+          }
+          const search = new URLSearchParams();
+          for (const [k, v] of Object.entries(fullParams)) {
+            if (v === undefined || v === null) continue;
+            search.append(k, String(v));
+          }
+          const encoded = search.toString();
+          let url = `${LBRY_API_BASE}${String(resource || '').replace(/^\/+/, '')}/${String(action || '').replace(/^\/+/, '')}`;
+          const headers = {
+            Accept: 'application/json, text/plain, */*',
+            'Content-Type': 'application/x-www-form-urlencoded',
+          };
+
+          const lower = String(method || 'post').toLowerCase();
+          const isGet = lower === 'get';
+          if (isGet) {
+            headers['Content-Type'] = undefined;
+            url = encoded ? `${url}?${encoded}` : url;
+          }
+
+          const resp = await axios({
+            method: isGet ? 'GET' : 'POST',
+            url,
+            data: isGet ? undefined : encoded,
+            timeout: 9000,
+            headers,
+            validateStatus: () => true,
+          });
+
+          if (!resp || typeof resp.status !== 'number' || resp.status < 200 || resp.status >= 300) {
+            const err = new Error(
+              (resp?.data && typeof resp.data === 'object' && (resp.data.error || resp.data.message))
+                ? String(resp.data.error || resp.data.message)
+                : `lbry_api_error_${resp?.status || 'unknown'}`
+            );
+            err.status = resp?.status;
+            err.body = resp?.data;
+            throw err;
+          }
+
+          return resp?.data && typeof resp.data === 'object' && resp.data.data !== undefined ? resp.data.data : resp.data;
+        };
+
+        try {
+          await lbryioCall(
+            'user_email',
+            'confirm',
+            {
+              auth_token: authToken,
+              email,
+              verification_token: verificationToken,
+              ...(recaptcha ? { recaptcha } : {}),
+            },
+            'post'
+          );
+        } catch (e) {
+          const status = e?.status;
+          const needsCaptcha = status === 401 || status === 403;
+          res.status(400);
+          return res.send(
+            `<!doctype html><meta charset="utf-8"/><title>Verification failed</title>` +
+            `<p>Email verification failed${needsCaptcha ? ' (captcha may be required)' : ''}.</p>` +
+            `<p><a href="${target}">Return</a></p>`
+          );
+        }
+
+        try {
+          const secureCookie = SECURE_COOKIE(req);
+          const ttlMs = Math.max(7 * 24 * 60 * 60 * 1000, 30 * 24 * 60 * 60 * 1000);
+          res.cookie(ODYSEE_DEVICE_COOKIE, authToken, {
+            httpOnly: true,
+            sameSite: 'lax',
+            secure: secureCookie,
+            maxAge: ttlMs,
+          });
+        } catch {}
+
+        try {
+          res.clearCookie(VERIFY_STATE_COOKIE);
+        } catch {}
+
+        try {
+          const secureCookie = SECURE_COOKIE(req);
+          res.cookie(ODYSEE_VERIFY_CONFIRMED_COOKIE, '1', {
+            httpOnly: true,
+            sameSite: 'lax',
+            secure: secureCookie,
+            maxAge: 2 * 60 * 60 * 1000,
+          });
+        } catch {}
+
+        return res.redirect(302, `${target}${target.includes('?') ? '&' : '?'}reason=odysee_verified`);
+      } catch {
+        return res.status(500).send('verify_failed');
+      }
+    });
+
+    app.get('/odysee/verify', (req, res) => {
+      try {
+        if (!walletAuth) return res.status(503).send('wallet_auth_disabled');
+
+        const VERIFY_STATE_COOKIE = 'getty_odysee_verify_state';
+
+        const authToken = typeof req.query?.auth_token === 'string' ? req.query.auth_token.trim() : '';
+        const email = typeof req.query?.email === 'string' ? req.query.email.trim() : '';
+        const verificationToken =
+          typeof req.query?.verification_token === 'string' ? req.query.verification_token.trim() : '';
+        const recaptcha = typeof req.query?.recaptcha === 'string' ? req.query.recaptcha.trim() : '';
+        const redirectPath = typeof req.query?.redirect === 'string' ? req.query.redirect.trim() : '';
+        const state = typeof req.query?.state === 'string' ? req.query.state.trim() : '';
+
+        const safeRedirectPath = (v) => {
+          if (typeof v !== 'string') return '';
+          const s = v.trim();
+          if (!s) return '';
+          if (!s.startsWith('/')) return '';
+          if (s.startsWith('//') || s.includes('\\')) return '';
+          return s;
+        };
+
+        const redirect = safeRedirectPath(redirectPath);
+        const target = redirect || '/';
+
+        if (!authToken || authToken.length < 10 || !email || !verificationToken) {
+          res.status(400);
+          return res.send(
+            `<!doctype html><meta charset="utf-8"/><title>Verification failed</title>` +
+              `<p>Missing verification parameters.</p>` +
+              `<p><a href="${target}">Return</a></p>`
+          );
+        }
+
+        const cookieState =
+          typeof req.cookies?.[VERIFY_STATE_COOKIE] === 'string'
+            ? req.cookies[VERIFY_STATE_COOKIE].trim()
+            : '';
+        if (!state || !cookieState || state !== cookieState) {
+          res.status(400);
+          return res.send(
+            `<!doctype html><meta charset="utf-8"/><title>Verification blocked</title>` +
+              `<p>This verification link must be opened on the same browser that requested it.</p>` +
+              `<p><a href="${target}">Return</a></p>`
+          );
+        }
+
+        const esc = (s) =>
+          String(s || '').replace(/[&<>"']/g, (c) =>
+            ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
+          );
+
+        res.status(200);
+        return res.send(
+          `<!doctype html><meta charset="utf-8"/><title>Confirm verification</title>` +
+            `<meta name="viewport" content="width=device-width,initial-scale=1"/>` +
+            `<style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:24px;max-width:720px;margin:0 auto}button{padding:10px 14px;font-size:16px}p{line-height:1.4}</style>` +
+            `<h1>Confirm email verification</h1>` +
+            `<p>To finish signing in, click the button below.</p>` +
+            `<form method="post" action="/odysee/verify">` +
+            `<input type="hidden" name="auth_token" value="${esc(authToken)}"/>` +
+            `<input type="hidden" name="email" value="${esc(email)}"/>` +
+            `<input type="hidden" name="verification_token" value="${esc(verificationToken)}"/>` +
+            `${recaptcha ? `<input type="hidden" name="recaptcha" value="${esc(recaptcha)}"/>` : ''}` +
+            `${redirect ? `<input type="hidden" name="redirect" value="${esc(redirect)}"/>` : ''}` +
+            `<input type="hidden" name="state" value="${esc(state)}"/>` +
+            `<button type="submit">Continue</button>` +
+            `</form>` +
+            `<p><a href="${target}">Return</a></p>`
+        );
+      } catch {
+        return res.status(500).send('verify_failed');
       }
     });
   }
