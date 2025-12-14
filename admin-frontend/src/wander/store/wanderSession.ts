@@ -109,8 +109,6 @@ function setupStaleEventListener(): void {
       if (state.address) markSessionStale(true);
     });
     window.addEventListener('getty:wallet-bad-signature', () => {
-      // If the user isn't logged in yet, a bad signature should not force a global logout.
-      // Reserve the full reset for when an existing session becomes invalid.
       if (state.address) forceFullReset('bad_signature_event');
     });
   } catch {
