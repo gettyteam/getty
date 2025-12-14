@@ -2840,20 +2840,46 @@ try {
             : 'getty_odysee_auth_token';
 
         const getBaseUrlFromReq = (req) => {
+          const xfProtoRaw = typeof req.headers?.['x-forwarded-proto'] === 'string' ? req.headers['x-forwarded-proto'] : '';
+          const xfHostRaw = typeof req.headers?.['x-forwarded-host'] === 'string' ? req.headers['x-forwarded-host'] : '';
+          const hostRaw = typeof req.get === 'function' ? (req.get('host') || '') : '';
+
           if (GETTY_PUBLIC_BASE_URL) {
             try {
               const u = new URL(GETTY_PUBLIC_BASE_URL);
               if (u.protocol === 'http:' || u.protocol === 'https:') {
-                return `${u.protocol}//${u.host}`;
+                return {
+                  baseUrl: `${u.protocol}//${u.host}`,
+                  source: 'env',
+                  hasEnv: true,
+                  hasXfProto: !!xfProtoRaw,
+                  hasXfHost: !!xfHostRaw,
+                  hasHost: !!hostRaw,
+                };
               }
             } catch {}
           }
-          const xfProto = typeof req.headers?.['x-forwarded-proto'] === 'string' ? req.headers['x-forwarded-proto'] : '';
-          const xfHost = typeof req.headers?.['x-forwarded-host'] === 'string' ? req.headers['x-forwarded-host'] : '';
-          const proto = (xfProto || req.protocol || 'http').split(',')[0].trim();
-          const host = (xfHost || req.get('host') || '').split(',')[0].trim();
-          if (!host) return '';
-          return `${proto}://${host}`;
+
+          const proto = (xfProtoRaw || req.protocol || 'http').split(',')[0].trim();
+          const host = (xfHostRaw || hostRaw).split(',')[0].trim();
+          if (!host) {
+            return {
+              baseUrl: '',
+              source: '',
+              hasEnv: !!GETTY_PUBLIC_BASE_URL,
+              hasXfProto: !!xfProtoRaw,
+              hasXfHost: !!xfHostRaw,
+              hasHost: !!hostRaw,
+            };
+          }
+          return {
+            baseUrl: `${proto}://${host}`,
+            source: xfHostRaw || xfProtoRaw ? 'forwarded' : 'host',
+            hasEnv: !!GETTY_PUBLIC_BASE_URL,
+            hasXfProto: !!xfProtoRaw,
+            hasXfHost: !!xfHostRaw,
+            hasHost: !!hostRaw,
+          };
         };
 
         const safeRedirectPath = (v) => {
@@ -3209,13 +3235,17 @@ try {
               res.clearCookie(ODYSEE_VERIFY_CONFIRMED_COOKIE);
             } catch {}
             let resendOk = false;
+            let resendErrStatus = null;
+            let resendErrMessage = '';
+            let redirectUrlSet = false;
+            let baseUrlMeta = null;
             try {
-              const baseUrl = getBaseUrlFromReq(req);
+              baseUrlMeta = getBaseUrlFromReq(req);
+              const baseUrl = baseUrlMeta?.baseUrl || '';
               const redirect = safeRedirectPath(req.body?.redirect);
               const walletHint = (providedWallet && isArweaveAddress(providedWallet)) ? providedWallet : '';
               const VERIFY_STATE_COOKIE = 'getty_odysee_verify_state';
               const verifyState = crypto.randomBytes(16).toString('hex');
-              let redirectUrlSet = false;
               try {
                 const secureCookie = SECURE_COOKIE(req);
                 res.cookie(VERIFY_STATE_COOKIE, verifyState, {
@@ -3244,20 +3274,19 @@ try {
                 {
                   auth_token: authToken,
                   email,
-                  only_if_expired: true,
+                  only_if_expired: false,
                   ...(redirectUrl
                     ? {
                         redirect_url: redirectUrl,
-                        redirect: redirectUrl,
                       }
                     : {}),
                 },
                 'post'
               );
               resendOk = true;
-
-              res.locals.__odyseeRedirectUrlSet = redirectUrlSet;
             } catch (e) {
+              resendErrStatus = typeof e?.status === 'number' ? e.status : null;
+              resendErrMessage = String(e?.message || '').slice(0, 180);
               if (looksLikeEmailNotFound(e) || (e?.status === 404)) {
                 return res.status(404).json({
                   error: 'odysee_email_not_found',
@@ -3274,7 +3303,18 @@ try {
                 status: 409,
                 resendOk,
                 skipResend,
-                redirectUrlSet: !!res.locals?.__odyseeRedirectUrlSet,
+                redirectUrlSet,
+                baseUrlSource: baseUrlMeta?.source || '',
+                baseUrlHasEnv: !!baseUrlMeta?.hasEnv,
+                baseUrlHasHost: !!baseUrlMeta?.hasHost,
+                baseUrlHasXfHost: !!baseUrlMeta?.hasXfHost,
+                baseUrlHasXfProto: !!baseUrlMeta?.hasXfProto,
+                ...(resendOk
+                  ? {}
+                  : {
+                      resendErrStatus,
+                      resendErrMessage,
+                    }),
               },
             });
           }
@@ -3431,7 +3471,8 @@ try {
             let resendOk = false;
             if (!skipResend) {
               try {
-                const baseUrl = getBaseUrlFromReq(req);
+                const baseUrlMeta = getBaseUrlFromReq(req);
+                const baseUrl = baseUrlMeta?.baseUrl || '';
                   const redirect = safeRedirectPath(req.body?.redirect);
                   const walletHint = (providedWallet && isArweaveAddress(providedWallet)) ? providedWallet : '';
                   const VERIFY_STATE_COOKIE = 'getty_odysee_verify_state';
@@ -3463,11 +3504,10 @@ try {
                   {
                     auth_token: authToken,
                     email,
-                    only_if_expired: true,
+                    only_if_expired: false,
                       ...(redirectUrl
                         ? {
                             redirect_url: redirectUrl,
-                            redirect: redirectUrl,
                           }
                         : {}),
                   },
