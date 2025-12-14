@@ -48,20 +48,9 @@ let __hbTimer: ReturnType<typeof setInterval> | null = null;
 const HEARTBEAT_INTERVAL_MS = 30_000;
 const FOCUS_RECHECK_DELAY_MS = 750;
 
-function __dispatchDebug(msg: string): void {
-  try {
-    if (globalThis.process?.env?.VITE_GETTY_WALLET_AUTH_DEBUG === '1') {
-      console.warn('[wallet-session]', msg);
-    }
-  } catch {
-    /* noop */
-  }
-}
-
 function markSessionStale(val = true): void {
   if (state.sessionStale === !!val) return;
   state.sessionStale = !!val;
-  if (val) __dispatchDebug('marked stale');
 }
 
 async function heartbeat(force = false): Promise<void> {
@@ -72,7 +61,6 @@ async function heartbeat(force = false): Promise<void> {
   try {
     const res = (await fetchJson('/api/auth/wander/me', { method: 'GET' })) as SessionResponse;
     if (res && res.address) {
-      if (state.sessionStale) __dispatchDebug('session restored during heartbeat');
       state.address = res.address ?? null;
       state.walletHash = res.walletHash ?? null;
       state.capabilities = res.capabilities ?? [];
@@ -121,7 +109,9 @@ function setupStaleEventListener(): void {
       if (state.address) markSessionStale(true);
     });
     window.addEventListener('getty:wallet-bad-signature', () => {
-      forceFullReset('bad_signature_event');
+      // If the user isn't logged in yet, a bad signature should not force a global logout.
+      // Reserve the full reset for when an existing session becomes invalid.
+      if (state.address) forceFullReset('bad_signature_event');
     });
   } catch {
     /* noop */
@@ -157,9 +147,6 @@ function onWalletSwitch(event: WalletSwitchEvent): void {
   if (!nextAddress) {
     markSessionStale(true);
     return;
-  }
-  if (state.address && nextAddress !== state.address) {
-    __dispatchDebug(`wallet switched ${state.address} -> ${nextAddress}`);
   }
   void refreshSession();
 }

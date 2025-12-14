@@ -283,7 +283,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ChannelRangeFilter from './ChannelRangeFilter.vue';
 import ChannelBarChart from './ChannelBarChart.vue';
@@ -322,6 +322,8 @@ const analyticsReady = computed(() => {
   const cfg = configState.data;
   return Boolean(cfg?.claimId && cfg?.hasAuthToken);
 });
+
+let sessionUpdatedHandler: ((e?: Event) => void) | null = null;
 
 async function ensureSession() {
   try {
@@ -424,6 +426,25 @@ onMounted(async () => {
   if (analyticsReady.value && !['halfyear', 'year'].includes(range.value)) {
     await loadOverview(range.value);
   }
+});
+
+onMounted(() => {
+  try {
+    sessionUpdatedHandler = async () => {
+      await ensureSession();
+      await loadConfig();
+    };
+    window.addEventListener('getty-session-updated', sessionUpdatedHandler as any);
+  } catch {}
+});
+
+onUnmounted(() => {
+  try {
+    if (sessionUpdatedHandler) {
+      window.removeEventListener('getty-session-updated', sessionUpdatedHandler as any);
+    }
+  } catch {}
+  sessionUpdatedHandler = null;
 });
 
 const emptyState = computed(() => {
@@ -662,7 +683,8 @@ function createTrendData(video?: ChannelAnalyticsHighlightVideo | null): TrendDa
   const minValue = Math.min(...series);
   if (Number.isFinite(minValue) && minValue > 0) {
     for (let idx = 0; idx < series.length; idx += 1) {
-      series[idx] = Number(Math.max(series[idx] - minValue, 0).toFixed(2));
+      const value = series[idx] ?? 0;
+      series[idx] = Number(Math.max(value - minValue, 0).toFixed(2));
     }
   }
   return {

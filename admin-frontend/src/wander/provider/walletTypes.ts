@@ -77,8 +77,6 @@ declare global {
     wander?: RawWalletProvider;
     arweaveWallet?: RawWalletProvider;
     arconnect?: RawWalletProvider;
-    __wanderDebug?: Record<string, unknown>;
-    GETTY_WALLET_AUTH_DEBUG?: '0' | '1';
     __GETTY_DUMMY_WALLET?: boolean;
   }
 }

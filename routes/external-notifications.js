@@ -756,7 +756,9 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       cfg.channelUploadLastTitle = target.title || '';
       cfg.channelUploadLastUrl = target.url || '';
 
-      if (req?.ns?.admin || req?.ns?.pub) {
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      const persistToTenantDisk = requireSessionFlag || hostedWithRedis;
+      if (ns || persistToTenantDisk) {
         await saveTenantConfig(
           req,
           store,
@@ -862,7 +864,8 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         merged.channelUploadLastUrl = sanitizeUploadUrl(merged.channelUploadLastUrl);
       }
 
-      if (ns) {
+      const persistToTenantDisk = requireSessionFlag || hostedWithRedis;
+      if (ns || persistToTenantDisk) {
         await saveTenantConfig(
           req,
           store,
