@@ -261,25 +261,46 @@ function adaptWindowProvider(
 
     let signed: unknown = null;
 
-    const isWanderInjected = providerName === 'wander' || providerName === 'arweaveWallet';
-
     if (!signed && signMessageFn) {
-      signed = await attempt('signMessage(Uint8Array)', () => signMessageFn(bytesCopy));
-      if (signed) successLabel = 'signMessage(Uint8Array)';
 
-      if (!signed) {
+      const preferArrayBufferFirst = providerName === 'wander';
+
+      if (preferArrayBufferFirst) {
         signed = await attempt('signMessage(ArrayBuffer:exact)', () => signMessageFn(arrayBufferExact));
         if (signed) successLabel = 'signMessage(ArrayBuffer:exact)';
-      }
 
-      if (!signed) {
-        signed = await attempt('signMessage(ArrayBuffer:slice)', () => signMessageFn(bufferSlice));
-        if (signed) successLabel = 'signMessage(ArrayBuffer:slice)';
-      }
+        if (!signed) {
+          signed = await attempt('signMessage(ArrayBuffer:slice)', () => signMessageFn(bufferSlice));
+          if (signed) successLabel = 'signMessage(ArrayBuffer:slice)';
+        }
 
-      if (!signed) {
-        signed = await attempt('signMessage(ArrayBuffer:buffer)', () => signMessageFn(bufferCopy));
-        if (signed) successLabel = 'signMessage(ArrayBuffer:buffer)';
+        if (!signed) {
+          signed = await attempt('signMessage(ArrayBuffer:buffer)', () => signMessageFn(bufferCopy));
+          if (signed) successLabel = 'signMessage(ArrayBuffer:buffer)';
+        }
+
+        if (!signed) {
+          signed = await attempt('signMessage(Uint8Array)', () => signMessageFn(bytesCopy));
+          if (signed) successLabel = 'signMessage(Uint8Array)';
+        }
+      } else {
+        signed = await attempt('signMessage(Uint8Array)', () => signMessageFn(bytesCopy));
+        if (signed) successLabel = 'signMessage(Uint8Array)';
+
+        if (!signed) {
+          signed = await attempt('signMessage(ArrayBuffer:exact)', () => signMessageFn(arrayBufferExact));
+          if (signed) successLabel = 'signMessage(ArrayBuffer:exact)';
+        }
+
+        if (!signed) {
+          signed = await attempt('signMessage(ArrayBuffer:slice)', () => signMessageFn(bufferSlice));
+          if (signed) successLabel = 'signMessage(ArrayBuffer:slice)';
+        }
+
+        if (!signed) {
+          signed = await attempt('signMessage(ArrayBuffer:buffer)', () => signMessageFn(bufferCopy));
+          if (signed) successLabel = 'signMessage(ArrayBuffer:buffer)';
+        }
       }
     }
 
@@ -357,8 +378,9 @@ function adaptWindowProvider(
 export async function getWalletProvider(): Promise<WalletAdapter> {
   const win = typeof window !== 'undefined' ? window : ({} as Window & typeof globalThis);
   const candidates: Array<{ name: string; provider: RawWalletProvider | undefined }> = [
-    { name: 'wander', provider: win.wander },
+    // Prefer `arweaveWallet` when available (tends to be the most compatible injected API).
     { name: 'arweaveWallet', provider: win.arweaveWallet },
+    { name: 'wander', provider: win.wander },
     { name: 'arconnect', provider: win.arconnect }
   ];
   for (const { name, provider } of candidates) {
