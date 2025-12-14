@@ -378,7 +378,6 @@ function adaptWindowProvider(
 export async function getWalletProvider(): Promise<WalletAdapter> {
   const win = typeof window !== 'undefined' ? window : ({} as Window & typeof globalThis);
   const candidates: Array<{ name: string; provider: RawWalletProvider | undefined }> = [
-    // Prefer `arweaveWallet` when available (tends to be the most compatible injected API).
     { name: 'arweaveWallet', provider: win.arweaveWallet },
     { name: 'wander', provider: win.wander },
     { name: 'arconnect', provider: win.arconnect }
