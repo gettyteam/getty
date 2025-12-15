@@ -35,7 +35,7 @@
               target="_blank"
               style="color: #f44336; font-weight: 600"
               class="hover:underline"
-              >Bitwarden Authenticator</a
+              >Bitwarden</a
             >
             - {{ t('twoFactor.tutorial.appBitwardenDesc') }}
           </li>
