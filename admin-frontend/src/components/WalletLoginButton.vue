@@ -114,7 +114,7 @@
       </div>
     </div>
 
-    <div v-else class="flex items-center gap-2">
+    <div v-if="session.state.address" class="flex items-center gap-2">
       <div
         ref="walletChipEl"
         class="relative group flex items-center gap-2 p-2 md:px-3 md:py-2 rounded-lg border border-border text-sm bg-[var(--bg-card)]/60 backdrop-blur-sm"
