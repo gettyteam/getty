@@ -149,26 +149,39 @@ function buildLayout() {
   return `
 <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 bg-card text-white rounded px-3 py-2">Skip to main content</a>
 <div class="max-w-7xl mx-auto p-3">
-  <header class="os-header flex justify-between items-center pb-5 mb-8 border-b border-border">
-    <div class="flex items-center gap-4">
+  <header class="os-header flex flex-col gap-3 pb-4 mb-6 border-b border-border sm:flex-row sm:items-center sm:justify-between sm:pb-5 sm:mb-8">
+    <div class="flex items-center gap-4 w-full sm:w-auto">
       <a href="/" class="logo-link" aria-label="getty home">
-        <img src="https://aqet2p7rnwvvcvraawg2ojq7sfyals6jav2dh6vm7occr347kfsa.arweave.net/BAk9P_Ftq1FWIAWNpyYfkXAFy8kFdDP6rPuEKO-fUWQ" alt="getty" class="h-10 w-auto dark-logo" decoding="async" fetchpriority="high" height="40">
-        <img src="https://xc43575rqmogbtegwxry2rk4hkctslkb63os6y2cdq25nfkgmguq.arweave.net/uLm-_7GDHGDMhrXjjUVcOoU5LUH23S9jQhw11pVGYak" alt="getty" class="h-10 w-auto light-logo" decoding="async" height="40">
+        <span class="sm:hidden">
+          <img src="/img/getty-fav.png" alt="getty" class="h-10 w-10" decoding="async" fetchpriority="high" height="40" width="40" onerror="this.onerror=null;this.src='/favicon.ico'">
+        </span>
+        <span class="hidden sm:block">
+          <img src="https://aqet2p7rnwvvcvraawg2ojq7sfyals6jav2dh6vm7occr347kfsa.arweave.net/BAk9P_Ftq1FWIAWNpyYfkXAFy8kFdDP6rPuEKO-fUWQ" alt="getty" class="h-10 w-auto dark-logo" decoding="async" fetchpriority="high" height="40">
+          <img src="https://xc43575rqmogbtegwxry2rk4hkctslkb63os6y2cdq25nfkgmguq.arweave.net/uLm-_7GDHGDMhrXjjUVcOoU5LUH23S9jQhw11pVGYak" alt="getty" class="h-10 w-auto light-logo" decoding="async" height="40">
+        </span>
       </a>
       <div id="user-welcome-message" class="hidden text-sm text-gray-300">Welcome, [User Token]</div>
     </div>
-    <div class="flex items-center gap-3">
+    <div class="flex flex-wrap items-center w-full sm:w-auto gap-x-3 gap-y-2 sm:justify-end">
       <div class="connection-status" title="Wallet connection status">
         <span class="status-dot disconnected"></span>
       </div>
-      <button id="public-wallet-login" class="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors" data-state="logged-out">
-        <i class="pi pi-wallet text-[16px] leading-none" aria-hidden="true"></i>
+      <button id="public-wallet-login" class="flex items-center gap-2 p-2 sm:px-3 sm:py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors" data-state="logged-out">
+        <i class="pi pi-wallet text-[14px] sm:text-[16px] leading-none" aria-hidden="true"></i>
         <span class="btn-label" data-i18n="walletLogin" data-default-label="Login"></span>
         <span class="balance-label hidden text-xs font-mono" id="login-balance"></span>
       </button>
-      <button id="open-admin" class="hidden px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors" data-visible="false">Admin</button>
-      <button id="logout-inline" class="hidden px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors" data-visible="false" title="Logout" aria-label="Logout">
-        <span data-i18n="walletLogout">Logout</span>
+      <button id="open-admin" class="hidden p-2 sm:px-3 sm:py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors" data-visible="false" aria-label="Admin" title="Admin">
+        <span class="inline-flex items-center justify-center gap-2">
+          <i class="pi pi-cog text-[16px] leading-none" aria-hidden="true"></i>
+          <span class="sr-only sm:not-sr-only">Admin</span>
+        </span>
+      </button>
+      <button id="logout-inline" class="hidden p-2 sm:px-3 sm:py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors" data-visible="false" title="Logout" aria-label="Logout">
+        <span class="inline-flex items-center justify-center gap-2">
+          <i class="pi pi-sign-out text-[16px] leading-none" aria-hidden="true"></i>
+          <span class="sr-only sm:not-sr-only" data-i18n="walletLogout">Logout</span>
+        </span>
       </button>
       <button id="theme-toggle" class="theme-toggle" title="Toggle theme" aria-pressed="false" aria-label="Toggle dark mode">
         <svg class="sun-icon" viewBox="0 0 24 24" fill="currentColor">
@@ -409,13 +422,22 @@ function updateWelcomeMessage(root, widgetToken) {
 }
 function toggleAdminControls(root, hasAdminSession) {
   const adminButton = root.querySelector("#open-admin");
+  const logoutButton = root.querySelector("#logout-inline");
   if (!adminButton) return;
   if (hasAdminSession) {
     adminButton.dataset.visible = "true";
     adminButton.classList.remove("hidden");
+    if (logoutButton) {
+      logoutButton.dataset.visible = "true";
+      logoutButton.classList.remove("hidden");
+    }
   } else {
     adminButton.dataset.visible = "false";
     adminButton.classList.add("hidden");
+    if (logoutButton) {
+      logoutButton.dataset.visible = "false";
+      logoutButton.classList.add("hidden");
+    }
   }
 }
 function loadLegacyScript(entry, nonce) {

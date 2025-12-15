@@ -7,8 +7,11 @@
       class="range-btn"
       :class="{ active: option.value === modelValue }"
       :aria-pressed="option.value === modelValue"
+      :aria-label="option.fullLabel"
+      :title="option.fullLabel"
       @click="select(option.value)">
-      {{ option.label }}
+      <span class="label-short">{{ option.shortLabel }}</span>
+      <span class="label-full">{{ option.fullLabel }}</span>
     </button>
   </div>
 </template>
@@ -26,11 +29,15 @@ const emit = defineEmits<{ 'update:modelValue': [ChannelAnalyticsRange] }>();
 const { t } = useI18n();
 
 const options = computed(() => [
-  { value: 'day' as ChannelAnalyticsRange, label: t('channelRangeDay') },
-  { value: 'week' as ChannelAnalyticsRange, label: t('channelRangeWeek') },
-  { value: 'month' as ChannelAnalyticsRange, label: t('channelRangeMonth') },
-  { value: 'halfyear' as ChannelAnalyticsRange, label: t('channelRangeHalfYear') },
-  { value: 'year' as ChannelAnalyticsRange, label: t('channelRangeYear') },
+  { value: 'day' as ChannelAnalyticsRange, shortLabel: '1D', fullLabel: t('channelRangeDay') },
+  { value: 'week' as ChannelAnalyticsRange, shortLabel: '1W', fullLabel: t('channelRangeWeek') },
+  { value: 'month' as ChannelAnalyticsRange, shortLabel: '1M', fullLabel: t('channelRangeMonth') },
+  {
+    value: 'halfyear' as ChannelAnalyticsRange,
+    shortLabel: '6M',
+    fullLabel: t('channelRangeHalfYear'),
+  },
+  { value: 'year' as ChannelAnalyticsRange, shortLabel: '1Y', fullLabel: t('channelRangeYear') },
 ]);
 
 function select(value: ChannelAnalyticsRange) {
@@ -46,6 +53,7 @@ function select(value: ChannelAnalyticsRange) {
   padding: 0.15rem;
   gap: 0.15rem;
   background: rgba(148, 163, 184, 0.12);
+  max-width: 100%;
 }
 .range-btn {
   border: none;
@@ -58,11 +66,34 @@ function select(value: ChannelAnalyticsRange) {
     background 0.2s ease,
     color 0.2s ease;
 }
+.label-short {
+  display: none;
+}
+.label-full {
+  display: inline;
+}
 .range-btn:hover {
   background: rgba(148, 163, 184, 0.25);
 }
 .range-btn.active {
   background: #553fee;
   color: #fff;
+}
+
+@media (max-width: 767.98px) {
+  .range-filter {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .range-btn {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.9rem;
+  }
+  .label-short {
+    display: inline;
+  }
+  .label-full {
+    display: none;
+  }
 }
 </style>

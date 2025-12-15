@@ -220,11 +220,30 @@ html.dark .getty-login-chooser-overlay {
   min-width: 0;
 }
 
+.getty-login-chooser__odyseeLayout [data-role='connect-odysee-block'] {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.getty-login-chooser__odyseeLayout
+  [data-role='connect-odysee-block']
+  > button.getty-login-chooser__btn {
+  flex: 1 1 auto;
+  width: auto;
+}
+
+.getty-login-chooser__odyseeLayout [data-role='create-account-mobile'] {
+  display: none;
+}
+
 .getty-login-chooser__odyseeImageWrap {
   flex: 0 0 240px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 10px;
 }
 
 .getty-login-chooser__odyseeImage {
@@ -238,7 +257,35 @@ html.dark .getty-login-chooser-overlay {
 }
 
 @media (max-width: 720px) {
+  .getty-login-chooser__odyseeLayout {
+    flex-direction: column;
+  }
+
+  .getty-login-chooser__odyseeLayout [data-role='connect-odysee-block'] {
+    flex-direction: column;
+  }
+
+  .getty-login-chooser__odyseeLayout
+    [data-role='connect-odysee-block']
+    > button.getty-login-chooser__btn {
+    width: 100%;
+  }
+
+  .getty-login-chooser__odyseeLayout [data-role='create-account-desktop'].getty-login-chooser__btn {
+    width: 100%;
+  }
+
   .getty-login-chooser__odyseeImageWrap {
+    order: -1;
+    flex: 0 0 auto;
+  }
+
+  .getty-login-chooser__odyseeImage {
+    max-width: 100%;
+    max-height: 180px;
+  }
+
+  .getty-login-chooser__odyseeLayout [data-role='create-account-mobile'] {
     display: none;
   }
 }
@@ -265,6 +312,15 @@ html.dark .getty-login-chooser-overlay {
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
+}
+
+.getty-login-chooser__odyseeLayout
+  [data-role='connect-odysee-block']
+  > button.getty-login-chooser__btn,
+.getty-login-chooser__odyseeLayout [data-role='create-account-desktop'].getty-login-chooser__btn,
+.getty-login-chooser__odyseeLayout [data-role='create-account-mobile'].getty-login-chooser__btn {
+  gap: 5px;
+  padding: 8px 8px;
 }
 
 .getty-login-chooser__btn.center {
@@ -321,6 +377,11 @@ html.dark .getty-login-chooser-overlay {
 .getty-login-chooser__row {
   display: flex;
   gap: 8px;
+}
+
+.getty-login-chooser__odyseeImageWrap
+  [data-role='create-account-mobile'].getty-login-chooser__btn.small {
+  width: 100%;
 }
 
 .getty-login-chooser__label {

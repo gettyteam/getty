@@ -50,7 +50,8 @@ export default defineConfig({
     proxy: {
       '/api': 'http://localhost:3000',
       '/widgets': 'http://localhost:3000',
-      '/obs': 'http://localhost:3000'
+      '/obs': 'http://localhost:3000',
+      '/img': 'http://localhost:3000'
     }
   }
 });

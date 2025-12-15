@@ -3,12 +3,12 @@
     <button
       v-if="!session.state.address"
       @click="toggleChooser"
-      class="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors"
+      class="flex items-center gap-2 p-2 md:px-3 md:py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors"
       :disabled="busy"
       :aria-busy="busy.toString()"
       :title="t('adminAuth.connectWalletTitle')">
       <WalletIcon class="w-4 h-4" />
-      <span class="btn-label">{{ busy ? '...' : t('walletLogin') }}</span>
+      <span class="btn-label sr-only md:not-sr-only">{{ busy ? '...' : t('walletLogin') }}</span>
     </button>
 
     <div
@@ -103,28 +103,36 @@
     <div v-else class="flex items-center gap-2">
       <div
         ref="walletChipEl"
-        class="relative group flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm bg-[var(--bg-card)]/60 backdrop-blur-sm"
+        class="relative group flex items-center gap-2 p-2 md:px-3 md:py-2 rounded-lg border border-border text-sm bg-[var(--bg-card)]/60 backdrop-blur-sm"
         :title="!needsWalletVerification ? 'Wallet: ' + session.state.address : ''"
         tabindex="0"
         @click="onWalletChipToggleTooltip"
         @keydown.enter.prevent="onWalletChipToggleTooltip"
         @keydown.space.prevent="onWalletChipToggleTooltip"
         @keydown.esc.stop.prevent="hideWalletChipTooltip">
-        <WsStatusDot
-          :connected="walletConnected"
-          size="sm"
-          sr-label="Estado de la sesión de wallet" />
-        <i class="pi pi-wallet text-[16px] leading-none opacity-80" aria-hidden="true"></i>
-        <span class="font-mono truncate max-w-[110px]" aria-label="Dirección wallet">{{
-          shortAddr
-        }}</span>
-        <span v-if="balanceLabel" class="balance-label text-xs font-mono opacity-80">{{
-          balanceLabel
-        }}</span>
+        <span class="hidden md:inline-flex">
+          <WsStatusDot
+            :connected="walletConnected"
+            size="sm"
+            sr-label="Estado de la sesión de wallet" />
+        </span>
+        <i
+          class="pi pi-wallet text-[14px] md:text-[16px] leading-none opacity-80"
+          aria-hidden="true"></i>
+        <span
+          class="font-mono truncate max-w-[110px] hidden md:inline"
+          aria-label="Dirección wallet">
+          {{ shortAddr }}
+        </span>
+        <span
+          v-if="balanceLabel"
+          class="balance-label hidden md:inline text-xs font-mono opacity-80"
+          >{{ balanceLabel }}</span
+        >
 
         <span
           v-if="needsWalletVerification"
-          class="absolute -top-1 -right-1 flex h-3 w-3"
+          class="hidden md:flex absolute -top-1 -right-1 h-3 w-3"
           aria-hidden="true">
           <span
             class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />

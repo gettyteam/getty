@@ -11,18 +11,28 @@
         <div class="flex items-center gap-4">
           <a href="/" class="logo-link" aria-label="getty home" data-i18n-aria="dashboardHome">
             <img
-              src="https://aqet2p7rnwvvcvraawg2ojq7sfyals6jav2dh6vm7occr347kfsa.arweave.net/BAk9P_Ftq1FWIAWNpyYfkXAFy8kFdDP6rPuEKO-fUWQ"
+              :src="'/img/getty-fav.png'"
               alt="getty"
-              class="h-10 w-auto dark-logo"
+              class="h-8 w-8 sm:hidden"
               decoding="async"
               fetchpriority="high"
-              height="40" />
-            <img
-              src="https://xc43575rqmogbtegwxry2rk4hkctslkb63os6y2cdq25nfkgmguq.arweave.net/uLm-_7GDHGDMhrXjjUVcOoU5LUH23S9jQhw11pVGYak"
-              alt="getty"
-              class="h-10 w-auto light-logo"
-              decoding="async"
-              height="40" />
+              height="32"
+              width="32" />
+            <span class="hidden sm:inline-flex items-center">
+              <img
+                src="https://aqet2p7rnwvvcvraawg2ojq7sfyals6jav2dh6vm7occr347kfsa.arweave.net/BAk9P_Ftq1FWIAWNpyYfkXAFy8kFdDP6rPuEKO-fUWQ"
+                alt="getty"
+                class="h-10 w-auto dark-logo"
+                decoding="async"
+                fetchpriority="high"
+                height="40" />
+              <img
+                src="https://xc43575rqmogbtegwxry2rk4hkctslkb63os6y2cdq25nfkgmguq.arweave.net/uLm-_7GDHGDMhrXjjUVcOoU5LUH23S9jQhw11pVGYak"
+                alt="getty"
+                class="h-10 w-auto light-logo"
+                decoding="async"
+                height="40" />
+            </span>
           </a>
           <div
             id="user-welcome-message"

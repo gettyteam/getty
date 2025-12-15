@@ -18,7 +18,7 @@
       </div>
       <OsCard>
         <h3 class="mb-2 font-semibold">{{ t('liveAnnouncementDiscordTitle') }}</h3>
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <form @submit.prevent action="#">
               <label class="label">Title</label>
@@ -51,14 +51,18 @@
               <div class="mt-3 grid grid-cols-1 gap-2">
                 <div>
                   <label class="label">{{ t('liveClaimIdLabel') }}</label>
-                  <div class="flex gap-2 items-center">
+                  <div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
                     <input class="input" v-model="form.livePostClaimId" placeholder="b6f0a7..." />
                     <button
                       type="button"
-                      class="btn"
+                      class="btn w-8 h-8 p-0 justify-center sm:w-auto sm:h-auto sm:px-4 sm:py-2"
                       :disabled="!form.livePostClaimId || resolving"
                       @click="resolveFromClaimId">
-                      {{ resolving ? t('resolving') : t('liveClaimIdFill') }}
+                      <i v-if="resolving" class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+                      <i v-else class="pi pi-link" aria-hidden="true"></i>
+                      <span class="sr-only sm:not-sr-only">{{
+                        resolving ? t('resolving') : t('liveClaimIdFill')
+                      }}</span>
                     </button>
                   </div>
                   <small
@@ -179,20 +183,60 @@
               </div>
 
               <div class="mt-3 flex gap-2 flex-wrap">
-                <button type="button" class="btn" :disabled="sending || hasErrors" @click="send">
-                  {{ sending ? t('commonSending') : t('commonSend') }}
+                <button
+                  type="button"
+                  class="btn w-8 h-8 p-0 justify-center sm:w-auto sm:h-auto sm:px-4 sm:py-2"
+                  :disabled="sending || hasErrors"
+                  @click="send"
+                  :aria-label="sending ? t('commonSending') : t('commonSend')"
+                  :title="sending ? t('commonSending') : t('commonSend')">
+                  <i v-if="sending" class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+                  <i v-else class="pi pi-send" aria-hidden="true"></i>
+                  <span class="sr-only sm:not-sr-only">{{
+                    sending ? t('commonSending') : t('commonSend')
+                  }}</span>
                 </button>
-                <button type="button" class="btn" @click="genPreview">
-                  {{ t('commonPreview') }}
+                <button
+                  type="button"
+                  class="btn w-8 h-8 p-0 justify-center sm:w-auto sm:h-auto sm:px-4 sm:py-2"
+                  @click="genPreview"
+                  :aria-label="t('commonPreview')"
+                  :title="t('commonPreview')">
+                  <i class="pi pi-eye" aria-hidden="true"></i>
+                  <span class="sr-only sm:not-sr-only">{{ t('commonPreview') }}</span>
                 </button>
-                <button type="button" class="btn" @click="testSend">
-                  {{ t('liveTestSendNow') }}
+                <button
+                  type="button"
+                  class="btn w-8 h-8 p-0 justify-center sm:w-auto sm:h-auto sm:px-4 sm:py-2"
+                  :disabled="sending || hasErrors"
+                  @click="testSend"
+                  :aria-label="t('liveTestSendNow')"
+                  :title="t('liveTestSendNow')">
+                  <i v-if="sending" class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+                  <i v-else class="pi pi-bolt" aria-hidden="true"></i>
+                  <span class="sr-only sm:not-sr-only">{{ t('liveTestSendNow') }}</span>
                 </button>
-                <button type="button" class="btn" @click="saveServerDraft" :disabled="saving">
-                  {{ saving ? t('commonSaving') : t('commonSaveDraft') }}
+                <button
+                  type="button"
+                  class="btn w-8 h-8 p-0 justify-center sm:w-auto sm:h-auto sm:px-4 sm:py-2"
+                  @click="saveServerDraft"
+                  :disabled="saving"
+                  :aria-label="saving ? t('commonSaving') : t('commonSaveDraft')"
+                  :title="saving ? t('commonSaving') : t('commonSaveDraft')">
+                  <i v-if="saving" class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+                  <i v-else class="pi pi-save" aria-hidden="true"></i>
+                  <span class="sr-only sm:not-sr-only">{{
+                    saving ? t('commonSaving') : t('commonSaveDraft')
+                  }}</span>
                 </button>
-                <button type="button" class="btn" @click="loadServerDraft">
-                  {{ t('commonLoadDraft') }}
+                <button
+                  type="button"
+                  class="btn w-8 h-8 p-0 justify-center sm:w-auto sm:h-auto sm:px-4 sm:py-2"
+                  @click="loadServerDraft"
+                  :aria-label="t('commonLoadDraft')"
+                  :title="t('commonLoadDraft')">
+                  <i class="pi pi-download" aria-hidden="true"></i>
+                  <span class="sr-only sm:not-sr-only">{{ t('commonLoadDraft') }}</span>
                 </button>
               </div>
             </form>

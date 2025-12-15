@@ -5,6 +5,20 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  @media (max-width: 767.98px) {
+    .admin-container .theme-toggle {
+      width: 2rem;
+      height: 2rem;
+    }
+
+    .admin-container .theme-toggle svg {
+      width: 1rem;
+      height: 1rem;
+    }
+  }
+}
+
 @layer base {
   input:not([type='checkbox']):not([type='radio']):not([type='range']),
   select,
@@ -371,6 +385,22 @@
     @apply px-3 py-1 text-xs;
   }
 
+  @media (max-width: 640px) {
+    .copy-field-group {
+      flex-wrap: wrap;
+    }
+
+    .copy-field-group input {
+      flex: 1 1 100%;
+      min-width: 0;
+    }
+
+    .copy-field-group button {
+      border-left: 0;
+      border-top: 1px solid var(--card-border);
+    }
+  }
+
   .admin-layout {
     --sidebar-w: 14rem;
     min-height: calc(100vh - var(--admin-top, var(--admin-header-h, 64px)) - 2.5rem);
@@ -380,7 +410,7 @@
   }
   .admin-sidebar {
     @apply flex flex-col gap-4 pr-4 border-r border-[var(--card-border)] backdrop-blur-sm transition-all duration-300;
-    background: color-mix(in srgb, var(--card-bg) 40%, transparent);
+    background: var(--bg-card);
     box-sizing: border-box;
   }
 
@@ -397,6 +427,7 @@
       transform: translateX(-100%);
       z-index: 60;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+      background: var(--bg-card);
     }
     html.mobile-sidebar-open .admin-sidebar {
       transform: translateX(0);
@@ -427,7 +458,7 @@
       width: var(--sidebar-w, 14rem);
       height: calc(100vh - var(--admin-top, var(--admin-header-h, 64px)));
       overflow-x: visible;
-      z-index: 40; /* under header controls but above content */
+      z-index: 40;
     }
   }
   .admin-main {
