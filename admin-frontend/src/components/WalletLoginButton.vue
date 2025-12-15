@@ -70,6 +70,20 @@
           autocomplete="current-password"
           :placeholder="t('publicAuth.passwordPlaceholder')" />
 
+        <div v-if="show2FAInput" class="mt-2">
+          <label class="text-xs opacity-70 font-bold text-yellow-500">{{
+            t('twoFactor.enterCode')
+          }}</label>
+          <input
+            v-model="twoFactorCode"
+            class="w-full px-3 py-2 rounded-lg border border-yellow-500 bg-transparent text-sm"
+            type="text"
+            autocomplete="one-time-code"
+            placeholder="000000"
+            maxlength="6"
+            ref="twoFactorInput" />
+        </div>
+
         <label class="text-xs opacity-70">{{ t('publicAuth.walletAddressOptionalLabel') }}</label>
         <input
           v-model.trim="odyseeWalletAddress"
@@ -188,6 +202,9 @@ const odyseeEmail = ref('');
 const odyseePassword = ref('');
 const odyseeWalletAddress = ref('');
 const odyseeError = ref('');
+const show2FAInput = ref(false);
+const twoFactorCode = ref('');
+const twoFactorInput = ref(null);
 let providerPromise = null;
 
 const walletChipEl = ref(null);
@@ -255,6 +272,8 @@ function toggleChooser() {
     showOdyseeForm.value = false;
     odyseeError.value = '';
     odyseePassword.value = '';
+    show2FAInput.value = false;
+    twoFactorCode.value = '';
   }
 }
 
@@ -263,12 +282,16 @@ function closeChooser() {
   showOdyseeForm.value = false;
   odyseeError.value = '';
   odyseePassword.value = '';
+  show2FAInput.value = false;
+  twoFactorCode.value = '';
 }
 
 function openOdyseeForm() {
   odyseeError.value = '';
   showOdyseeForm.value = true;
   odyseePassword.value = '';
+  show2FAInput.value = false;
+  twoFactorCode.value = '';
 }
 
 function persistWidgetToken(widgetToken, expiresAt) {
@@ -305,10 +328,24 @@ async function submitOdyseeLogin() {
       email: odyseeEmail.value,
       password: odyseePassword.value,
       walletAddress,
+      code: show2FAInput.value ? twoFactorCode.value : undefined,
     };
 
     let res = await fetchJson('/api/auth/odysee/login', { method: 'POST', body });
     if (!res || !res.success) {
+      if (res?.error === '2fa_required') {
+        show2FAInput.value = true;
+        odyseeError.value = '';
+
+        setTimeout(() => {
+          if (twoFactorInput.value) twoFactorInput.value.focus();
+        }, 100);
+        busy.value = false;
+        return;
+      }
+      if (res?.error === 'invalid_2fa_code') {
+        throw new Error(t('twoFactor.invalidCode') || 'Invalid 2FA code');
+      }
       if (res?.error === 'email_verification_required') {
         throw new Error(t('publicAuth.emailVerificationRequired'));
       }
@@ -392,7 +429,8 @@ async function startWanderLogin() {
     const nonce = await fetchJson('/api/auth/wander/nonce', { method: 'POST', body: { address } });
     if (nonce.error) throw new Error(nonce.error);
 
-    let primarySig = await provider.signMessage(nonce.message);
+    const msgBuffer = new TextEncoder().encode(nonce.message);
+    let primarySig = await provider.signMessage(msgBuffer);
     let verify = await fetchJson('/api/auth/wander/verify', {
       method: 'POST',
       body: {
@@ -405,7 +443,7 @@ async function startWanderLogin() {
     });
     if (!verify.success && verify.error === 'bad_signature') {
       try {
-        const altMessage = String(nonce.message);
+        const altMessage = new TextEncoder().encode(String(nonce.message));
         const altSig = await provider.signMessage(altMessage);
         verify = await fetchJson('/api/auth/wander/verify', {
           method: 'POST',
