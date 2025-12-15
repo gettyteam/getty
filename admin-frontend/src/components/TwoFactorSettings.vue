@@ -38,7 +38,10 @@
       <p class="mb-4">{{ t('twoFactor.description') }}</p>
 
       <div v-if="!setupData">
-        <button @click="startSetup" class="btn btn-primary">{{ t('twoFactor.enableBtn') }}</button>
+        <button @click="startSetup" class="btn btn-secondary btn-compact-secondary">
+          <i class="pi pi-key"></i>
+          {{ t('twoFactor.enableBtn') }}
+        </button>
       </div>
 
       <div v-else class="mt-4">
