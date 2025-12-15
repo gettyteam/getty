@@ -1,5 +1,5 @@
 <template>
-  <div class="p-4 border border-[var(--card-border)] rounded-md bg-[var(--bg-card)] mt-6">
+  <div class="p-4 border border-[var(--card-border)] rounded-md bg-[var(--bg-card)] h-fit">
     <h3 class="text-lg font-semibold mb-4">{{ t('twoFactor.title') }}</h3>
 
     <div v-if="loading">{{ t('loading') || 'Loading...' }}</div>
@@ -46,11 +46,24 @@
           <p class="font-semibold mb-2">
             {{ t('twoFactor.scanQr') }}
           </p>
-          <img :src="setupData.qrCodeUrl" alt="QR Code" class="border p-2 bg-white rounded" />
-          <p class="text-sm mt-2 text-gray-500">
-            {{ t('twoFactor.manualSecret') }}
-            <code class="bg-gray-100 px-1 rounded text-black">{{ setupData.secret }}</code>
-          </p>
+          <img
+            :src="setupData.qrCodeUrl"
+            alt="QR Code"
+            class="border bg-white rounded mx-auto block" />
+          <div class="text-sm mt-4 text-gray-500 flex flex-col items-center gap-2">
+            <span>{{ t('twoFactor.manualSecret') }}</span>
+            <div class="flex items-center gap-2">
+              <code class="bg-gray-100 px-2 py-1 rounded text-black font-mono text-base">{{
+                setupData.secret
+              }}</code>
+              <button
+                @click="copySecret"
+                class="btn btn-sm btn-secondary p-1.5 h-auto min-h-0"
+                :title="t('copy') || 'Copy'">
+                <i class="pi" :class="copied ? 'pi-check text-green-500' : 'pi-copy'"></i>
+              </button>
+            </div>
+          </div>
         </div>
 
         <div class="mb-4">
@@ -125,6 +138,7 @@ const setupData = ref(null);
 const code = ref('');
 const error = ref('');
 const backupCodes = ref([]);
+const copied = ref(false);
 
 const fetchStatus = async () => {
   try {
@@ -135,6 +149,16 @@ const fetchStatus = async () => {
     console.error(e);
   } finally {
     loading.value = false;
+  }
+};
+
+const copySecret = () => {
+  if (setupData.value?.secret) {
+    navigator.clipboard.writeText(setupData.value.secret);
+    copied.value = true;
+    setTimeout(() => {
+      copied.value = false;
+    }, 2000);
   }
 };
 

@@ -159,7 +159,23 @@
         <p class="text-sm text-red-600">{{ error }}</p>
       </div>
     </div>
-    <TwoFactorSettings />
+
+    <div class="mt-10 mb-6 border-t border-[var(--card-border)] pt-6">
+      <h3 class="text-lg font-semibold mb-2">
+        {{ t('securitySettings') || 'Security' }}
+      </h3>
+      <p class="text-sm opacity-70">
+        {{
+          t('securitySettingsDescription') ||
+          'Manage your account security and two-factor authentication.'
+        }}
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+      <TwoFactorSettings />
+      <TwoFactorTutorial />
+    </div>
   </section>
 </template>
 
@@ -168,6 +184,7 @@ import { computed, ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import api from '../services/api';
 import TwoFactorSettings from '../components/TwoFactorSettings.vue';
+import TwoFactorTutorial from '../components/TwoFactorTutorial.vue';
 
 const { t, te } = useI18n();
 
