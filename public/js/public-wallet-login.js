@@ -1254,8 +1254,6 @@ class WanderWalletLogin {
             password: state.password,
             skipResend: true,
           };
-          // Security: only allow the server to attempt completion on explicit user interaction
-          // (e.g. user returns to this tab) so background polling can't auto-login.
           payload.userGesture = reason === 'focus' || reason === 'visible';
           const resp = await this.postJson('/api/auth/odysee/login', payload);
 
