@@ -2808,7 +2808,6 @@ try {
         });
         const ttl = result.session.exp - result.session.iat;
 
-        // Migration/Linking Logic: Check for existing Odysee session and migrate 2FA/Config
         try {
            const oldSessionToken = req.cookies?.getty_wallet_session;
            if (oldSessionToken && walletAuth && typeof walletAuth.verifySessionCookie === 'function') {
@@ -2831,12 +2830,11 @@ try {
                     }
 
                     let changed = false;
-                    // Migrate 2FA settings if present in old but missing in new
+
                     if (oldConfig.twoFactor && !newConfig.twoFactor) {
                        newConfig.twoFactor = oldConfig.twoFactor;
                        changed = true;
                        
-                       // Sync Redis status for the new hash
                        if (store && store.redis && newConfig.twoFactor.enabled) {
                           await store.redis.set(`getty:user:${newHash}:2fa`, 'true');
                        }
@@ -3835,24 +3833,6 @@ try {
                     expiresAt: Date.now() + 5 * 60 * 1000
                   };
                   if (store) {
-                    // Use store.set directly to handle prefixing and encryption consistently
-                    // The key format expected by store.get(ns, key) is `getty:${ns}:${key}`
-                    // Here we want to store under `getty:2fa_pending:${tempToken}`
-                    // So we can use store.set('2fa_pending', tempToken, pendingData)
-                    // But wait, store.get takes (ns, key).
-                    // In validate route: store.get(`2fa_pending:${tempToken}`) -> this is wrong usage of store.get(ns, key) if it expects 2 args.
-                    
-                    // Let's look at store.get signature: async get(ns, key, fallback = null)
-                    // It constructs key as `getty:${ns}:${key}`
-                    
-                    // In validate route: const pendingRaw = store ? await store.get(`2fa_pending:${tempToken}`) : null;
-                    // This passes `2fa_pending:${tempToken}` as the first arg 'ns', and undefined as 'key'.
-                    // So it constructs `getty:2fa_pending:${tempToken}:undefined` -> WRONG.
-                    
-                    // We should use the raw KV/Redis for this temporary token to avoid the NamespacedStore structure which is designed for user sessions.
-                    // OR use NamespacedStore correctly.
-                    
-                    // Let's stick to raw KV/Redis for now as it was partially implemented that way.
                     const key = `getty:2fa_pending:${tempToken}`;
                     const val = JSON.stringify(pendingData);
                     if (store.redis) await store.redis.set(key, val, 'EX', 300);
