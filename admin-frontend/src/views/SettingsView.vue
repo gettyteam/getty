@@ -159,6 +159,7 @@
         <p class="text-sm text-red-600">{{ error }}</p>
       </div>
     </div>
+    <TwoFactorSettings />
   </section>
 </template>
 
@@ -166,6 +167,7 @@
 import { computed, ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import api from '../services/api';
+import TwoFactorSettings from '../components/TwoFactorSettings.vue';
 
 const { t, te } = useI18n();
 

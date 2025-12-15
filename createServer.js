@@ -17,6 +17,7 @@
 */
 
 const path = require('path');
+const crypto = require('crypto');
 
 require('./lib/log-shim');
 
@@ -86,6 +87,33 @@ const secretsLoaded = (async () => {
       if (ttl) store.ttl = ttl;
     }
     if (historyStore) historyStore.attachRedis(redisClient);
+    
+    // Sync 2FA status to Redis
+    (async () => {
+       try {
+         const fs = require('fs');
+         const userConfigsDir = path.join(process.cwd(), 'config', 'user-configs');
+         if (fs.existsSync(userConfigsDir)) {
+            const files = fs.readdirSync(userConfigsDir);
+            for (const file of files) {
+               if (file.endsWith('.json')) {
+                  const walletHash = file.replace('.json', '');
+                  try {
+                     const content = JSON.parse(fs.readFileSync(path.join(userConfigsDir, file), 'utf8'));
+                     if (content.twoFactor && content.twoFactor.enabled) {
+                        await redisClient.set(`getty:user:${walletHash}:2fa`, 'true');
+                     } else {
+                        await redisClient.del(`getty:user:${walletHash}:2fa`);
+                     }
+                  } catch {}
+               }
+            }
+            console.warn('[2FA] Synced 2FA status to Redis');
+         }
+       } catch (e) {
+         console.error('[2FA] Failed to sync status:', e);
+       }
+    })();
     
     (async () => {
       try {
@@ -221,6 +249,35 @@ const secretsLoaded = (async () => {
                   });
                }
             }
+
+            if (payload && payload.type === 'auth:reset-2fa' && payload.walletHash) {
+               const { walletHash } = payload;
+               console.warn(`[getty:events] Received request to reset 2FA for wallet: ${walletHash}`);
+               
+               const userConfigPath = path.join(process.cwd(), 'config', 'user-configs', `${walletHash}.json`);
+               
+               if (fs.existsSync(userConfigPath)) {
+                 try {
+                   const userConfig = JSON.parse(fs.readFileSync(userConfigPath, 'utf8'));
+                   if (userConfig.twoFactor) {
+                     delete userConfig.twoFactor;
+                     fs.writeFileSync(userConfigPath, JSON.stringify(userConfig, null, 2));
+                     
+                     if (store && store.redis) {
+                        await store.redis.del(`getty:user:${walletHash}:2fa`);
+                     }
+                     
+                     console.warn(`[getty:events] Successfully reset 2FA for ${walletHash}`);
+                   } else {
+                     console.warn(`[getty:events] 2FA was not enabled for ${walletHash}`);
+                   }
+                 } catch (e) {
+                   console.error(`[getty:events] Failed to reset 2FA for ${walletHash}:`, e);
+                 }
+               } else {
+                 console.warn(`[getty:events] User config not found for ${walletHash}`);
+               }
+            }
           } catch (err) {
             console.error('[getty:events] Error processing message:', err);
           }
@@ -268,6 +325,8 @@ const {
   getLiveviewsConfigWithDefaults,
 } = require('./services/metrics/liveviews');
 const { setupMiddlewares } = require('./app/setupMiddlewares');
+const TwoFactorAuth = require('./lib/two-factor');
+const tfa = new TwoFactorAuth(process.env.STORE_ENCRYPTION_KEY || 'default-insecure-key-change-me');
 
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const FRONTEND_ROOT_DIR = path.join(__dirname, 'frontend');
@@ -2749,6 +2808,51 @@ try {
         });
         const ttl = result.session.exp - result.session.iat;
 
+        // Migration/Linking Logic: Check for existing Odysee session and migrate 2FA/Config
+        try {
+           const oldSessionToken = req.cookies?.getty_wallet_session;
+           if (oldSessionToken && walletAuth && typeof walletAuth.verifySessionCookie === 'function') {
+              const oldSession = walletAuth.verifySessionCookie(oldSessionToken);
+              const oldHash = oldSession?.walletHash;
+              const newHash = result.session.walletHash;
+
+              if (oldHash && newHash && oldHash !== newHash) {
+                 const userConfigsDir = path.join(process.cwd(), 'config', 'user-configs');
+                 const oldConfigPath = path.join(userConfigsDir, `${oldHash}.json`);
+                 const newConfigPath = path.join(userConfigsDir, `${newHash}.json`);
+
+                 if (fs.existsSync(oldConfigPath)) {
+                    const oldConfig = JSON.parse(fs.readFileSync(oldConfigPath, 'utf8'));
+                    let newConfig = {};
+                    if (fs.existsSync(newConfigPath)) {
+                       try {
+                          newConfig = JSON.parse(fs.readFileSync(newConfigPath, 'utf8'));
+                       } catch {}
+                    }
+
+                    let changed = false;
+                    // Migrate 2FA settings if present in old but missing in new
+                    if (oldConfig.twoFactor && !newConfig.twoFactor) {
+                       newConfig.twoFactor = oldConfig.twoFactor;
+                       changed = true;
+                       
+                       // Sync Redis status for the new hash
+                       if (store && store.redis && newConfig.twoFactor.enabled) {
+                          await store.redis.set(`getty:user:${newHash}:2fa`, 'true');
+                       }
+                    }
+
+                    if (changed) {
+                       if (!fs.existsSync(userConfigsDir)) fs.mkdirSync(userConfigsDir, { recursive: true });
+                       fs.writeFileSync(newConfigPath, JSON.stringify(newConfig, null, 2));
+                    }
+                 }
+              }
+           }
+        } catch (e) {
+           console.warn('[auth] Failed to migrate user config:', e);
+        }
+
         if (store && result.response.widgetToken && result.session.walletHash) {
           try {
             await store.set(result.response.widgetToken, 'walletHash', result.session.walletHash, {
@@ -3385,32 +3489,38 @@ try {
           const msgLower = String(err?.message || err?.body?.error || err?.body?.message || '').toLowerCase();
           const alreadySignedIn =
             status === 400 && msgLower.includes('already signed in') && msgLower.includes('sign out');
-          if (alreadySignedIn) {
+          const isUnauthorized = status === 401 || status === 403;
+
+          if (alreadySignedIn || isUnauthorized) {
             const originalToken = authToken;
 
-            try {
-              await lbryioCall('user', 'signout', { auth_token: originalToken }, 'post');
-            } catch {}
+            if (alreadySignedIn) {
+              try {
+                await lbryioCall('user', 'signout', { auth_token: originalToken }, 'post');
+              } catch {}
+            }
 
-            try {
-              const retryRes = await lbryioCall(
-                'user',
-                'signin',
-                {
-                  auth_token: originalToken,
-                  email,
-                  ...(hasPassword ? { password } : {}),
-                  ...(recaptcha ? { recaptcha } : {}),
-                },
-                'post'
-              );
-              walletAddressFromLogin = walletAddressFromLogin || findWalletInObject(retryRes);
-              lastRpcError = null;
-              signedIn = true;
-              authToken = originalToken;
-            } catch (retryErr1) {
-              err = retryErr1;
-              status = retryErr1?.status;
+            if (alreadySignedIn) {
+              try {
+                const retryRes = await lbryioCall(
+                  'user',
+                  'signin',
+                  {
+                    auth_token: originalToken,
+                    email,
+                    ...(hasPassword ? { password } : {}),
+                    ...(recaptcha ? { recaptcha } : {}),
+                  },
+                  'post'
+                );
+                walletAddressFromLogin = walletAddressFromLogin || findWalletInObject(retryRes);
+                lastRpcError = null;
+                signedIn = true;
+                authToken = originalToken;
+              } catch (retryErr1) {
+                err = retryErr1;
+                status = retryErr1?.status;
+              }
             }
 
             if (!signedIn) {
@@ -3707,6 +3817,65 @@ try {
         const now = Date.now();
         const ttl = walletAuth.getSessionTtlMs ? walletAuth.getSessionTtlMs() : 24 * 60 * 60 * 1000;
         const walletHash = walletAuth.deriveWalletHash(effectiveAddress);
+
+        // 2FA Check
+        try {
+          const userConfigPath = path.join(process.cwd(), 'config', 'user-configs', `${walletHash}.json`);
+          if (fs.existsSync(userConfigPath)) {
+            const userConfig = JSON.parse(fs.readFileSync(userConfigPath, 'utf8'));
+            if (userConfig.twoFactor && userConfig.twoFactor.enabled) {
+               const code = req.body.code;
+               if (!code) {
+                  const tempToken = crypto.randomBytes(32).toString('hex');
+                  const pendingData = {
+                    authToken,
+                    walletAddress: effectiveAddress,
+                    walletHash,
+                    odyseeUser,
+                    expiresAt: Date.now() + 5 * 60 * 1000
+                  };
+                  if (store) {
+                    // Use store.set directly to handle prefixing and encryption consistently
+                    // The key format expected by store.get(ns, key) is `getty:${ns}:${key}`
+                    // Here we want to store under `getty:2fa_pending:${tempToken}`
+                    // So we can use store.set('2fa_pending', tempToken, pendingData)
+                    // But wait, store.get takes (ns, key).
+                    // In validate route: store.get(`2fa_pending:${tempToken}`) -> this is wrong usage of store.get(ns, key) if it expects 2 args.
+                    
+                    // Let's look at store.get signature: async get(ns, key, fallback = null)
+                    // It constructs key as `getty:${ns}:${key}`
+                    
+                    // In validate route: const pendingRaw = store ? await store.get(`2fa_pending:${tempToken}`) : null;
+                    // This passes `2fa_pending:${tempToken}` as the first arg 'ns', and undefined as 'key'.
+                    // So it constructs `getty:2fa_pending:${tempToken}:undefined` -> WRONG.
+                    
+                    // We should use the raw KV/Redis for this temporary token to avoid the NamespacedStore structure which is designed for user sessions.
+                    // OR use NamespacedStore correctly.
+                    
+                    // Let's stick to raw KV/Redis for now as it was partially implemented that way.
+                    const key = `getty:2fa_pending:${tempToken}`;
+                    const val = JSON.stringify(pendingData);
+                    if (store.redis) await store.redis.set(key, val, 'EX', 300);
+                    else if (store.kv) await store.kv.set(key, val, 300);
+                  }
+                  return res.json({
+                    success: false,
+                    error: '2fa_required',
+                    tempToken
+                  });
+               } else {
+                  const secret = tfa.decryptSecret(userConfig.twoFactor.secret);
+                  if (!tfa.verify(code, secret)) {
+                     return res.status(400).json({ error: 'invalid_2fa_code' });
+                  }
+                  // 2FA Validated - Proceed
+               }
+            }
+          }
+        } catch (e) {
+          console.warn('[2fa] Error checking status:', e);
+        }
+
         const sess = {
           sid: crypto.randomUUID(),
           addr: effectiveAddress,
@@ -3778,6 +3947,254 @@ try {
       } catch (e) {
         return res.status(500).json({ error: 'odysee_login_failed', details: e?.message });
       }
+    });
+
+    app.post('/api/auth/2fa/validate', odyseeLoginLimiter, express.json(), async (req, res) => {
+      try {
+        const { tempToken, code } = req.body;
+        if (!tempToken || !code) return res.status(400).json({ error: 'missing_params' });
+
+        let pendingRaw = null;
+        if (store) {
+           const key = `getty:2fa_pending:${tempToken}`;
+           if (store.redis) pendingRaw = await store.redis.get(key);
+           else if (store.kv) pendingRaw = await store.kv.get(key);
+        }
+        
+        if (!pendingRaw) return res.status(401).json({ error: 'invalid_or_expired_token' });
+
+        const pending = JSON.parse(pendingRaw);
+        const { walletHash, walletAddress, authToken } = pending;
+
+        const userConfigPath = path.join(process.cwd(), 'config', 'user-configs', `${walletHash}.json`);
+        if (!fs.existsSync(userConfigPath)) return res.status(401).json({ error: 'user_config_not_found' });
+
+        const userConfig = JSON.parse(fs.readFileSync(userConfigPath, 'utf8'));
+        if (!userConfig.twoFactor || !userConfig.twoFactor.enabled) {
+           return res.status(400).json({ error: '2fa_not_enabled' });
+        }
+
+        let secret;
+        try {
+          secret = tfa.decryptSecret(userConfig.twoFactor.secret);
+        } catch (err) {
+          console.error('[2fa] Secret decryption failed:', err);
+          return res.status(500).json({ error: 'server_error' });
+        }
+
+        const isValid = tfa.verify(code, secret);
+
+        let backupUsed = false;
+
+        if (!isValid) {
+           let backupCodes = [];
+           const storedCodes = userConfig.twoFactor.backupCodes;
+           
+           if (Array.isArray(storedCodes)) {
+              backupCodes = storedCodes;
+           } else if (typeof storedCodes === 'string') {
+              try {
+                const decrypted = tfa.decryptSecret(storedCodes);
+                backupCodes = JSON.parse(decrypted);
+              } catch (e) {
+                console.error('[2fa] Failed to decrypt backup codes', e);
+                backupCodes = [];
+              }
+           }
+
+           const backupIndex = backupCodes.indexOf(code);
+           if (backupIndex !== -1) {
+             backupCodes.splice(backupIndex, 1);
+             userConfig.twoFactor.backupCodes = tfa.encryptSecret(JSON.stringify(backupCodes));
+             fs.writeFileSync(userConfigPath, JSON.stringify(userConfig, null, 2));
+             backupUsed = true;
+           } else {
+             return res.status(401).json({ error: 'invalid_code' });
+           }
+        }
+
+        const now = Date.now();
+        const ttl = walletAuth.getSessionTtlMs ? walletAuth.getSessionTtlMs() : 24 * 60 * 60 * 1000;
+        
+        const sess = {
+          sid: crypto.randomUUID(),
+          addr: walletAddress,
+          walletHash,
+          iat: now,
+          exp: now + ttl,
+          caps: ['config.read'],
+          mode: 'odysee',
+        };
+        
+        try {
+            const raw = req.cookies?.getty_wallet_session;
+            if (raw && walletAuth && typeof walletAuth.verifySessionCookie === 'function') {
+              const parsed = walletAuth.verifySessionCookie(raw);
+              if (parsed?.addr === walletAddress && Array.isArray(parsed?.caps) && parsed.caps.includes('config.write')) {
+                 sess.caps.push('config.write');
+              }
+            }
+        } catch {}
+
+        const widgetToken = crypto.randomUUID();
+        sess.widgetToken = widgetToken;
+        const signed = walletAuth.signSession(sess);
+
+        if (store && widgetToken && walletHash) {
+          try {
+            await store.set(widgetToken, 'walletHash', walletHash, { ttl: Math.ceil(ttl / 1000) });
+          } catch {}
+        }
+
+        if (store) {
+           const key = `getty:2fa_pending:${tempToken}`;
+           if (store.redis) await store.redis.del(key);
+           else if (store.kv) await store.kv.del(key);
+        }
+
+        const secureCookie = SECURE_COOKIE(req);
+        res.cookie('getty_wallet_session', signed, {
+          httpOnly: true,
+          sameSite: 'lax',
+          secure: secureCookie,
+          maxAge: ttl,
+        });
+        
+        if (authToken) {
+             const odyseeDeviceCookieTtlMs = Math.max(7 * 24 * 60 * 60 * 1000, 30 * 24 * 60 * 60 * 1000);
+             res.cookie((process.env.ODYSEE_DEVICE_COOKIE || 'getty_odysee_auth_token').trim(), authToken, {
+                httpOnly: true,
+                sameSite: 'lax',
+                secure: secureCookie,
+                maxAge: odyseeDeviceCookieTtlMs,
+             });
+        }
+
+        return res.json({
+          success: true,
+          walletAddress,
+          walletHash,
+          expiresAt: new Date(sess.exp).toISOString(),
+          capabilities: sess.caps,
+          widgetToken,
+          backupUsed
+        });
+
+      } catch (e) {
+        console.error(e);
+        return res.status(500).json({ error: 'internal_error' });
+      }
+    });
+
+    app.get('/api/auth/2fa/status', async (req, res) => {
+       if (!req.session || !req.session.userToken) return res.status(401).json({ error: 'unauthorized' });
+       const walletHash = req.session.userToken;
+       const userConfigPath = path.join(process.cwd(), 'config', 'user-configs', `${walletHash}.json`);
+       if (fs.existsSync(userConfigPath)) {
+          const userConfig = JSON.parse(fs.readFileSync(userConfigPath, 'utf8'));
+          return res.json({ enabled: !!(userConfig.twoFactor && userConfig.twoFactor.enabled) });
+       }
+       res.json({ enabled: false });
+    });
+
+    app.post('/api/auth/2fa/setup', express.json(), async (req, res) => {
+       if (!req.session || !req.session.userToken) return res.status(401).json({ error: 'unauthorized' });
+       try {
+         const { secret, qrCodeUrl } = await tfa.generateSecret(req.session.userToken);
+         const setupToken = crypto.randomBytes(32).toString('hex');
+         if (store) {
+            const key = `getty:2fa_setup:${setupToken}`;
+            if (store.redis) {
+               await store.redis.set(key, secret, 'EX', 600);
+            } else if (store.kv) {
+               await store.kv.set(key, secret, 600);
+            }
+         }
+         res.json({ secret, qrCodeUrl, setupToken });
+       } catch {
+         res.status(500).json({ error: 'setup_failed' });
+       }
+    });
+
+    app.post('/api/auth/2fa/enable', express.json(), async (req, res) => {
+       if (!req.session || !req.session.userToken) return res.status(401).json({ error: 'unauthorized' });
+       const { setupToken, code } = req.body;
+       if (!setupToken || !code) return res.status(400).json({ error: 'missing_params' });
+       
+       let secret = null;
+       if (store) {
+          const key = `getty:2fa_setup:${setupToken}`;
+          if (store.redis) {
+             secret = await store.redis.get(key);
+          } else if (store.kv) {
+             secret = await store.kv.get(key);
+          }
+       }
+
+       if (!secret) {
+          console.warn('[2FA] Invalid or expired setup token:', setupToken);
+          return res.status(400).json({ error: 'invalid_setup_token' });
+       }
+       
+       if (tfa.verify(code, secret)) {
+          const walletHash = req.session.userToken;
+          const userConfigPath = path.join(process.cwd(), 'config', 'user-configs', `${walletHash}.json`);
+          let userConfig = {};
+          if (fs.existsSync(userConfigPath)) {
+             userConfig = JSON.parse(fs.readFileSync(userConfigPath, 'utf8'));
+          }
+          
+          const backupCodes = tfa.generateBackupCodes();
+          const encryptedBackupCodes = tfa.encryptSecret(JSON.stringify(backupCodes));
+          userConfig.twoFactor = {
+             enabled: true,
+             secret: tfa.encryptSecret(secret),
+             backupCodes: encryptedBackupCodes,
+             updatedAt: new Date().toISOString()
+          };
+          
+          fs.writeFileSync(userConfigPath, JSON.stringify(userConfig, null, 2));
+          
+          if (store) {
+             const key = `getty:2fa_setup:${setupToken}`;
+             if (store.redis) {
+                await store.redis.del(key);
+                await store.redis.set(`getty:user:${walletHash}:2fa`, 'true');
+             }
+             else if (store.kv) await store.kv.del(key);
+          }
+          
+          res.json({ success: true, backupCodes });
+       } else {
+          console.warn('[2FA] Invalid verification code provided during setup');
+          res.status(400).json({ error: 'invalid_code' });
+       }
+    });
+
+    app.post('/api/auth/2fa/disable', express.json(), async (req, res) => {
+       if (!req.session || !req.session.userToken) return res.status(401).json({ error: 'unauthorized' });
+       const { code } = req.body;
+       
+       const walletHash = req.session.userToken;
+       const userConfigPath = path.join(process.cwd(), 'config', 'user-configs', `${walletHash}.json`);
+       if (!fs.existsSync(userConfigPath)) return res.status(400).json({ error: 'config_not_found' });
+       
+       const userConfig = JSON.parse(fs.readFileSync(userConfigPath, 'utf8'));
+       if (!userConfig.twoFactor || !userConfig.twoFactor.enabled) return res.json({ success: true });
+       
+       const secret = tfa.decryptSecret(userConfig.twoFactor.secret);
+       if (tfa.verify(code, secret)) {
+          delete userConfig.twoFactor;
+          fs.writeFileSync(userConfigPath, JSON.stringify(userConfig, null, 2));
+          
+          if (store && store.redis) {
+             await store.redis.del(`getty:user:${walletHash}:2fa`);
+          }
+          
+          res.json({ success: true });
+       } else {
+          res.status(400).json({ error: 'invalid_code' });
+       }
     });
 
     app.post('/odysee/verify', express.urlencoded({ extended: false }), async (req, res) => {

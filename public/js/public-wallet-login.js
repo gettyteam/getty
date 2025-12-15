@@ -718,6 +718,7 @@ class WanderWalletLogin {
     try {
       if (this.__loginChooserEl) {
         this.__loginChooserEl.classList.remove('hidden');
+        delete this.__loginChooserEl.dataset.tempToken;
         return;
       }
 
@@ -900,6 +901,9 @@ class WanderWalletLogin {
 
   __setChooserStep(root, step) {
     try {
+      if (step === 'odysee') {
+        delete root.dataset.tempToken;
+      }
       const choose = root.querySelector('[data-step="choose"]');
       const odysee = root.querySelector('[data-step="odysee"]');
       const isOdysee = step === 'odysee';
@@ -999,6 +1003,117 @@ class WanderWalletLogin {
     }
   }
 
+  show2FAInput(root, tempToken) {
+    const content = root.querySelector('.getty-login-chooser__content');
+    if (!content) return;
+    
+    content.innerHTML = `
+      <div class="getty-login-chooser__header">
+        <h3 class="getty-login-chooser__title">${this.t('publicAuth.2faTitle') || 'Two-Factor Authentication'}</h3>
+        <p class="getty-login-chooser__subtitle">${this.t('publicAuth.2faSubtitle') || 'Enter the code from your authenticator app.'}</p>
+      </div>
+      <div class="getty-login-chooser__form">
+        <div class="getty-login-chooser__field">
+          <label class="getty-login-chooser__label">${this.t('publicAuth.codeLabel') || 'Authentication Code'}</label>
+          <input class="getty-login-chooser__input" type="text" inputmode="numeric" autocomplete="one-time-code" data-field="2fa-code" placeholder="000000" maxlength="6" />
+        </div>
+        <div class="getty-login-chooser__error hidden" data-role="error"></div>
+        <button class="getty-login-chooser__btn" data-role="verify-2fa">${this.t('publicAuth.verifyBtn') || 'Verify'}</button>
+        <button class="getty-login-chooser__btn getty-login-chooser__btn--secondary" data-role="cancel-2fa">${this.t('cancel')}</button>
+      </div>
+    `;
+
+    const codeInput = content.querySelector('[data-field="2fa-code"]');
+    const verifyBtn = content.querySelector('[data-role="verify-2fa"]');
+    const cancelBtn = content.querySelector('[data-role="cancel-2fa"]');
+    const errBox = content.querySelector('[data-role="error"]');
+
+    if (codeInput) codeInput.focus();
+
+    const setErr = (msg) => {
+      if (!errBox) return;
+      errBox.textContent = msg || '';
+      if (msg) errBox.classList.remove('hidden');
+      else errBox.classList.add('hidden');
+    };
+
+    const submit = async () => {
+      const code = codeInput.value.trim();
+      if (!code) return;
+      
+      setErr('');
+      verifyBtn.disabled = true;
+      verifyBtn.textContent = this.t('verifying') || 'Verifying...';
+
+      try {
+        const resp = await this.postJson('/api/auth/2fa/validate', { tempToken, code });
+        if (resp && resp.success) {
+           this.session = resp;
+           this.arweaveAddress = resp.walletAddress || null;
+           this.isConnected = true;
+           try {
+             localStorage.setItem('wanderWalletConnected', 'true');
+             if (this.arweaveAddress) localStorage.setItem('arweaveAddress', this.arweaveAddress);
+           } catch {}
+           if (resp.widgetToken) this.persistWidgetToken(resp.widgetToken, resp.expiresAt);
+           await this.updateUI();
+           this.scheduleBalanceFetch();
+           this.closeLoginChooser();
+        } else {
+           setErr(this.t('publicAuth.invalidCode') || 'Invalid code');
+           verifyBtn.disabled = false;
+           verifyBtn.textContent = this.t('publicAuth.verifyBtn') || 'Verify';
+        }
+      } catch (e) {
+        setErr(this.t('error') || 'Error');
+        verifyBtn.disabled = false;
+        verifyBtn.textContent = this.t('publicAuth.verifyBtn') || 'Verify';
+      }
+    };
+
+    if (verifyBtn) verifyBtn.onclick = submit;
+    if (codeInput) {
+      codeInput.onkeydown = (e) => {
+        if (e.key === 'Enter') submit();
+      };
+    }
+    if (cancelBtn) {
+      cancelBtn.onclick = () => {
+        this.closeLoginChooser();
+      };
+    }
+  }
+
+  async __handleSuccessfulLogin(retry, passwordEl, walletEl, setAddrCb) {
+      try {
+        if (passwordEl) passwordEl.value = '';
+      } catch {}
+
+      this.session = retry;
+      const addr = retry.walletAddress || retry.address || null;
+      if (setAddrCb) setAddrCb(addr);
+      
+      this.isConnected = true;
+      this.lastReconnectReason = '';
+      try {
+        localStorage.setItem('wanderWalletConnected', 'true');
+        if (addr) localStorage.setItem('arweaveAddress', addr);
+      } catch {}
+      if (retry.widgetToken) this.persistWidgetToken(retry.widgetToken, retry.expiresAt);
+      await this.updateUI();
+      this.scheduleBalanceFetch();
+
+      if (retry.needsWalletVerification) {
+        this.maybeToast(this.t('publicAuth.needsWalletVerification'), 'warn');
+      }
+
+      this.hideLoginChooser();
+
+      const token = this.getWidgetToken();
+      if (token) this.navigateToDashboard(token);
+      else this.showUserDashboard();
+  }
+
   async __startOdyseeLoginFromChooser(root) {
     const errBox = root.querySelector('[data-role="error"]');
     const setErr = (msg) => {
@@ -1011,8 +1126,39 @@ class WanderWalletLogin {
       const emailEl = root.querySelector('[data-field="email"]');
       const passwordEl = root.querySelector('[data-field="password"]');
       const walletEl = root.querySelector('[data-field="walletAddress"]');
+      const codeEl = root.querySelector('[data-field="2fa-code"]');
+
       const email = emailEl && emailEl.value ? String(emailEl.value).trim() : '';
       const password = passwordEl && passwordEl.value ? String(passwordEl.value) : '';
+      const code = codeEl && codeEl.value ? String(codeEl.value).trim() : '';
+
+      const tempToken = root.dataset.tempToken;
+      if (tempToken && code) {
+        setErr('');
+        this.setLoading(true, this.t('verifying') || 'Verifying...');
+        try {
+          const verifyResp = await this.postJson('/api/auth/2fa/validate', { tempToken, code });
+          if (verifyResp && verifyResp.success) {
+            await this.__handleSuccessfulLogin(verifyResp, passwordEl, walletEl, (addr) => {
+              this.arweaveAddress = addr;
+            });
+            return;
+          } else {
+            this.setLoading(false);
+            setErr(this.t('publicAuth.invalidCode') || 'Invalid code');
+            if (codeEl) {
+              codeEl.value = '';
+              codeEl.focus();
+            }
+            return;
+          }
+        } catch (e) {
+          this.setLoading(false);
+          setErr(e.message || 'Verification failed');
+          return;
+        }
+      }
+
       if (!email) {
         setErr(this.t('publicAuth.missingEmail'));
         return;
@@ -1050,8 +1196,73 @@ class WanderWalletLogin {
         email,
         password,
         walletAddress,
+        code,
       });
+
+      if (resp && resp.error === '2fa_required') {
+        this.setLoading(false);
+        if (resp.tempToken) {
+          root.dataset.tempToken = resp.tempToken;
+        }
+        if (!codeEl) {
+          const passwordBlock = root.querySelector('[data-role="password-block"]');
+          if (passwordBlock) {
+            const div = document.createElement('div');
+            div.className = 'mt-3';
+            div.innerHTML = `
+              <div class="flex justify-between items-center mb-1">
+                 <label class="getty-login-chooser__label mb-0">${
+                   this.t('publicAuth.2faCode') || 'Enter 6-digit code'
+                 }</label>
+                 <button type="button" class="text-xs text-blue-500 hover:underline" data-role="toggle-backup">
+                    ${this.t('publicAuth.useBackupCode') || 'Use backup code'}
+                 </button>
+              </div>
+              <input class="getty-login-chooser__input" type="text" inputmode="numeric" autocomplete="one-time-code" data-field="2fa-code" placeholder="000000" maxlength="6" />
+              <div class="text-xs text-gray-500 mt-1" data-role="2fa-hint">${
+                this.t('publicAuth.2faRequired') || 'Please enter the code from your authenticator app.'
+              }</div>
+            `;
+            passwordBlock.parentNode.insertBefore(div, passwordBlock.nextSibling);
+            
+            const input = div.querySelector('input');
+            const toggleBtn = div.querySelector('[data-role="toggle-backup"]');
+            const hint = div.querySelector('[data-role="2fa-hint"]');
+            
+            if (toggleBtn) {
+               toggleBtn.onclick = (e) => {
+                  e.preventDefault();
+                  const isBackup = input.getAttribute('placeholder') !== '000000';
+                  if (isBackup) {
+                     // Switch to Authenticator
+                     input.setAttribute('placeholder', '000000');
+                     input.setAttribute('maxlength', '6');
+                     toggleBtn.textContent = this.t('publicAuth.useBackupCode') || 'Use backup code';
+                     hint.textContent = this.t('publicAuth.2faRequired') || 'Please enter the code from your authenticator app.';
+                  } else {
+                     // Switch to Backup Code
+                     input.setAttribute('placeholder', this.t('publicAuth.backupCodePlaceholder') || 'Enter backup code');
+                     input.removeAttribute('maxlength');
+                     toggleBtn.textContent = this.t('publicAuth.useAuthenticator') || 'Use authenticator app';
+                     hint.textContent = this.t('publicAuth.backupCodeLabel') || 'Backup Code';
+                  }
+                  input.value = '';
+                  input.focus();
+               };
+            }
+            
+            if (input) input.focus();
+          }
+        } else {
+          setErr(this.t('publicAuth.invalidCode') || 'Invalid code');
+          codeEl.value = '';
+          codeEl.focus();
+        }
+        return;
+      }
+
       if (!resp || !resp.success) {
+
         if (resp?.error === 'email_verification_required') {
           setErr(this.t('publicAuth.emailVerificationRequired'));
           this.__startOdyseeMagicLinkWatcher(root, { email, walletAddress, password });
@@ -1080,32 +1291,9 @@ class WanderWalletLogin {
               });
 
               if (retry && retry.success) {
-                try {
-                  if (passwordEl) passwordEl.value = '';
-                } catch {}
-
-                this.session = retry;
-                this.arweaveAddress = retry.walletAddress || retry.address || addr || null;
-                this.isConnected = true;
-                this.lastReconnectReason = '';
-                try {
-                  localStorage.setItem('wanderWalletConnected', 'true');
-                  if (this.arweaveAddress)
-                    localStorage.setItem('arweaveAddress', this.arweaveAddress);
-                } catch {}
-                if (retry.widgetToken) this.persistWidgetToken(retry.widgetToken, retry.expiresAt);
-                await this.updateUI();
-                this.scheduleBalanceFetch();
-
-                if (retry.needsWalletVerification) {
-                  this.maybeToast(this.t('publicAuth.needsWalletVerification'), 'warn');
-                }
-
-                this.hideLoginChooser();
-
-                const token = this.getWidgetToken();
-                if (token) this.navigateToDashboard(token);
-                else this.showUserDashboard();
+                this.__handleSuccessfulLogin(retry, passwordEl, walletEl, addr => {
+                   this.arweaveAddress = retry.walletAddress || retry.address || addr || null;
+                });
                 return;
               }
             }

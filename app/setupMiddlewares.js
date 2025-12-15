@@ -198,6 +198,11 @@ function setupMiddlewares(
               req.ns.admin = hash;
             }
 
+            req.session = req.session || {};
+            if (!req.session.userToken) {
+              req.session.userToken = hash;
+            }
+
             let isSuspended = false;
             try {
               if (store && store.redis) {
