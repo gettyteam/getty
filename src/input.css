@@ -376,7 +376,6 @@
       @apply p-2;
     }
   }
-
   .os-panel-title {
     display: flex;
     align-items: center;
@@ -405,5 +404,36 @@
   html.dark body.landing .os-panel-title,
   html.dark body.landing .os-panel-title .icon {
     color: #fff !important;
+  }
+}
+
+@layer utilities {
+  .os-logo-mobile {
+    display: none;
+  }
+
+  @media (max-width: 639px) {
+    #public-wallet-login {
+      min-width: 0;
+      max-width: 100%;
+    }
+    #public-wallet-login #login-balance {
+      display: none !important;
+    }
+    .os-logo-desktop {
+      display: none !important;
+    }
+
+    .os-logo-mobile {
+      display: block !important;
+    }
+    #public-wallet-login .btn-label {
+      display: inline-block;
+      min-width: 0;
+      max-width: 7ch;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   }
 }

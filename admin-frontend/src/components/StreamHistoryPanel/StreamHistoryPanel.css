@@ -16,7 +16,9 @@
   transition: d 160ms ease-out;
 }
 .chart-canvas.reflowing .line-point {
-  transition: cx 160ms ease-out, cy 160ms ease-out;
+  transition:
+    cx 160ms ease-out,
+    cy 160ms ease-out;
 }
 .chart-canvas.reflowing .bar {
   transition: height 160ms ease-out;
@@ -140,6 +142,14 @@
   top: calc(100% + 8px);
   right: 0;
   left: auto;
+}
+
+@media (max-width: 767.98px) {
+  .chart-overlay-popover {
+    left: 0;
+    right: auto;
+    max-width: calc(100vw - 16px);
+  }
 }
 .kpis {
   display: grid;
@@ -292,7 +302,10 @@ select.quick-select::-ms-expand {
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
 }
 
 .quick-select-trigger:hover,
@@ -351,7 +364,9 @@ select.quick-select::-ms-expand {
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.18s ease, color 0.18s ease;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease;
 }
 
 .quick-select-option:hover,
@@ -697,7 +712,10 @@ select.quick-select::-ms-expand {
   color: var(--text-primary, #0f172a);
   font-size: 0.85rem;
   font-weight: 600;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
 }
 
 .range-trigger:hover,
@@ -722,6 +740,18 @@ select.quick-select::-ms-expand {
   white-space: nowrap;
 }
 
+@media (max-width: 767.98px) {
+  .range-trigger {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.8rem;
+  }
+
+  .quick-select-trigger {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.8rem;
+  }
+}
+
 .range-clear-btn {
   display: inline-flex;
   align-items: center;
@@ -731,7 +761,9 @@ select.quick-select::-ms-expand {
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-secondary, #475569);
-  transition: color 0.18s ease, background 0.18s ease;
+  transition:
+    color 0.18s ease,
+    background 0.18s ease;
 }
 
 .range-clear-btn:hover,
@@ -773,7 +805,9 @@ select.quick-select::-ms-expand {
   font-size: 0.85rem;
   background: var(--bg-chat, #f8fafc);
   color: inherit;
-  transition: box-shadow 0.18s ease, border-color 0.18s ease;
+  transition:
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
 }
 
 .range-popover-body input[type='date']:focus-visible {

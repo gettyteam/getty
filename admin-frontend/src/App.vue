@@ -9,17 +9,17 @@
   <CommandPalette :is-open="commandPaletteOpen" @close="commandPaletteOpen = false" />
   <div class="admin-container mx-auto px-6 py-4 max-w-[1330px]" :class="{ dark: isDark }">
     <header
-      class="os-header flex items-center justify-between pb-5 mb-8 border-b border-border"
+      class="os-header flex flex-wrap items-center justify-between gap-3 pb-4 mb-6 border-b border-border md:flex-nowrap md:pb-5 md:mb-8"
       role="banner">
-      <div class="flex items-center gap-4">
+      <div class="flex items-center gap-3 shrink-0">
         <button
-          class="md:hidden inline-flex items-center justify-center w-9 h-9 rounded-lg border border-border hover:bg-card transition-colors"
+          class="md:hidden inline-flex items-center justify-center w-8 h-8 rounded-lg border border-border hover:bg-card transition-colors"
           @click="toggleMobileSidebar"
           :aria-expanded="mobileSidebarOpen.toString()"
           aria-controls="admin-sidebar"
           aria-label="Toggle navigation">
           <svg
-            class="w-5 h-5"
+            class="w-4 h-4"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -35,11 +35,25 @@
           to="/admin/status"
           class="flex items-center gap-2"
           :aria-label="t('statusTitle')">
-          <img :src="logoLight" alt="getty Logo" class="h-9 logo-light" />
-          <img :src="logoDark" alt="getty Logo" class="h-9 logo-dark" />
+          <span class="md:hidden">
+            <img
+              :src="'/img/getty-fav.png'"
+              alt="getty"
+              class="h-8 w-8"
+              decoding="async"
+              fetchpriority="high"
+              height="32"
+              width="32"
+              @error="(e) => (e.target.src = '/favicon.ico')" />
+          </span>
+          <span class="hidden md:block">
+            <img :src="logoLight" alt="getty Logo" class="h-9 logo-light" />
+            <img :src="logoDark" alt="getty Logo" class="h-9 logo-dark" />
+          </span>
         </RouterLink>
       </div>
-      <div class="flex items-center gap-3 relative">
+      <div
+        class="ml-auto flex flex-wrap items-center gap-x-3 gap-y-2 md:ml-0 md:justify-end relative">
         <button
           @click="commandPaletteOpen = true"
           class="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-card hover:text-foreground transition-colors mr-2 w-48 lg:w-64"
@@ -50,9 +64,9 @@
         </button>
         <button
           @click="commandPaletteOpen = true"
-          class="md:hidden flex items-center justify-center w-9 h-9 rounded-lg border border-border hover:bg-card transition-colors"
+          class="md:hidden flex items-center justify-center w-8 h-8 rounded-lg border border-border hover:bg-card transition-colors"
           aria-label="Search">
-          <i class="pi pi-search"></i>
+          <i class="pi pi-search text-[14px] leading-none" aria-hidden="true"></i>
         </button>
 
         <WalletLoginButton />
@@ -60,7 +74,7 @@
           href="/index.html"
           target="_blank"
           rel="noopener noreferrer"
-          class="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors"
+          class="flex items-center gap-2 p-2 md:px-3 md:py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors"
           aria-label="Home"
           :title="t('home')">
           <svg
@@ -76,13 +90,13 @@
             <path d="M5 10v10h14V10" />
             <path d="M9 20v-6h6v6" />
           </svg>
-          <span data-i18n="home">Home</span>
+          <span class="sr-only md:not-sr-only" data-i18n="home">Home</span>
         </a>
 
         <div class="relative" @keyup.esc="menuOpen = false">
           <button
             @click="toggleMenu"
-            class="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors"
+            class="flex items-center gap-2 p-2 md:px-3 md:py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors"
             :aria-expanded="menuOpen.toString()"
             aria-haspopup="true">
             <svg
@@ -99,9 +113,9 @@
               <path
                 d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z" />
             </svg>
-            <span class="font-medium">{{ currentLocaleLabel }}</span>
+            <span class="sr-only md:not-sr-only font-medium">{{ currentLocaleLabel }}</span>
             <svg
-              class="w-4 h-4 opacity-70"
+              class="hidden md:block w-4 h-4 opacity-70"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"

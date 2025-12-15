@@ -21,7 +21,10 @@
 }
 
 * {
-  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease;
 }
 
 body:not(.dark) {
@@ -54,7 +57,9 @@ body:not(.dark) .text-white {
 body:not(.dark) #user-menu {
   background-color: var(--bg-card) !important;
   border-color: var(--border-color) !important;
-  box-shadow: 0 10px 15px -3px var(--shadow-color), 0 4px 6px -4px var(--shadow-color) !important;
+  box-shadow:
+    0 10px 15px -3px var(--shadow-color),
+    0 4px 6px -4px var(--shadow-color) !important;
 }
 body:not(.dark) #user-menu a {
   color: var(--text-secondary) !important;
@@ -139,6 +144,17 @@ body:not(.dark) .light-logo {
   width: 1.25rem;
   height: 1.25rem;
   transition: transform 0.3s ease;
+}
+
+@media (max-width: 767px) {
+  .theme-toggle {
+    width: 2rem;
+    height: 2rem;
+  }
+  .theme-toggle svg {
+    width: 1rem;
+    height: 1rem;
+  }
 }
 .theme-toggle:hover svg {
   transform: rotate(15deg);

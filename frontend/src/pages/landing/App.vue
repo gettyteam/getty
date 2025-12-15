@@ -93,7 +93,7 @@ onBeforeUnmount(() => {
   <div class="max-w-7xl mx-auto px-6 pb-16">
     <header
       class="os-header flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-border py-4">
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-3 w-full">
         <a href="/" class="logo-link" aria-label="getty home">
           <img
             src="https://aqet2p7rnwvvcvraawg2ojq7sfyals6jav2dh6vm7occr347kfsa.arweave.net/BAk9P_Ftq1FWIAWNpyYfkXAFy8kFdDP6rPuEKO-fUWQ"
@@ -109,9 +109,7 @@ onBeforeUnmount(() => {
             decoding="async"
             height="40" />
         </a>
-      </div>
-      <div class="flex items-center gap-3">
-        <div class="connection-status" title="Wallet connection status">
+        <div class="connection-status ml-auto" title="Wallet connection status">
           <span class="status-dot disconnected"></span>
         </div>
         <button

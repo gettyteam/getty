@@ -236,7 +236,8 @@
             border-color: rgb(255, 24, 76);
           "
           @click="settingsCollapsed = !settingsCollapsed">
-          <span>{{ t('settings') || 'Settings' }}</span>
+          <i class="pi pi-cog" aria-hidden="true"></i>
+          <span class="sr-only sm:not-sr-only">{{ t('settings') || 'Settings' }}</span>
           <svg
             width="14"
             height="14"
@@ -256,11 +257,11 @@
           </svg>
         </button>
       </div>
-      <div class="w-auto p-2 flex items-center gap-2">
+      <div class="w-auto p-2 flex flex-wrap items-center gap-2">
         <div class="live-analytics-trigger relative">
           <button
             type="button"
-            class="top-toggle inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-[var(--card-border)] bg-[var(--bg-chat)] text-sm font-medium"
+            class="top-toggle inline-flex items-center justify-center w-8 h-8 p-0 rounded-full border border-[var(--card-border)] bg-[var(--bg-chat)] text-sm font-medium sm:w-auto sm:h-auto sm:justify-start sm:gap-1 sm:px-3 sm:py-1.5"
             :aria-expanded="String(!overlayCollapsed)"
             @click="overlayCollapsed = !overlayCollapsed"
             :title="overlayCollapsed ? 'Expand live analytics' : 'Collapse live analytics'">
@@ -278,8 +279,9 @@
                 stroke-linecap="round"
                 stroke-linejoin="round" />
             </svg>
-            <span>{{ t('activity') }}</span>
+            <span class="sr-only sm:not-sr-only">{{ t('activity') }}</span>
             <svg
+              class="hidden sm:inline-block"
               width="14"
               height="14"
               viewBox="0 0 24 24"
@@ -349,7 +351,7 @@
                 <path d="M16 2v4" />
               </svg>
             </span>
-            <span class="range-trigger-label">{{ rangeLabel }}</span>
+            <span class="range-trigger-label sr-only sm:not-sr-only">{{ rangeLabel }}</span>
             <span class="range-trigger-icon" aria-hidden="true">
               <svg
                 width="12"

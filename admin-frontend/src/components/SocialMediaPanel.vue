@@ -5,41 +5,150 @@
     <div v-else>
       <OsCard>
         <template #header>
-          <div class="flex items-center gap-2">
-            <span class="icon-badge" aria-hidden="true">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round">
-                <circle cx="18" cy="5" r="3" />
-                <circle cx="6" cy="12" r="3" />
-                <circle cx="18" cy="19" r="3" />
-                <path d="M8.59 13.51 15.42 17.49" />
-                <path d="m15.41 6.51-6.82 3.98" />
-              </svg>
-            </span>
-            <h3 class="font-semibold text-[15px]">{{ t('socialMediaTitle') }}</h3>
-          </div>
-          <div class="flex gap-2" role="group" :aria-label="t('socialMediaTitle') + ' actions'">
-            <button class="btn" @click="addItem" :aria-label="t('socialMediaAddItem')">
-              {{ t('socialMediaAddItem') }}
-            </button>
-            <button
-              class="btn"
-              :disabled="!dirty || saving"
-              @click="save"
-              :aria-busy="saving ? 'true' : 'false'">
-              {{ saving ? t('commonSaving') : t('socialMediaSave') }}
-            </button>
+          <div class="flex flex-wrap items-center justify-between gap-2 w-full">
+            <div class="flex items-center gap-2">
+              <span class="icon-badge" aria-hidden="true">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round">
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                  <path d="M8.59 13.51 15.42 17.49" />
+                  <path d="m15.41 6.51-6.82 3.98" />
+                </svg>
+              </span>
+              <h3 class="font-semibold text-[15px]">{{ t('socialMediaTitle') }}</h3>
+            </div>
+
+            <div class="flex gap-2" role="group" :aria-label="t('socialMediaTitle') + ' actions'">
+              <button
+                class="btn w-8 h-8 p-0 justify-center sm:w-auto sm:h-auto sm:px-4 sm:py-2"
+                @click="addItem"
+                :aria-label="t('socialMediaAddItem')"
+                :title="t('socialMediaAddItem')">
+                <i class="pi pi-plus" aria-hidden="true"></i>
+                <span class="sr-only sm:not-sr-only">{{ t('socialMediaAddItem') }}</span>
+              </button>
+              <button
+                class="btn w-8 h-8 p-0 justify-center sm:w-auto sm:h-auto sm:px-4 sm:py-2"
+                :disabled="!dirty || saving"
+                @click="save"
+                :aria-busy="saving ? 'true' : 'false'"
+                :aria-label="saving ? t('commonSaving') : t('socialMediaSave')"
+                :title="saving ? t('commonSaving') : t('socialMediaSave')">
+                <i v-if="saving" class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+                <i v-else class="pi pi-save" aria-hidden="true"></i>
+                <span class="sr-only sm:not-sr-only">{{
+                  saving ? t('commonSaving') : t('socialMediaSave')
+                }}</span>
+              </button>
+            </div>
           </div>
         </template>
 
-        <div class="os-table social-media" :aria-label="t('socialMediaTitle') + ' table'">
+        <!-- Mobile layout (stacked items) -->
+        <div class="md:hidden flex flex-col gap-3">
+          <div
+            v-for="(item, idx) in items"
+            :key="`mobile-${idx}`"
+            class="rounded-lg border border-[var(--card-border)] bg-[var(--bg-chat)] p-3 flex flex-col gap-3">
+            <div class="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
+              {{ t('socialMediaTitle') }} #{{ idx + 1 }}
+            </div>
+
+            <div class="flex flex-col gap-1">
+              <label class="field-label">{{ t('socialMediaName') }}</label>
+              <input
+                class="input w-full"
+                :aria-label="t('socialMediaName') + ' ' + (idx + 1)"
+                :class="{ 'input-error': fieldError(idx, 'name') }"
+                v-model="item.name"
+                @input="validateRow(idx)"
+                :aria-invalid="!!fieldError(idx, 'name')" />
+              <div v-if="fieldError(idx, 'name')" class="small text-red-700">
+                {{ fieldError(idx, 'name') }}
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-1">
+              <label class="field-label">{{ t('socialMediaLink') }}</label>
+              <input
+                class="input w-full"
+                :aria-label="t('socialMediaLink') + ' ' + (idx + 1)"
+                :class="{ 'input-error': fieldError(idx, 'link') }"
+                v-model="item.link"
+                @input="validateRow(idx)"
+                :aria-invalid="!!fieldError(idx, 'link')" />
+              <div v-if="fieldError(idx, 'link')" class="small text-red-700">
+                {{ fieldError(idx, 'link') }}
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-1">
+              <label class="field-label">{{ t('socialMediaPlatform') }}</label>
+              <select
+                class="input w-full"
+                v-model="item.icon"
+                @change="onIconChange(item, idx)"
+                :aria-label="t('socialMediaIcon') + ' ' + (idx + 1)">
+                <option value="x">{{ t('socialMediaIconX') }}</option>
+                <option value="instagram">{{ t('socialMediaIconInstagram') }}</option>
+                <option value="youtube">{{ t('socialMediaIconYoutube') }}</option>
+                <option value="telegram">{{ t('socialMediaIconTelegram') }}</option>
+                <option value="discord">{{ t('socialMediaIconDiscord') }}</option>
+                <option value="odysee">{{ t('socialMediaIconOdysee') }}</option>
+                <option value="rumble">{{ t('socialMediaIconRumble') }}</option>
+                <option value="custom">{{ t('socialMediaIconCustom') }}</option>
+              </select>
+            </div>
+
+            <div v-if="item.icon === 'custom'" class="flex flex-col gap-2">
+              <input
+                type="file"
+                accept="image/*"
+                class="sr-only"
+                :id="'custom-icon-mobile-' + idx"
+                @change="(e) => selectCustomIcon(e, item)"
+                :aria-label="t('socialMediaCustomIcon')" />
+              <label
+                :for="'custom-icon-mobile-' + idx"
+                class="btn-secondary cursor-pointer inline-flex items-center gap-2">
+                <i class="pi pi-images" aria-hidden="true"></i>
+                Upload icon
+              </label>
+              <div v-if="item.customIcon">
+                <img :src="item.customIcon" alt="custom" class="max-h-10 object-contain" />
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 justify-end">
+              <button
+                class="btn-secondary flex items-center gap-2"
+                @click="openStyleEditor(idx)"
+                :title="t('socialMediaStyleTitle')">
+                <i class="pi pi-palette"></i>
+                <span>Color</span>
+              </button>
+              <button
+                class="btn danger"
+                @click="remove(idx)"
+                :aria-label="t('socialMediaDelete') + ' ' + (idx + 1)">
+                {{ t('socialMediaDelete') }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="hidden md:block os-table social-media"
+          :aria-label="t('socialMediaTitle') + ' table'">
           <div class="os-tr py-2">
             <div class="os-th num">#</div>
             <div class="os-th text-left">{{ t('socialMediaName') }}</div>
@@ -97,11 +206,11 @@
                   type="file"
                   accept="image/*"
                   class="sr-only"
-                  :id="'custom-icon-' + idx"
+                  :id="'custom-icon-desktop-' + idx"
                   @change="(e) => selectCustomIcon(e, item)"
                   :aria-label="t('socialMediaCustomIcon')" />
                 <label
-                  :for="'custom-icon-' + idx"
+                  :for="'custom-icon-desktop-' + idx"
                   class="btn-secondary cursor-pointer inline-flex items-center gap-2">
                   <i class="pi pi-images" aria-hidden="true"></i>
                   Upload icon

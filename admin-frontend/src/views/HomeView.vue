@@ -70,7 +70,7 @@
 
         <button
           @click="scrollLeft"
-          class="absolute left-0 top-1/2 -translate-y-1/2 z-20 bg-card border border-border rounded-full p-2 shadow-md hover:bg-accent transition-colors hidden md:flex items-center justify-center"
+          class="absolute left-0 top-1/2 -translate-y-1/2 z-20 bg-card border border-border rounded-full p-2 shadow-md hover:bg-accent transition-colors flex items-center justify-center"
           aria-label="Scroll left">
           <i class="pi pi-chevron-left text-foreground"></i>
         </button>
@@ -88,7 +88,7 @@
 
         <button
           @click="scrollRight"
-          class="absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-card border border-border rounded-full p-2 shadow-md hover:bg-accent transition-colors hidden md:flex items-center justify-center"
+          class="absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-card border border-border rounded-full p-2 shadow-md hover:bg-accent transition-colors flex items-center justify-center"
           aria-label="Scroll right">
           <i class="pi pi-chevron-right text-foreground"></i>
         </button>

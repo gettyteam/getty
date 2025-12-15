@@ -41,12 +41,18 @@
 }
 
 * {
-  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease;
 }
 
 .theme-transition,
 .theme-transition * {
-  transition: background-color 0.28s ease, border-color 0.28s ease, color 0.28s ease;
+  transition:
+    background-color 0.28s ease,
+    border-color 0.28s ease,
+    color 0.28s ease;
 }
 .modern-card .modern-top {
   display: flex;
@@ -194,7 +200,9 @@ html:not(.dark) footer a:hover {
 .dark #user-menu {
   background-color: var(--bg-card) !important;
   border-color: var(--border-color) !important;
-  box-shadow: 0 10px 15px -3px var(--shadow-color), 0 4px 6px -4px var(--shadow-color) !important;
+  box-shadow:
+    0 10px 15px -3px var(--shadow-color),
+    0 4px 6px -4px var(--shadow-color) !important;
 }
 .dark #user-menu a {
   color: var(--text-secondary) !important;
@@ -203,7 +211,9 @@ html:not(.dark) footer a:hover {
 html:not(.dark) #user-menu {
   background-color: var(--bg-card) !important;
   border-color: var(--border-color) !important;
-  box-shadow: 0 10px 15px -3px var(--shadow-color), 0 4px 6px -4px var(--shadow-color) !important;
+  box-shadow:
+    0 10px 15px -3px var(--shadow-color),
+    0 4px 6px -4px var(--shadow-color) !important;
 }
 
 html:not(.dark) #user-menu a {
@@ -301,7 +311,9 @@ html:not(.dark) .light-logo {
   left: 50%;
   transform: translate(-50%, -50%) scale(1) rotate(0deg);
   opacity: 0;
-  transition: opacity 0.35s ease, transform 0.45s cubic-bezier(0.4, 0.2, 0.2, 1);
+  transition:
+    opacity 0.35s ease,
+    transform 0.45s cubic-bezier(0.4, 0.2, 0.2, 1);
   will-change: opacity, transform;
   pointer-events: none;
 }

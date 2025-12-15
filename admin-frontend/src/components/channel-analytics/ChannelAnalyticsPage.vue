@@ -13,7 +13,9 @@
           @click="toggleConfigVisibility"
           :aria-pressed="configVisible ? 'true' : 'false'">
           <i class="pi" :class="configVisible ? 'pi-eye-slash' : 'pi-eye'" aria-hidden="true"></i>
-          {{ configVisible ? t('channelHideConfig') : t('channelShowConfig') }}
+          <span class="sr-only md:not-sr-only">{{
+            configVisible ? t('channelHideConfig') : t('channelShowConfig')
+          }}</span>
         </button>
         <button
           class="ghost-btn"
@@ -21,7 +23,7 @@
           @click="refreshOverview"
           :disabled="overview.loading || configState.loading || !analyticsReady">
           <i class="pi pi-sync" aria-hidden="true"></i>
-          {{ t('commonRefresh') }}
+          <span class="sr-only md:not-sr-only">{{ t('commonRefresh') }}</span>
         </button>
       </div>
     </header>
@@ -775,6 +777,17 @@ function recordRefreshAttempt(rangeKey: ChannelAnalyticsRange) {
 }
 .ghost-btn .pi {
   font-size: 1rem;
+}
+
+@media (max-width: 767.98px) {
+  .actions {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .ghost-btn {
+    padding: 0.5rem;
+  }
 }
 .layout-grid {
   display: grid;

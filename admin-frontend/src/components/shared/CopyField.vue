@@ -1,5 +1,5 @@
 <template>
-  <div class="input-group" role="group">
+  <div class="input-group copy-field-group" role="group">
     <input
       class="grouped-input"
       :value="value"
