@@ -1243,7 +1243,8 @@ try {
         req.path === '/api/auth/wander/nonce' ||
         req.path === '/api/auth/wander/verify' ||
         req.path === '/api/auth/wander/logout' ||
-        req.path === '/api/auth/odysee/login'
+        req.path === '/api/auth/odysee/login' ||
+        req.path.startsWith('/api/auth/2fa/')
       ) {
         return next();
       }
@@ -3816,7 +3817,6 @@ try {
         const ttl = walletAuth.getSessionTtlMs ? walletAuth.getSessionTtlMs() : 24 * 60 * 60 * 1000;
         const walletHash = walletAuth.deriveWalletHash(effectiveAddress);
 
-        // 2FA Check
         try {
           const userConfigPath = path.join(process.cwd(), 'config', 'user-configs', `${walletHash}.json`);
           if (fs.existsSync(userConfigPath)) {
@@ -3848,7 +3848,6 @@ try {
                   if (!tfa.verify(code, secret)) {
                      return res.status(400).json({ error: 'invalid_2fa_code' });
                   }
-                  // 2FA Validated - Proceed
                }
             }
           }
@@ -4064,6 +4063,22 @@ try {
         console.error(e);
         return res.status(500).json({ error: 'internal_error' });
       }
+    });
+
+    app.use('/api/auth/2fa', async (req, res, next) => {
+       try {
+         if (!req.session) req.session = {};
+         if (!req.session.userToken) {
+            const raw = req.cookies?.getty_wallet_session;
+            if (raw && walletAuth && typeof walletAuth.verifySessionCookie === 'function') {
+               const parsed = walletAuth.verifySessionCookie(raw);
+               if (parsed && parsed.walletHash) {
+                  req.session.userToken = parsed.walletHash;
+               }
+            }
+         }
+       } catch {}
+       next();
     });
 
     app.get('/api/auth/2fa/status', async (req, res) => {
