@@ -1234,7 +1234,6 @@ class WanderWalletLogin {
                   e.preventDefault();
                   const isBackup = input.getAttribute('placeholder') !== '000000';
                   if (isBackup) {
-                     // Switch to Authenticator
                      input.setAttribute('placeholder', '000000');
                      input.setAttribute('maxlength', '6');
                      toggleBtn.textContent = this.t('publicAuth.useBackupCode') || 'Use backup code';
