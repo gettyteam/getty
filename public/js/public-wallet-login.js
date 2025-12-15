@@ -807,14 +807,7 @@ class WanderWalletLogin {
               </div>
               <label class="getty-login-chooser__label">${this.t('publicAuth.walletAddressOptionalLabel')}</label>
               <input class="getty-login-chooser__input" type="text" autocomplete="off" data-field="walletAddress" placeholder="${this.t('publicAuth.walletAddressOptionalPlaceholder')}" />
-              <div class="getty-login-chooser__hint hidden" data-role="magic-link-note">${this.t(
-                'publicAuth.magicLinkWaiting'
-              )}</div>
               <div class="getty-login-chooser__row">
-                <button class="getty-login-chooser__btn small center" type="button" data-act="magic-link" title="${this.t('publicAuth.magicLinkTooltip')}">
-                  <span class="getty-login-chooser__btnIcon" aria-hidden="true"><i class="pi pi-envelope"></i></span>
-                  <span data-role="magic-link-label">${this.t('publicAuth.useMagicLink')}</span>
-                </button>
                 <a class="getty-login-chooser__btn small center" data-role="create-account" href="https://odysee.com/$/signup" target="_blank" rel="noopener noreferrer">
                   <span class="getty-login-chooser__btnIcon" aria-hidden="true"><i class="pi pi-user-plus"></i></span>
                   ${this.t('publicAuth.createAccount')}
@@ -868,13 +861,6 @@ class WanderWalletLogin {
         if (e.target === overlay) close();
       });
       overlay.querySelector('[data-act="back"]').addEventListener('click', () => {
-        try {
-          overlay.dataset.odyseeMagicLink = 'false';
-          overlay.dataset.odyseeMagicLinkSent = 'false';
-        } catch {}
-        try {
-          this.__syncOdyseeMagicLinkUi(overlay);
-        } catch {}
         this.__setChooserStep(overlay, 'choose');
       });
       overlay.querySelector('[data-act="wander"]').addEventListener('click', () => {
@@ -888,25 +874,7 @@ class WanderWalletLogin {
       if (odyseeForm) {
         odyseeForm.addEventListener('submit', (e) => {
           e.preventDefault();
-          const isMagic = overlay?.dataset?.odyseeMagicLink === 'true';
-          void this.__startOdyseeLoginFromChooser(overlay, isMagic ? { useMagicLink: true } : undefined);
-        });
-      }
-      const magicLinkBtn = overlay.querySelector('[data-act="magic-link"]');
-      if (magicLinkBtn) {
-        magicLinkBtn.addEventListener('click', () => {
-          const isMagic = overlay?.dataset?.odyseeMagicLink === 'true';
-          if (!isMagic) {
-            try {
-              overlay.dataset.odyseeMagicLink = 'true';
-              overlay.dataset.odyseeMagicLinkSent = 'false';
-            } catch {}
-            try {
-              this.__syncOdyseeMagicLinkUi(overlay);
-            } catch {}
-            return;
-          }
-          void this.__startOdyseeLoginFromChooser(overlay, { useMagicLink: true });
+          void this.__startOdyseeLoginFromChooser(overlay);
         });
       }
       overlay.querySelector('.getty-login-chooser__close').addEventListener('click', close);
@@ -925,34 +893,6 @@ class WanderWalletLogin {
 
     try {
       this.__stopOdyseeMagicLinkWatcher && this.__stopOdyseeMagicLinkWatcher();
-    } catch {}
-  }
-
-  __syncOdyseeMagicLinkUi(root) {
-    try {
-      if (!root) return;
-      const isMagic = root?.dataset?.odyseeMagicLink === 'true';
-      const isSent = root?.dataset?.odyseeMagicLinkSent === 'true';
-
-      const pw = root.querySelector('[data-role="password-block"]');
-      const btn = root.querySelector('[data-role="connect-odysee-block"]');
-      const note = root.querySelector('[data-role="magic-link-note"]');
-      const create = root.querySelector('[data-role="create-account"]');
-      const label = root.querySelector('[data-role="magic-link-label"]');
-
-      if (pw) pw.classList.toggle('hidden', isMagic);
-      if (btn) btn.classList.toggle('hidden', isMagic);
-      if (note) note.classList.toggle('hidden', !isMagic || !isSent);
-      if (create) create.classList.toggle('hidden', isMagic);
-
-      if (label) {
-        const key = !isMagic
-          ? 'publicAuth.useMagicLink'
-          : isSent
-            ? 'publicAuth.retrySendingLink'
-            : 'publicAuth.sendMagicLink';
-        label.textContent = this.t(key);
-      }
     } catch {}
   }
 
@@ -1042,10 +982,6 @@ class WanderWalletLogin {
         err.textContent = '';
         err.classList.add('hidden');
       }
-
-      try {
-        if (isOdysee) this.__syncOdyseeMagicLinkUi(root);
-      } catch {}
     } catch {}
   }
 
@@ -1061,7 +997,7 @@ class WanderWalletLogin {
     }
   }
 
-  async __startOdyseeLoginFromChooser(root, opts) {
+  async __startOdyseeLoginFromChooser(root) {
     const errBox = root.querySelector('[data-role="error"]');
     const setErr = (msg) => {
       if (!errBox) return;
@@ -1070,7 +1006,6 @@ class WanderWalletLogin {
       else errBox.classList.add('hidden');
     };
     try {
-      const useMagicLink = !!opts?.useMagicLink;
       const emailEl = root.querySelector('[data-field="email"]');
       const passwordEl = root.querySelector('[data-field="password"]');
       const walletEl = root.querySelector('[data-field="walletAddress"]');
@@ -1080,7 +1015,7 @@ class WanderWalletLogin {
         setErr(this.t('publicAuth.missingEmail'));
         return;
       }
-      if (!useMagicLink && !password) {
+      if (!password) {
         setErr(this.t('publicAuth.missingPassword'));
         return;
       }
@@ -1107,25 +1042,17 @@ class WanderWalletLogin {
       }
 
       setErr('');
-      this.setLoading(true, useMagicLink ? this.t('sending') : this.t('connecting'));
+      this.setLoading(true, this.t('connecting'));
 
       const resp = await this.postJson('/api/auth/odysee/login', {
         email,
-        ...(useMagicLink ? {} : { password }),
+        password,
         walletAddress,
-        ...(useMagicLink ? { useMagicLink: true } : {}),
       });
       if (!resp || !resp.success) {
         if (resp?.error === 'email_verification_required') {
           setErr(this.t('publicAuth.emailVerificationRequired'));
-          try {
-            if (useMagicLink) {
-              root.dataset.odyseeMagicLink = 'true';
-              root.dataset.odyseeMagicLinkSent = 'true';
-              this.__syncOdyseeMagicLinkUi(root);
-            }
-          } catch {}
-          this.__startOdyseeMagicLinkWatcher(root, { email, walletAddress, password, useMagicLink });
+          this.__startOdyseeMagicLinkWatcher(root, { email, walletAddress, password });
           return;
         }
 
@@ -1270,7 +1197,6 @@ class WanderWalletLogin {
         email,
         walletAddress: String(params.walletAddress || '').trim(),
         password: typeof params.password === 'string' ? String(params.password) : '',
-        useMagicLink: !!params.useMagicLink,
         root,
         stopped: false,
         inFlight: false,
@@ -1325,16 +1251,12 @@ class WanderWalletLogin {
           const payload = {
             email: state.email,
             walletAddress,
+            password: state.password,
             skipResend: true,
           };
           // Security: only allow the server to attempt completion on explicit user interaction
           // (e.g. user returns to this tab) so background polling can't auto-login.
           payload.userGesture = reason === 'focus' || reason === 'visible';
-          if (state.password) {
-            payload.password = state.password;
-          } else {
-            payload.useMagicLink = true;
-          }
           const resp = await this.postJson('/api/auth/odysee/login', payload);
 
           if (resp && resp.success) {

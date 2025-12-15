@@ -62,15 +62,13 @@
           autocomplete="username"
           :placeholder="t('publicAuth.emailPlaceholder')" />
 
-        <template v-if="!odyseeMagicLinkPending">
-          <label class="text-xs opacity-70">{{ t('publicAuth.passwordLabel') }}</label>
-          <input
-            v-model="odyseePassword"
-            class="w-full px-3 py-2 rounded-lg border border-border bg-transparent text-sm"
-            type="password"
-            autocomplete="current-password"
-            :placeholder="t('publicAuth.passwordPlaceholder')" />
-        </template>
+        <label class="text-xs opacity-70">{{ t('publicAuth.passwordLabel') }}</label>
+        <input
+          v-model="odyseePassword"
+          class="w-full px-3 py-2 rounded-lg border border-border bg-transparent text-sm"
+          type="password"
+          autocomplete="current-password"
+          :placeholder="t('publicAuth.passwordPlaceholder')" />
 
         <label class="text-xs opacity-70">{{ t('publicAuth.walletAddressOptionalLabel') }}</label>
         <input
@@ -80,49 +78,23 @@
           autocomplete="off"
           :placeholder="t('publicAuth.walletAddressOptionalPlaceholder')" />
 
-        <template v-if="!odyseeMagicLinkPending">
-          <button
-            type="button"
-            class="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors text-center"
-            @click="submitOdyseeLogin"
-            :disabled="busy || !odyseeEmail || !odyseePassword">
-            <img :src="odyseeLogo" alt="" class="h-4 w-4" aria-hidden="true" />
-            {{ busy ? '...' : t('publicAuth.connectOdysee') }}
-          </button>
-        </template>
-
         <button
           type="button"
           class="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors text-center"
-          @click="submitOdyseeMagicLink"
-          :disabled="busy || !odyseeEmail"
-          :title="t('publicAuth.magicLinkTooltip')">
-          <i class="pi pi-envelope opacity-80" aria-hidden="true"></i>
-          {{
-            busy
-              ? odyseeMagicLinkPending
-                ? t('sending')
-                : '...'
-              : odyseeMagicLinkSent
-                ? t('publicAuth.retrySendingLink')
-                : t('publicAuth.sendMagicLink')
-          }}
+          @click="submitOdyseeLogin"
+          :disabled="busy || !odyseeEmail || !odyseePassword">
+          <img :src="odyseeLogo" alt="" class="h-4 w-4" aria-hidden="true" />
+          {{ busy ? '...' : t('publicAuth.connectOdysee') }}
         </button>
 
-        <template v-if="!odyseeMagicLinkPending">
-          <a
-            class="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors text-center"
-            href="https://odysee.com/$/signup"
-            target="_blank"
-            rel="noopener noreferrer">
-            <i class="pi pi-user-plus opacity-80" aria-hidden="true"></i>
-            {{ t('publicAuth.createAccount') }}
-          </a>
-        </template>
-
-        <p v-if="odyseeMagicLinkPending" class="text-xs opacity-70">
-          {{ t('publicAuth.magicLinkWaiting') }}
-        </p>
+        <a
+          class="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors text-center"
+          href="https://odysee.com/$/signup"
+          target="_blank"
+          rel="noopener noreferrer">
+          <i class="pi pi-user-plus opacity-80" aria-hidden="true"></i>
+          {{ t('publicAuth.createAccount') }}
+        </a>
 
         <p v-if="odyseeError" class="text-xs text-red-500">{{ odyseeError }}</p>
       </div>
@@ -208,17 +180,10 @@ const odyseeEmail = ref('');
 const odyseePassword = ref('');
 const odyseeWalletAddress = ref('');
 const odyseeError = ref('');
-const odyseeMagicLinkPending = ref(false);
-const odyseeMagicLinkSent = ref(false);
 let providerPromise = null;
 
 const walletChipEl = ref(null);
 const walletChipTooltipOpen = ref(false);
-
-let __odyseeMagicLinkTimer = null;
-let __odyseeMagicLinkDelayMs = 12000;
-let __odyseeMagicLinkInFlight = false;
-let __odyseeMagicLinkFocusHandler = null;
 
 const walletConnected = computed(() => !!session.state.address && !session.state.sessionStale);
 
@@ -282,8 +247,6 @@ function toggleChooser() {
     showOdyseeForm.value = false;
     odyseeError.value = '';
     odyseePassword.value = '';
-    odyseeMagicLinkPending.value = false;
-    stopOdyseeMagicLinkPolling();
   }
 }
 
@@ -292,104 +255,12 @@ function closeChooser() {
   showOdyseeForm.value = false;
   odyseeError.value = '';
   odyseePassword.value = '';
-  odyseeMagicLinkPending.value = false;
-  stopOdyseeMagicLinkPolling();
 }
 
 function openOdyseeForm() {
   odyseeError.value = '';
   showOdyseeForm.value = true;
   odyseePassword.value = '';
-  odyseeMagicLinkPending.value = false;
-  stopOdyseeMagicLinkPolling();
-}
-
-function stopOdyseeMagicLinkPolling() {
-  try {
-    if (__odyseeMagicLinkTimer) clearTimeout(__odyseeMagicLinkTimer);
-  } catch {}
-  __odyseeMagicLinkTimer = null;
-  __odyseeMagicLinkDelayMs = 12000;
-  __odyseeMagicLinkInFlight = false;
-  try {
-    if (__odyseeMagicLinkFocusHandler)
-      window.removeEventListener('focus', __odyseeMagicLinkFocusHandler);
-  } catch {}
-  __odyseeMagicLinkFocusHandler = null;
-}
-
-function scheduleOdyseeMagicLinkPoll(email, walletAddress) {
-  try {
-    if (__odyseeMagicLinkTimer) clearTimeout(__odyseeMagicLinkTimer);
-  } catch {}
-  __odyseeMagicLinkTimer = setTimeout(() => {
-    void attemptOdyseeMagicLinkPoll(email, walletAddress);
-  }, __odyseeMagicLinkDelayMs);
-}
-
-async function attemptOdyseeMagicLinkPoll(email, walletAddress) {
-  if (!showChooser.value || !showOdyseeForm.value) return;
-  if (!email) return;
-  if (__odyseeMagicLinkInFlight) return;
-
-  try {
-    __odyseeMagicLinkInFlight = true;
-
-    let wa = (walletAddress || '').trim();
-    if (!wa) {
-      try {
-        const stored = localStorage.getItem('arweaveAddress');
-        if (stored) wa = String(stored).trim();
-      } catch {}
-    }
-
-    const body = {
-      email,
-      walletAddress: wa,
-      useMagicLink: true,
-      skipResend: true,
-    };
-
-    const res = await fetchJson('/api/auth/odysee/login', { method: 'POST', body });
-    if (res && res.success) {
-      if (res.widgetToken) persistWidgetToken(res.widgetToken, res.expiresAt);
-      await session.refreshSession();
-      try {
-        window.dispatchEvent(new CustomEvent('getty-session-updated'));
-      } catch {}
-      stopOdyseeMagicLinkPolling();
-      closeChooser();
-      return;
-    }
-
-    if (res?.error === 'email_verification_required') {
-      __odyseeMagicLinkDelayMs = Math.min(Math.floor(__odyseeMagicLinkDelayMs * 1.25), 30000);
-      scheduleOdyseeMagicLinkPoll(email, wa);
-      return;
-    }
-
-    stopOdyseeMagicLinkPolling();
-    odyseeMagicLinkPending.value = false;
-    if (res?.error) odyseeError.value = res.error;
-  } catch {
-    __odyseeMagicLinkDelayMs = Math.min(Math.floor(__odyseeMagicLinkDelayMs * 1.25), 30000);
-    scheduleOdyseeMagicLinkPoll(email, walletAddress);
-  } finally {
-    __odyseeMagicLinkInFlight = false;
-  }
-}
-
-function startOdyseeMagicLinkPolling(email, walletAddress) {
-  stopOdyseeMagicLinkPolling();
-  odyseeMagicLinkPending.value = true;
-  __odyseeMagicLinkDelayMs = 12000;
-  scheduleOdyseeMagicLinkPoll(email, walletAddress);
-  __odyseeMagicLinkFocusHandler = () => {
-    void attemptOdyseeMagicLinkPoll(email, walletAddress);
-  };
-  try {
-    window.addEventListener('focus', __odyseeMagicLinkFocusHandler);
-  } catch {}
 }
 
 function persistWidgetToken(widgetToken, expiresAt) {
@@ -415,8 +286,6 @@ async function submitOdyseeLogin() {
   odyseeError.value = '';
   busy.value = true;
   try {
-    odyseeMagicLinkPending.value = false;
-    stopOdyseeMagicLinkPolling();
     let walletAddress = (odyseeWalletAddress.value || '').trim();
     if (!walletAddress) {
       try {
@@ -429,104 +298,16 @@ async function submitOdyseeLogin() {
       password: odyseePassword.value,
       walletAddress,
     };
+
     let res = await fetchJson('/api/auth/odysee/login', { method: 'POST', body });
     if (!res || !res.success) {
       if (res?.error === 'email_verification_required') {
         throw new Error(t('publicAuth.emailVerificationRequired'));
       }
-      if (res?.error === 'wallet_address_required') {
-        // Try to obtain the wallet address from Wander automatically and retry once.
-        try {
-          const provider = await ensureProvider();
-          if (provider && provider.hasProvider) {
-            try {
-              await provider.ensurePermissions(['ACCESS_ADDRESS']);
-            } catch {}
-            const addr = await provider.getActiveAddress();
-            if (addr) {
-              walletAddress = String(addr).trim();
-              try {
-                localStorage.setItem('arweaveAddress', walletAddress);
-              } catch {}
-              body.walletAddress = walletAddress;
-              res = await fetchJson('/api/auth/odysee/login', { method: 'POST', body });
-              if (res && res.success) {
-                if (res.widgetToken) persistWidgetToken(res.widgetToken, res.expiresAt);
-                await session.refreshSession();
-                try {
-                  window.dispatchEvent(new CustomEvent('getty-session-updated'));
-                } catch {}
-                closeChooser();
-                return;
-              }
-            }
-          }
-        } catch {}
-
-        throw new Error(
-          'No se pudo detectar tu wallet. Ingresa tu dirección de Arweave o permite acceso a Wander para obtenerla.'
-        );
-      }
-
-      let msg = res?.error || 'odysee_login_failed';
-      const reason = res?.details?.reason;
-      const method = res?.details?.method;
-      const rpcErr = res?.details?.rpcError;
-      if (reason) msg += ` (${reason})`;
-      if (method) msg += ` [${method}]`;
-      if (rpcErr && typeof rpcErr === 'object' && rpcErr.message) msg += `: ${rpcErr.message}`;
-      else if (rpcErr && typeof rpcErr !== 'object') msg += `: ${String(rpcErr)}`;
-      throw new Error(msg);
-    }
-    if (res.widgetToken) persistWidgetToken(res.widgetToken, res.expiresAt);
-    await session.refreshSession();
-    try {
-      window.dispatchEvent(new CustomEvent('getty-session-updated'));
-    } catch {}
-    closeChooser();
-  } catch (e) {
-    odyseeError.value = e?.message || String(e);
-  } finally {
-    busy.value = false;
-  }
-}
-
-async function submitOdyseeMagicLink() {
-  odyseeError.value = '';
-  busy.value = true;
-  try {
-    odyseeMagicLinkPending.value = true;
-    odyseeMagicLinkSent.value = false;
-    stopOdyseeMagicLinkPolling();
-    let walletAddress = (odyseeWalletAddress.value || '').trim();
-    if (!walletAddress) {
-      try {
-        const stored = localStorage.getItem('arweaveAddress');
-        if (stored) walletAddress = String(stored).trim();
-      } catch {}
-    }
-    const body = {
-      email: odyseeEmail.value,
-      walletAddress,
-      useMagicLink: true,
-    };
-    let res = await fetchJson('/api/auth/odysee/login', { method: 'POST', body });
-    if (!res || !res.success) {
-      if (res?.error === 'email_verification_required') {
-        odyseeError.value = t('publicAuth.emailVerificationRequired');
-        odyseeMagicLinkSent.value = true;
-        startOdyseeMagicLinkPolling(odyseeEmail.value, walletAddress);
-        return;
-      }
       if (res?.error === 'odysee_email_not_found') {
-        odyseeError.value = t('publicAuth.emailNotFound');
-        stopOdyseeMagicLinkPolling();
-        odyseeMagicLinkPending.value = false;
-        odyseeMagicLinkSent.value = false;
-        return;
+        throw new Error(t('publicAuth.emailNotFound'));
       }
       if (res?.error === 'wallet_address_required') {
-        // Try to obtain the wallet address from Wander automatically and retry once.
         try {
           const provider = await ensureProvider();
           if (provider && provider.hasProvider) {
@@ -540,6 +321,7 @@ async function submitOdyseeMagicLink() {
                 localStorage.setItem('arweaveAddress', walletAddress);
               } catch {}
               body.walletAddress = walletAddress;
+
               res = await fetchJson('/api/auth/odysee/login', { method: 'POST', body });
               if (res && res.success) {
                 if (res.widgetToken) persistWidgetToken(res.widgetToken, res.expiresAt);
@@ -569,18 +351,14 @@ async function submitOdyseeMagicLink() {
       else if (rpcErr && typeof rpcErr !== 'object') msg += `: ${String(rpcErr)}`;
       throw new Error(msg);
     }
+
     if (res.widgetToken) persistWidgetToken(res.widgetToken, res.expiresAt);
     await session.refreshSession();
     try {
       window.dispatchEvent(new CustomEvent('getty-session-updated'));
     } catch {}
-    stopOdyseeMagicLinkPolling();
-    odyseeMagicLinkPending.value = false;
-    odyseeMagicLinkSent.value = false;
     closeChooser();
   } catch (e) {
-    odyseeMagicLinkPending.value = false;
-    odyseeMagicLinkSent.value = false;
     odyseeError.value = e?.message || String(e);
   } finally {
     busy.value = false;

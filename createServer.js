@@ -3202,7 +3202,10 @@ try {
         const useMagicLinkRequested = !!req.body?.useMagicLink;
         const skipResend = !!req.body?.skipResend;
         const hasPassword = typeof password === 'string' && password.length > 0;
-        if (!email || (!useMagicLinkRequested && !hasPassword)) {
+        if (useMagicLinkRequested) {
+          return res.status(400).json({ error: 'magic_link_disabled' });
+        }
+        if (!email || !hasPassword) {
           return res.status(400).json({ error: 'missing_credentials' });
         }
 

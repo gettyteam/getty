@@ -244,56 +244,17 @@ describe('odysee auth login', () => {
     expect(login2.body.success).toBe(true);
   });
 
-  test('magic link flow returns email_verification_required and triggers resend', async () => {
+  test('magic link login is disabled', async () => {
     const agent = request.agent(app);
-    const email = 'magic@example.com';
-    const authToken = 'auth_token_magic_123';
+    const email = 'magic-disabled@example.com';
+    const authToken = 'auth_token_magic_disabled_123';
 
     const scope = nock('https://api.lbry.com');
     scope.post('/user/new').reply(200, { data: { auth_token: authToken } });
-    scope.post('/user_email/resend_token').reply(200, { data: { success: true } });
 
     const login = await agent.post('/api/auth/odysee/login').send({ email, useMagicLink: true });
-    expect(login.status).toBe(409);
-    expect(login.body.error).toBe('email_verification_required');
-    expect(login.body.details).toBeTruthy();
-    expect(login.body.details.resendOk).toBe(true);
-    expect(scope.isDone()).toBe(true);
-  });
-
-  test('magic link polling can skip resend_token', async () => {
-    const agent = request.agent(app);
-    const email = 'magic-poll@example.com';
-    const authToken = 'auth_token_magic_poll_123';
-
-    const scope = nock('https://api.lbry.com');
-    scope.post('/user/new').reply(200, { data: { auth_token: authToken } });
-
-    const login = await agent
-      .post('/api/auth/odysee/login')
-      .send({ email, useMagicLink: true, skipResend: true });
-
-    expect(login.status).toBe(409);
-    expect(login.body.error).toBe('email_verification_required');
-    expect(login.body.details).toBeTruthy();
-    expect(login.body.details.skipResend).toBe(true);
-    expect(login.body.details.resendOk).toBe(false);
-    expect(login.body.details.method).toBe('verify_confirm');
-    expect(scope.isDone()).toBe(true);
-  });
-
-  test('magic link flow returns email not found for unknown emails', async () => {
-    const agent = request.agent(app);
-    const email = 'does-not-exist@example.com';
-    const authToken = 'auth_token_missing_email_123';
-
-    const scope = nock('https://api.lbry.com');
-    scope.post('/user/new').reply(200, { data: { auth_token: authToken } });
-    scope.post('/user_email/resend_token').reply(404, { error: 'email not found' });
-
-    const login = await agent.post('/api/auth/odysee/login').send({ email, useMagicLink: true });
-    expect(login.status).toBe(404);
-    expect(login.body.error).toBe('odysee_email_not_found');
+    expect(login.status).toBe(400);
+    expect(login.body.error).toBe('magic_link_disabled');
     expect(scope.isDone()).toBe(true);
   });
 
@@ -315,14 +276,20 @@ describe('odysee auth login', () => {
   test('odysee verify requires state cookie + explicit POST confirm', async () => {
     const agent = request.agent(app);
     const email = 'magic-confirm@example.com';
+    const password = 'password123';
     const authToken = 'auth_token_magic_confirm_123';
     const verificationToken = 'verify_token_abc';
 
     const scope = nock('https://api.lbry.com');
     scope.post('/user/new').reply(200, { data: { auth_token: authToken } });
+    scope.post('/user/signin').reply(409, { error: 'email verification required' });
+    scope
+      .get('/user/me')
+      .query((q) => q && q.auth_token === authToken)
+      .reply(401, { error: 'unauthorized' });
     scope.post('/user_email/resend_token').reply(200, { data: { success: true } });
 
-    const login = await agent.post('/api/auth/odysee/login').send({ email, useMagicLink: true });
+    const login = await agent.post('/api/auth/odysee/login').send({ email, password });
     expect(login.status).toBe(409);
     expect(login.body.error).toBe('email_verification_required');
 
