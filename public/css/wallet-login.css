@@ -54,7 +54,7 @@
 
 #getty-toast-root {
   position: fixed;
-  top: 0.75rem;
+  bottom: 0.75rem;
   right: 0.75rem;
   display: flex;
   flex-direction: column;
@@ -88,7 +88,7 @@
 }
 .getty-toast.fade-out {
   opacity: 0;
-  transform: translateY(-6px);
+  transform: translateY(6px);
 }
 
 .getty-login-chooser-overlay {
@@ -105,6 +105,7 @@
   justify-content: center;
   z-index: 10001;
   background: rgba(0, 0, 0, 0.55);
+  animation: getty-overlay-in 0.2s ease-out;
 }
 
 @media (prefers-color-scheme: light) {
@@ -142,6 +143,7 @@ html.dark .getty-login-chooser-overlay {
   padding: 16px;
   color: var(--getty-chooser-fg);
   transition: width 180ms ease;
+  animation: getty-login-chooser-in 0.2s ease-out;
   font:
     14px/1.35 system-ui,
     -apple-system,
@@ -428,4 +430,57 @@ html.dark .getty-login-chooser-overlay {
 
 .hidden {
   display: none !important;
+}
+
+@keyframes getty-login-chooser-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes getty-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.loader {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+}
+
+.loader span {
+  width: 9px;
+  height: 9px;
+  background: #8b7cf3;
+  border-radius: 50%;
+  animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.loader span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+.loader span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes bounce {
+  0%,
+  80%,
+  100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
 }

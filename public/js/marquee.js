@@ -15,6 +15,8 @@ const claimIds = [
   'cf6710754110dd43722cb8217fe1a3a93c93599b',
   '91707e568daa5838cb744d9c171bf9e12d502678',
   '9515ac5e631a118fb4abee5bfa5eba5842d7ea0c',
+  'de2d8f6bec64cf05a53acce6cc8642edb3c93989',
+  '7adc6abc93a53a95be2d447c2a3e86eb383f8f31',
 ];
 
 const AVATAR_COLOR_CLASSES = [
