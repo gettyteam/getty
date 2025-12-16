@@ -996,8 +996,11 @@ class WanderWalletLogin {
       this.setLoading(true, this.t('connecting'));
       await this.loginFlow();
     } catch (e) {
-      console.error('[wander-login] login failed', e);
-      this.showError(e.message || 'Unknown error');
+      const msg = e?.message || (typeof e === 'string' ? e : 'Unknown error');
+      if (!/(denied|reject|user|closed)/i.test(msg)) {
+        console.error('[wander-login] login failed', e);
+      }
+      this.showError(msg);
     } finally {
       this.setLoading(false);
     }
@@ -1122,6 +1125,21 @@ class WanderWalletLogin {
       if (msg) errBox.classList.remove('hidden');
       else errBox.classList.add('hidden');
     };
+
+    const btn = root.querySelector('[data-act="connect-odysee"]');
+    let originalBtnContent = '';
+    if (btn) originalBtnContent = btn.innerHTML;
+    const setBtnLoading = (loading) => {
+      if (!btn) return;
+      if (loading) {
+        btn.disabled = true;
+        btn.innerHTML = '<div class="loader"><span></span><span></span><span></span></div>';
+      } else {
+        btn.disabled = false;
+        btn.innerHTML = originalBtnContent;
+      }
+    };
+
     try {
       const emailEl = root.querySelector('[data-field="email"]');
       const passwordEl = root.querySelector('[data-field="password"]');
@@ -1136,6 +1154,7 @@ class WanderWalletLogin {
       if (tempToken && code) {
         setErr('');
         this.setLoading(true, this.t('verifying') || 'Verifying...');
+        setBtnLoading(true);
         try {
           const verifyResp = await this.postJson('/api/auth/2fa/validate', { tempToken, code });
           if (verifyResp && verifyResp.success) {
@@ -1191,6 +1210,7 @@ class WanderWalletLogin {
 
       setErr('');
       this.setLoading(true, this.t('connecting'));
+      setBtnLoading(true);
 
       const resp = await this.postJson('/api/auth/odysee/login', {
         email,
@@ -1239,7 +1259,6 @@ class WanderWalletLogin {
                      toggleBtn.textContent = this.t('publicAuth.useBackupCode') || 'Use backup code';
                      hint.textContent = this.t('publicAuth.2faRequired') || 'Please enter the code from your authenticator app.';
                   } else {
-                     // Switch to Backup Code
                      input.setAttribute('placeholder', this.t('publicAuth.backupCodePlaceholder') || 'Enter backup code');
                      input.removeAttribute('maxlength');
                      toggleBtn.textContent = this.t('publicAuth.useAuthenticator') || 'Use authenticator app';
@@ -1353,6 +1372,7 @@ class WanderWalletLogin {
       setErr(e?.message || 'odysee_login_failed');
     } finally {
       this.setLoading(false);
+      setBtnLoading(false);
     }
   }
 
@@ -2460,7 +2480,8 @@ class WanderWalletLogin {
         }
       } catch (e) {
         lastErr = e;
-        if (/(denied|reject|user)/i.test(String(e?.message))) {
+        const msg = e?.message || String(e);
+        if (/(denied|reject|user|closed)/i.test(msg)) {
           throw new Error('Permissions denied by the user');
         }
       }
@@ -2476,6 +2497,9 @@ class WanderWalletLogin {
         if (pk) return pk;
       } catch (e) {
         console.warn('[wander-login] getActivePublicKey failed', e);
+        if (/(denied|reject|user|closed)/i.test(String(e?.message || e))) {
+          throw e;
+        }
       }
     }
     if (typeof wallet.getPublicKey === 'function') {
@@ -2484,6 +2508,9 @@ class WanderWalletLogin {
         if (pk) return pk;
       } catch (e) {
         console.warn('[wander-login] getPublicKey failed', e);
+        if (/(denied|reject|user|closed)/i.test(String(e?.message || e))) {
+          throw e;
+        }
       }
     }
     if (wallet.publicKey) return wallet.publicKey;
@@ -2545,6 +2572,13 @@ class WanderWalletLogin {
     try {
       console.warn('[wander-login] error', message);
     } catch {}
+
+    if (/(denied|reject|user|closed)/i.test(message)) {
+
+      this.maybeToast(this.t('cancel') || 'Cancelled', 'warn');
+      return;
+    }
+
     const walletNotDetected = /wander wallet.*(no detectada|not detected)/i.test(message);
     if (walletNotDetected) {
       this.showInstallBanner();
@@ -2553,7 +2587,7 @@ class WanderWalletLogin {
     }
 
     try {
-      alert(this.t('errorPrefix') + ': ' + message + '\n\n' + this.t('alertSuffix'));
+      this.maybeToast(message, 'error');
     } catch {}
 
     if (/install.+wander wallet/i.test(message)) {
