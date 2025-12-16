@@ -209,7 +209,7 @@ onBeforeUnmount(() => {
     <main id="main-content" class="mt-8 space-y-8" role="main">
       <div
         id="landing-session-status"
-        class="hidden mt-6 rounded-xl border border-[#553fee]/30 bg-[#553fee] px-4 py-3 text-sm text-[#ffffff]"
+        class="hidden mt-6 rounded-xl border border-[#553fee]/30 bg-[#553fee] px-3 py-3 text-sm text-[#ffffff]"
         role="alert"></div>
       <section class="grid gap-10 lg:grid-cols-[1.15fr_1fr] lg:items-center">
         <div class="space-y-6">
@@ -268,7 +268,7 @@ onBeforeUnmount(() => {
           </div>
           <div class="flex flex-wrap items-center gap-6 text-xs text-[var(--text-secondary)]">
             <div
-              class="flex items-center gap-3 rounded-xl border border-border bg-card/40 px-4 py-3">
+              class="flex items-center gap-1 rounded-xl border border-border bg-card/40 px-3 py-3">
               <span
                 class="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--accent-color,#2563eb)]/20 text-[var(--accent-color,#2563eb)]">
                 <i class="pi pi-check text-[20px] leading-none" aria-hidden="true"></i>
@@ -279,7 +279,7 @@ onBeforeUnmount(() => {
               </div>
             </div>
             <div
-              class="flex items-center gap-3 rounded-xl border border-border bg-card/40 px-4 py-3">
+              class="flex items-center gap-1 rounded-xl border border-border bg-card/40 px-3 py-3">
               <span
                 class="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--accent-color,#2563eb)]/20 text-[var(--accent-color,#2563eb)]">
                 <i class="pi pi-dollar text-[20px] leading-none" aria-hidden="true"></i>

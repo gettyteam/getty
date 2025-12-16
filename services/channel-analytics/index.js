@@ -104,6 +104,7 @@ const ODYSEE_PUBLIC_API =
   DEFAULT_PUBLIC_API;
 const ODYSEE_SUB_COUNT_URL = `${ODYSEE_PUBLIC_API}/subscription/sub_count`;
 const ODYSEE_VIEW_COUNT_URL = `${ODYSEE_PUBLIC_API}/file/view_count`;
+const ODYSEE_REACTION_LIST_URL = `${ODYSEE_PUBLIC_API}/reaction/list`;
 const ODYSEE_CHANNEL_STATS_URL = `${ODYSEE_PUBLIC_API}/channel/stats`;
 const ODYSEE_WEB_ORIGIN = process.env.ODYSEE_WEB_ORIGIN || DEFAULT_WEB_ORIGIN;
 const SUPPORTED_RANGES = ['day', 'week', 'month', 'halfyear', 'year'];
@@ -526,6 +527,47 @@ async function fetchViewCounts(authToken, claimTargets, extras = {}) {
   return map;
 }
 
+async function fetchChannelReactions(authToken, claimIds) {
+  if (!authToken || !Array.isArray(claimIds) || !claimIds.length) return { likes: 0, dislikes: 0 };
+  
+  const BATCH_SIZE = 50;
+  let totalLikes = 0;
+  let totalDislikes = 0;
+
+  for (let i = 0; i < claimIds.length; i += BATCH_SIZE) {
+    const batch = claimIds.slice(i, i + BATCH_SIZE);
+    const payload = buildFormPayload({
+      auth_token: authToken,
+      claim_ids: batch.join(','),
+    });
+
+    try {
+      const resp = await axios.post(ODYSEE_REACTION_LIST_URL, payload, {
+        timeout: 10000,
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+      const data = resp?.data?.data || {};
+      const others = data.others_reactions || {};
+      
+      for (const cid of batch) {
+        const reaction = others[cid];
+        if (reaction) {
+          totalLikes += Number(reaction.like) || 0;
+          totalDislikes += Number(reaction.dislike) || 0;
+        }
+      }
+    } catch (err) {
+      try {
+        console.warn('[channel-analytics] reaction/list failed for batch', err.message);
+      } catch {}
+    }
+  }
+
+  return { likes: totalLikes, dislikes: totalDislikes };
+}
+
 async function fetchChannelStats({ authToken, channelHandle, claimId }) {
   if (!authToken) return null;
   const hasClaimId = isClaimId(claimId);
@@ -633,6 +675,9 @@ async function buildChannelAnalytics({
   ]);
   const safeStreamResult = streamsResult || {};
   const streams = Array.isArray(safeStreamResult.streams) ? safeStreamResult.streams : [];
+  const streamClaimIds = streams.map((s) => s.claimId);
+  const reactions = await fetchChannelReactions(authToken, streamClaimIds);
+
   const absoluteVideoCount =
     safeStreamResult.claimsInChannel ?? safeStreamResult.totalItems ?? streams.length;
   const viewTargets = streams.map((item) => ({
@@ -647,6 +692,8 @@ async function buildChannelAnalytics({
     videos: absoluteVideoCount,
     views: highlights?.views || 0,
     subscribers: subscriberCount || 0,
+    likes: reactions.likes,
+    dislikes: reactions.dislikes,
   };
 
   let chartViewTotal = 0;

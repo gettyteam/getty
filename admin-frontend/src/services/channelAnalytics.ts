@@ -6,6 +6,8 @@ export interface ChannelAnalyticsTotals {
   videos: number;
   views: number;
   subscribers: number;
+  likes: number;
+  dislikes: number;
 }
 
 export interface ChannelAnalyticsBar {

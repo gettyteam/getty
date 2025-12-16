@@ -125,6 +125,9 @@
       <p>
         {{ t('channelConfigUpdatedAt', { date: formatDate(currentConfig.updatedAt) }) }}
       </p>
+      <p class="env-note important-note">
+        {{ t('channelConfigImportantNote') }}
+      </p>
     </div>
   </section>
 </template>
@@ -520,6 +523,13 @@ async function save() {
   margin-top: 1rem;
   font-size: 0.85rem;
   color: var(--text-secondary);
+}
+.important-note {
+  margin-top: 0.5rem;
+  color: #de0050;
+  font-weight: 600;
+  line-height: 1.4;
+  font-size: 12px;
 }
 @keyframes shimmer {
   0% {
