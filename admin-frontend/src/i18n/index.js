@@ -13,7 +13,7 @@ const adminExtra = {
       default: {
         creator: "creator"
       },
-      subtitle: "Welcome to your streaming dashboard",
+      subtitle: "Welcome to your streaming dashboard. Take a look at the suggestions and enjoy the experience.",
       banner: bannerMessages.en,
       cards: {
         stream: {
@@ -549,6 +549,12 @@ const adminExtra = {
     suggestion_settings_title: 'Explore settings',
     suggestion_settings_message: 'Create your session token, export or import your config.',
     suggestion_settings_cta: 'Go to settings',
+    suggestion_settings_backup_title: 'Export your configuration',
+    suggestion_settings_backup_message: 'Export your configuration to keep a backup, or import an existing setup in seconds.',
+    suggestion_settings_backup_cta: 'Go to settings',
+    suggestion_settings_2fa_title: 'Set up 2FA',
+    suggestion_settings_2fa_message: 'Enable two-factor authentication to better protect your access.',
+    suggestion_settings_2fa_cta: 'Go to settings',
     suggestion_social_media_title: 'Show your social links',
     suggestion_social_media_message: 'Create social or platform widgets to show on screen.',
     suggestion_social_media_cta: 'Go to settings',
@@ -726,7 +732,7 @@ const adminExtra = {
       default: {
         creator: "creador"
       },
-      subtitle: "Bienvenido a tu panel de streaming",
+      subtitle: "Bienvenido a tu panel de streaming. Dale un vistazo a las sugerencias y disfruta de la experiencia.",
       banner: bannerMessages.es,
       cards: {
         stream: {
@@ -1261,6 +1267,12 @@ const adminExtra = {
     suggestion_settings_title: 'Explorar configuración',
     suggestion_settings_message: 'Crea tu token de sesión, exporta o importa tu configuración.',
     suggestion_settings_cta: 'Ir a configuración',
+    suggestion_settings_backup_title: 'Exportar configuración',
+    suggestion_settings_backup_message: 'Exporta tu configuración para mantener una copia de seguridad, o importa una configuración existente en segundos.',
+    suggestion_settings_backup_cta: 'Ir a configuración',
+    suggestion_settings_2fa_title: 'Configurar 2FA',
+    suggestion_settings_2fa_message: 'Activa la autenticación de dos factores para proteger tu acceso.',
+    suggestion_settings_2fa_cta: 'Ir a configuración',
     suggestion_social_media_title: 'Mostrar enlaces sociales',
     suggestion_social_media_message: 'Crea widgets sociales o de plataforma para mostrar en pantalla.',
     suggestion_social_media_cta: 'Ir a configuración',

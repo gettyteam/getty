@@ -21,7 +21,14 @@
         :title="$t('home.cards.stream.title')"
         :subtitle="$t('home.cards.stream.subtitle')"
         icon="pi pi-face-smile"
-        :actions="[{ label: $t('home.actions.summary'), to: '/admin/stream', class: 'btn mt-3' }]">
+        :actions="[
+          {
+            label: $t('home.actions.summary'),
+            to: '/admin/stream',
+            icon: 'pi pi-sparkles',
+            class: 'btn mt-3',
+          },
+        ]">
         <template #decoration>
           <img
             src="https://static.odycdn.com/stickers/ROCKET%20SPACEMAN/PNG/rocket-spaceman_with-border.png"

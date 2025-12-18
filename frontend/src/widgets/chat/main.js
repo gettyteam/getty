@@ -320,19 +320,71 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    function buildDefaultGettyThemeCss() {
+        const base = `:root { --bg-main: #080c10; --bg-message: #0a0e12; --bg-message-alt: #0a0e12; --text: #e6edf3; --username: #fff; --donation: #ddb826; --donation-bg: #ececec; }
+	.message { background: #0a0e12 !important; border-radius: 4px; padding: 12px; margin-bottom: 6px; box-sizing: border-box; color: #fff !important; }
+	.message.odd { background: #0a0e12 !important; }
+	.message-username.cyberpunk { color: #fff; font-weight: 600; }
+	.message-text-inline { color: #fff !important; font-weight: 600; }
+	.message.has-donation { background: #ececec !important; }
+	.message.has-donation .message-username { color: #111 !important; }
+	.message.has-donation .message-text-inline { color: #111 !important; }
+	.message-donation { background: #ddb826 !important; color: #111 !important; }`;
+
+        const badgesVertical = CYBERPUNK_PALETTE
+            .map(
+                (p, i) =>
+                    `\n#chat-container:not(.horizontal-chat) .message-username.cyberpunk.cp-${i + 1} { color: ${p.text} !important; background: ${p.bg} !important; text-shadow: 0 0 8px ${p.border} !important; }`
+            )
+            .join('');
+
+        const badgesHorizontal = CYBERPUNK_PALETTE
+            .map(
+                (p, i) =>
+                    `\n#chat-container.horizontal-chat .message-username.cyberpunk.cp-${i + 1} { color: ${p.text} !important; background: ${p.bg} !important; text-shadow: 0 0 8px ${p.border} !important; }`
+            )
+            .join('');
+
+        return base + badgesVertical + badgesHorizontal;
+    }
+    const DEFAULT_GETTY_THEME_CSS = buildDefaultGettyThemeCss();
+    const DEFAULT_GETTY_IS_LIGHT = false;
+    function bootstrapDefaultThemeIfNeeded() {
+        try {
+            const local = (localStorage.getItem('chatLiveThemeCSS') || '').trim();
+            if (local) return false;
+            try { localStorage.setItem('chatLiveThemeCSS', DEFAULT_GETTY_THEME_CSS); } catch {}
+        } catch {
+            /* ignore */
+        }
+        applyChatTheme(DEFAULT_GETTY_THEME_CSS, DEFAULT_GETTY_IS_LIGHT);
+        return true;
+    }
+
     async function applyChatColors() {
         if (!isOBSWidget) return;
         await loadColors();
 
-    const themeStyle = document.getElementById('chat-theme-style');
-    const themeActive = !!(themeStyle && typeof themeStyle.textContent === 'string' && themeStyle.textContent.trim().length > 0);
-    updateDonationVars();
+        const themeStyle = document.getElementById('chat-theme-style');
+        const themeActive = !!(
+            themeStyle &&
+            typeof themeStyle.textContent === 'string' &&
+            themeStyle.textContent.trim().length > 0
+        );
+        updateDonationVars();
 
-    if (themeActive) { setCssVar('--chat-bg', ''); return; }
-    if (chatColors.bgColor === 'transparent') { setCssVar('--chat-bg', ''); }
-    else { setCssVar('--chat-bg', (chatColors.bgColor || '#0f1419')); }
+        if (themeActive) {
+            setCssVar('--chat-bg', '');
+            return;
+        }
+        if (chatColors.bgColor === 'transparent') {
+            setCssVar('--chat-bg', '');
+        } else {
+            setCssVar('--chat-bg', (chatColors.bgColor || '#0f1419'));
+        }
     }
 
+    bootstrapDefaultThemeIfNeeded();
     applyChatColors();
 
     function addMessage(msg) {
@@ -610,54 +662,36 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 updateDonationVars();
             } else {
-                const styleTag = document.getElementById('chat-theme-style');
-                if (styleTag) styleTag.textContent = '';
-                if (chatContainer) chatContainer.classList.remove('theme-light');
-
                 const local = (localStorage.getItem('chatLiveThemeCSS') || '').trim();
-                                if (local && local !== lastThemeCSS) {
+                const styleTag = document.getElementById('chat-theme-style');
+                const styleEmpty = !styleTag || !(styleTag.textContent || '').trim();
 
-                                        const sizeBlock = local.match(/\/\* AUTO_FONT_SIZES_START \*\/[\s\S]*?\/\* AUTO_FONT_SIZES_END \*\//);
-                                        let combined = local;
-                                        if (sizeBlock && !/AUTO_FONT_SIZES_START/.test(local)) {
-                                            combined = local + '\n' + sizeBlock[0];
-                                        }
-                                        lastThemeCSS = combined;
-                                        isLightTheme = combined.includes('--text: #1f2328');
-                                        applyChatTheme(combined, isLightTheme);
-                                } else {
-                    await loadColors();
-
-                    const DEFAULT_BG = '#131313';
-                    const DEFAULT_TEXT = '#ddb826';
-                    const bgVar = (chatColors.donationBgColor || '').toLowerCase();
-                    const textVar = (chatColors.donationColor || '').toLowerCase();
-                    let css = `
-                        :root { ${bgVar && bgVar !== DEFAULT_BG ? `--donation-bg: ${bgVar};` : ''} ${textVar && textVar !== DEFAULT_TEXT ? `--donation-text: ${textVar};` : ''} }
-                        /* X-style fallback when no theme is active */
-                        .message { background: ${chatColors.msgBgColor || '#f7f7f7'} !important; color: ${chatColors.textColor || '#111'} !important; border-left: 8px solid ${chatColors.borderColor || '#3b5aff'} !important; }
-                        .message.odd:not(.has-donation) { background: ${chatColors.msgBgAltColor || '#f7f7f7'} !important; }
-                        /* Donation message background comes from base CSS/theme; no override here */
-                        /* Keep donation chip base styles unless Admin defines --donation-text */
-                        .message-donation { ${textVar && textVar !== DEFAULT_TEXT ? 'color: var(--donation-text) !important;' : ''} }
-                        #chat-container { background: ${chatColors.bgColor === 'transparent' ? 'transparent' : (chatColors.bgColor || '#080c10')} !important; }
-                    `;
-
-                    const hasExplicitUserColors = !!(chatColors.usernameColor || chatColors.usernameBgColor);
-                    if (!hasExplicitUserColors) {
-                        css += CYBERPUNK_PALETTE.map((p, i) => `
-                            .message-username.cyberpunk.cp-${i + 1} { color: ${p.text} !important; background: ${p.bg} !important; text-shadow: 0 0 8px ${p.border} !important; }
-                        `).join('');
-                    } else {
-                        css += `
-                            .message-username.cyberpunk { color: ${chatColors.usernameColor || '#ffffff'} !important; background: ${chatColors.usernameBgColor || '#11ff79'} !important; }
-                        `;
+                if (local) {
+                    const sizeBlockMatch = local.match(/\/\* AUTO_FONT_SIZES_START \*\/[\s\S]*?\/\* AUTO_FONT_SIZES_END \*\//);
+                    let combined = local;
+                    if (!sizeBlockMatch) {
+                        const existing = (lastThemeCSS || '').match(
+                            /\/\* AUTO_FONT_SIZES_START \*\/[\s\S]*?\/\* AUTO_FONT_SIZES_END \*\//
+                        );
+                        if (existing) combined += '\n' + existing[0];
                     }
 
-                    const txt = (chatColors.textColor || '').toLowerCase();
-                    isLightTheme = (txt === '#1f2328' || txt === '#111');
-                    applyChatTheme(css, isLightTheme);
+                    isLightTheme = combined.includes('--text: #1f2328') || combined.includes('--text: #111');
+                    if (combined !== lastThemeCSS || styleEmpty) {
+                        lastThemeCSS = combined;
+                        applyChatTheme(combined, isLightTheme);
+                    }
+                    updateDonationVars();
+                    return;
                 }
+
+                try { localStorage.setItem('chatLiveThemeCSS', DEFAULT_GETTY_THEME_CSS); } catch {}
+                if (DEFAULT_GETTY_THEME_CSS !== lastThemeCSS || styleEmpty) {
+                    lastThemeCSS = DEFAULT_GETTY_THEME_CSS;
+                    applyChatTheme(DEFAULT_GETTY_THEME_CSS, DEFAULT_GETTY_IS_LIGHT);
+                }
+                updateDonationVars();
+                return;
             }
     } catch { /* ignore */ }
     }
@@ -685,7 +719,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             const existing = (lastThemeCSS || '').match(/\/\* AUTO_FONT_SIZES_START \*\/[\s\S]*?\/\* AUTO_FONT_SIZES_END \*\//);
             if (existing) finalCss += '\n' + existing[0];
         }
-        if (finalCss !== lastThemeCSS) {
+        const themeStyleTag = document.getElementById('chat-theme-style');
+        const styleEmpty = !themeStyleTag || !(themeStyleTag.textContent || '').trim();
+        if (finalCss !== lastThemeCSS || styleEmpty) {
             lastThemeCSS = finalCss;
             const isLight = finalCss.includes('--text: #1f2328') || finalCss.includes('--text: #111');
             applyChatTheme(finalCss, isLight);

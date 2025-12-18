@@ -32,7 +32,7 @@
           </svg>
         </button>
         <RouterLink
-          to="/admin/status"
+          to="/admin/stream"
           class="flex items-center gap-2"
           :aria-label="t('statusTitle')">
           <span class="md:hidden">
@@ -162,7 +162,7 @@
               d="M17.75,4.09L15.22,6.03L16.13,9.09L13.5,7.28L10.87,9.09L11.78,6.03L9.25,4.09L12.44,4L13.5,1L14.56,4L17.75,4.09M21.25,11L19.61,12.25L20.2,14.23L18.5,13.06L16.8,14.23L17.39,12.25L15.75,11L17.81,10.95L18.5,9L19.19,10.95L21.25,11M18.97,15.95C19.8,15.87 20.69,17.05 20.16,17.8C19.84,18.25 19.5,18.67 19.08,19.07C15.17,23 8.84,23 4.94,19.07C1.03,15.17 1.03,8.83 4.94,4.93C5.34,4.53 5.76,4.17 6.21,3.85C6.96,3.32 8.14,4.21 8.06,5.04C7.79,7.9 8.75,10.87 10.95,13.06C13.14,15.26 16.1,16.22 18.97,15.95M17.33,17.97C14.5,17.81 11.7,16.64 9.53,14.5C7.36,12.31 6.2,9.5 6.04,6.68C3.23,9.82 3.34,14.4 6.35,17.41C9.37,20.43 14,20.54 17.33,17.97Z" />
           </svg>
         </button>
-        <!-- New standalone logout button to the right of language selector -->
+
         <WalletLogoutButton />
       </div>
     </header>
@@ -172,10 +172,12 @@
       <aside
         id="admin-sidebar"
         class="admin-sidebar os-sidebar w-56 flex-shrink-0 transition-all duration-300 rounded-l-xl"
-        :class="{ 'w-16': sidebarCollapsed }"
+        :class="{
+          'w-16': sidebarCollapsed,
+          'overflow-y-auto overflow-x-hidden': sidebarSuggestionVisible,
+        }"
         role="navigation"
         aria-label="Primary">
-        <SidebarSuggestion v-if="!sidebarCollapsed" class="mx-2 mt-2" />
         <div class="px-3 pt-3">
           <div class="flex items-center gap-2" :class="{ 'justify-center': sidebarCollapsed }">
             <img :src="sidebarIcon" alt="getty" class="w-7 h-7 rounded" />
@@ -521,6 +523,11 @@
             </RouterLink>
           </nav>
         </div>
+
+        <SidebarSuggestion
+          v-if="!sidebarCollapsed"
+          class="mx-2 mt-auto mb-2"
+          @visibility-change="(shown) => (sidebarSuggestionVisible = shown)" />
       </aside>
 
       <div class="admin-overlay md:hidden" @click="setMobileSidebar(false)"></div>
@@ -708,6 +715,7 @@ const SHOW_SETTINGS_SECTION = true;
 const isDark = ref(false);
 const menuOpen = ref(false);
 const sidebarCollapsed = ref(false);
+const sidebarSuggestionVisible = ref(false);
 const mobileSidebarOpen = ref(false);
 const analyticsMenuOpen = ref(false);
 const suspendedModalOpen = ref(false);
@@ -718,10 +726,7 @@ const configBlockedDetails = ref(null);
 
 const currentLocaleLabel = computed(() => (locale.value === 'es' ? 'ES' : 'EN'));
 const analyticsActive = computed(
-  () =>
-    route.path.startsWith('/admin/status') ||
-    route.path.startsWith('/admin/stream') ||
-    route.path.startsWith('/admin/channel')
+  () => route.path.startsWith('/admin/stream') || route.path.startsWith('/admin/channel')
 );
 
 const wanderSession = useWanderSession();
@@ -755,17 +760,20 @@ watch(
 watch(
   () => route.path,
   (path) => {
-    if (
-      path.startsWith('/admin/status') ||
-      path.startsWith('/admin/stream') ||
-      path.startsWith('/admin/channel')
-    ) {
+    if (path.startsWith('/admin/stream') || path.startsWith('/admin/channel')) {
       analyticsMenuOpen.value = true;
     } else {
       analyticsMenuOpen.value = false;
     }
   },
   { immediate: true }
+);
+
+watch(
+  () => sidebarCollapsed.value,
+  (collapsed) => {
+    if (collapsed) sidebarSuggestionVisible.value = false;
+  }
 );
 
 function resolveThemePreference() {

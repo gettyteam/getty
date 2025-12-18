@@ -76,11 +76,12 @@
 </template>
 
 <script setup>
-import { onMounted, onBeforeUnmount, ref, computed } from 'vue';
+import { onMounted, onBeforeUnmount, ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { RouterLink } from 'vue-router';
 
 const { t } = useI18n();
+const emit = defineEmits(['visibility-change']);
 
 const templates = computed(() =>
   [
@@ -92,14 +93,16 @@ const templates = computed(() =>
     { id: 'raffle', to: '/admin/raffle' },
     { id: 'liveviews', to: '/admin/liveviews' },
     { id: 'settings', to: '/admin/settings' },
+    { id: 'settings-backup', to: '/admin/settings' },
+    { id: 'settings-2fa', to: '/admin/settings' },
     { id: 'social-media', to: '/admin/social-media' },
     { id: 'announcement', to: '/admin/announcement' },
     { id: 'integrations', to: '/admin/integrations' },
-    { id: 'status-page', to: '/admin/status' },
+    { id: 'status-page', to: '/admin/stream' },
     { id: 'events', to: '/admin/events' },
     { id: 'user-profile', to: '/admin/user-profile' },
     { id: 'achievements', to: '/admin/achievements' },
-    { id: 'channel-analytics', to: '/admin/status/channel' },
+    { id: 'channel-analytics', to: '/admin/channel' },
     { id: 'odysee-channel', href: 'https://odysee.com/', target: '_blank' },
     { id: 'odysee-docs', href: 'https://help.odysee.tv/', target: '_blank' },
     { id: 'getty-docs', href: 'https://getty.sh/en/guide/intro/', target: '_blank' },
@@ -124,6 +127,16 @@ const progress = ref(0);
 const etaLabel = ref('');
 const currentIdx = ref(0);
 const tickTimer = ref(null);
+
+const isShown = computed(() => visible.value && !disabled.value);
+
+watch(
+  isShown,
+  (shown) => {
+    emit('visibility-change', shown);
+  },
+  { immediate: true }
+);
 
 const badgeText = computed(() => t('suggestionBadge'));
 const nextChangeTitle = computed(() => {
