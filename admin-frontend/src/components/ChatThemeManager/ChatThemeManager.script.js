@@ -186,6 +186,16 @@ export function createChatThemeManager(t) {
   });
   const previewCSS = computed(() => currentCSS.value);
 
+  try {
+    const existing = (localStorage.getItem('chatLiveThemeCSS') || '').trim();
+    const fallback = defaultThemes[0] && typeof defaultThemes[0].css === 'string' ? defaultThemes[0].css : '';
+    if (!existing && fallback.trim()) {
+      localStorage.setItem('chatLiveThemeCSS', fallback);
+    }
+  } catch {
+    /* ignore */
+  }
+
   function mergeSizeCSS(base) {
     return SizeBlocks.merge(base, fontSizes);
   }
@@ -260,7 +270,9 @@ export function createChatThemeManager(t) {
     }
   }
 
-  watch(selectedIdx, () => {
+  watch(
+    selectedIdx,
+    () => {
     const themeCSS = currentTheme.value.css || '';
     const extracted = extractSizeVars(themeCSS);
     fontSizes.username = extracted.username || 14;
@@ -281,7 +293,9 @@ export function createChatThemeManager(t) {
     }
     updatePreviewStyle(previewCSS.value);
     applyRuntimeSizeVariables();
-  });
+    },
+    { immediate: true }
+  );
 
   onMounted(async () => {
     loadCustomThemes();
@@ -304,7 +318,16 @@ export function createChatThemeManager(t) {
         }
       }
 
-      if (cssSource !== 'fallback') persistLiveThemeLocalOnly();
+      if (cssSource !== 'local') {
+        try {
+          const existing = (localStorage.getItem('chatLiveThemeCSS') || '').trim();
+          if (cssSource !== 'fallback' || !existing) {
+            persistLiveThemeLocalOnly();
+          }
+        } catch {
+          /* ignore */
+        }
+      }
       try {
         const resp = await api.get('/api/chat-custom-themes').catch(() => null);
         if (resp && resp.data && Array.isArray(resp.data.themes)) {
