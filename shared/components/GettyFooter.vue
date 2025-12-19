@@ -54,7 +54,7 @@
             class="hover:text-[var(--text-primary)]">
             {{ t('footerPrivacy', 'Privacy Policy') }}
           </a>
-          <span aria-hidden="true">|</span>
+          <span aria-hidden="true" class="mx-1">|</span>
           <a
             :href="termsUrl"
             target="_blank"
@@ -62,7 +62,7 @@
             class="hover:text-[var(--text-primary)]">
             {{ t('footerTerms', 'Terms of Use') }}
           </a>
-          <span aria-hidden="true">|</span>
+          <span aria-hidden="true" class="mx-1">|</span>
           <a
             :href="githubUrl"
             target="_blank"
