@@ -264,6 +264,11 @@ async function save() {
     };
     const next = await saveChannelAnalyticsConfig(payload);
     emit('saved', next);
+    try {
+      window.dispatchEvent(
+        new CustomEvent('getty-channel-analytics-config-updated', { detail: next })
+      );
+    } catch {}
     pushToast({ type: 'success', message: t('channelConfigSaved') });
     form.authToken = '';
     form.clearAuthToken = false;

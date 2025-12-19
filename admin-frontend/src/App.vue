@@ -38,7 +38,7 @@
           <span class="md:hidden">
             <img
               :src="'/img/getty-fav.png'"
-              alt="getty"
+              :alt="sidebarIconAlt"
               class="h-8 w-8"
               decoding="async"
               fetchpriority="high"
@@ -180,7 +180,12 @@
         aria-label="Primary">
         <div class="px-3 pt-3">
           <div class="flex items-center gap-2" :class="{ 'justify-center': sidebarCollapsed }">
-            <img :src="sidebarIcon" alt="getty" class="w-7 h-7 rounded" />
+            <img
+              :src="sidebarIcon"
+              :alt="sidebarIconAlt"
+              class="w-7 h-7 rounded-full"
+              :style="resolvedSidebarIconBg ? { background: resolvedSidebarIconBg } : undefined"
+              @error="(e) => (e.target.src = '/favicon.ico')" />
             <div class="flex flex-col gap-0.5 leading-none" v-if="!sidebarCollapsed">
               <span class="font-semibold">{{ t('administration') }}</span>
               <span class="text-xs opacity-80">v{{ appVersion }}</span>
@@ -559,6 +564,7 @@ import { confirmDialog } from './services/confirm';
 import WalletLoginButton from './components/WalletLoginButton.vue';
 import WalletLogoutButton from './components/WalletLogoutButton.vue';
 import { useWanderSession } from './wander/store/wanderSession';
+import { fetchChannelAnalyticsConfig } from './services/channelAnalytics';
 
 const bodyClasses = [
   'bg-background',
@@ -575,7 +581,13 @@ const logoLight =
 const logoDark =
   'https://xc43575rqmogbtegwxry2rk4hkctslkb63os6y2cdq25nfkgmguq.arweave.net/uLm-_7GDHGDMhrXjjUVcOoU5LUH23S9jQhw11pVGYak';
 
-const sidebarIcon = '/favicon.ico';
+const DEFAULT_SIDEBAR_ICON = '/favicon.ico';
+const DEFAULT_SIDEBAR_ICON_ALT = 'getty';
+const DEFAULT_CHANNEL_AVATAR =
+  'https://thumbnails.odycdn.com/optimize/s:0:0/quality:85/plain/https://player.odycdn.com/speech/spaceman-png:2.png';
+const sidebarIcon = ref(DEFAULT_SIDEBAR_ICON);
+const sidebarIconAlt = ref(DEFAULT_SIDEBAR_ICON_ALT);
+const usingDefaultChannelAvatar = ref(false);
 const appVersion = import.meta.env.VITE_APP_VERSION || 'dev';
 
 const { locale, t } = useI18n();
@@ -594,6 +606,42 @@ const configBlockedModalOpen = ref(false);
 const commandPaletteOpen = ref(false);
 const configBlockedFilename = ref('');
 const configBlockedDetails = ref(null);
+
+let channelConfigUpdatedHandler = null;
+
+async function refreshSidebarIcon() {
+  try {
+    const cfg = await fetchChannelAnalyticsConfig();
+    const thumb = cfg?.channelIdentity?.thumbnailUrl;
+    const configured = Boolean(cfg?.claimId && String(cfg.claimId).trim());
+    const identityLabel = String(
+      cfg?.channelIdentity?.title || cfg?.channelIdentity?.name || ''
+    ).trim();
+
+    if (!configured) {
+      sidebarIcon.value = DEFAULT_SIDEBAR_ICON;
+      usingDefaultChannelAvatar.value = false;
+    } else if (thumb && String(thumb).trim()) {
+      sidebarIcon.value = String(thumb).trim();
+      usingDefaultChannelAvatar.value = false;
+    } else {
+      sidebarIcon.value = DEFAULT_CHANNEL_AVATAR;
+      usingDefaultChannelAvatar.value = true;
+    }
+
+    sidebarIconAlt.value = identityLabel || DEFAULT_SIDEBAR_ICON_ALT;
+  } catch {
+    sidebarIcon.value = DEFAULT_SIDEBAR_ICON;
+    sidebarIconAlt.value = DEFAULT_SIDEBAR_ICON_ALT;
+    usingDefaultChannelAvatar.value = false;
+  }
+}
+
+const resolvedSidebarIconBg = computed(() => {
+  if (!usingDefaultChannelAvatar.value) return '';
+
+  return isDark.value ? 'var(--bg-card)' : 'var(--text-primary)';
+});
 
 const currentLocaleLabel = computed(() => (locale.value === 'es' ? 'ES' : 'EN'));
 const analyticsActive = computed(
@@ -857,6 +905,13 @@ onMounted(() => {
     }
   });
 
+  refreshSidebarIcon();
+  try {
+    channelConfigUpdatedHandler = () => refreshSidebarIcon();
+    window.addEventListener('getty-session-updated', channelConfigUpdatedHandler);
+    window.addEventListener('getty-channel-analytics-config-updated', channelConfigUpdatedHandler);
+  } catch {}
+
   storageHandler = (event) => {
     if (!event) return;
     if (event.storageArea && event.storageArea !== localStorage) return;
@@ -885,6 +940,16 @@ onBeforeUnmount(() => {
   window.removeEventListener('getty:tenant-suspended', handleSuspended);
   window.removeEventListener('resize', onResize);
   window.removeEventListener('scroll', onScroll);
+  if (channelConfigUpdatedHandler) {
+    try {
+      window.removeEventListener('getty-session-updated', channelConfigUpdatedHandler);
+      window.removeEventListener(
+        'getty-channel-analytics-config-updated',
+        channelConfigUpdatedHandler
+      );
+    } catch {}
+  }
+  channelConfigUpdatedHandler = null;
   if (storageHandler) {
     try {
       window.removeEventListener('storage', storageHandler);
