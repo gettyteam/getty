@@ -21,6 +21,7 @@ export default defineConfig({
   plugins: [vue()],
   root: path.resolve(__dirname),
   base: '/admin/',
+  publicDir: path.resolve(__dirname, '../public'),
   define: {
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),
     __GETTY_CSRF_HEADER__: '"' + ((globalThis.process && globalThis.process.env && globalThis.process.env.VITE_GETTY_CSRF_HEADER) || '') + '"',
@@ -30,6 +31,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
+      'shared': path.resolve(__dirname, '..', 'shared'),
       'shared-i18n': path.resolve(__dirname, '../shared-i18n')
     }
   },
@@ -46,6 +48,9 @@ export default defineConfig({
     }
   },
   server: {
+    fs: {
+      allow: [path.resolve(__dirname, '..')]
+    },
     port: 5173,
     proxy: {
       '/api': 'http://localhost:3000',

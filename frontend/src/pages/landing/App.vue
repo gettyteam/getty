@@ -5,6 +5,7 @@ import { useLanguage } from '../../composables/useLanguage';
 // @ts-ignore
 import { applyBaseSeo } from '../../head/baseSeo.js';
 import odyseeLogoUrl from '../../assets/odysee.svg?url';
+import GettyFooter from 'shared/components/GettyFooter.vue';
 
 const { isDark, toggleTheme } = useTheme();
 const { currentLang, isMenuOpen, setLanguage, toggleMenu, closeMenu } = useLanguage();
@@ -627,124 +628,7 @@ onBeforeUnmount(() => {
       </section>
     </main>
 
-    <footer
-      class="mt-10 pt-6 border-t border-border text-xs text-[var(--text-secondary)]"
-      role="contentinfo">
-      <div class="flex flex-col md:flex-row justify-between items-center">
-        <div class="mb-4 md:mb-0">
-          <p class="font-bold" data-i18n="copyright">
-            © 2025
-            <a
-              href="https://getty.sh/"
-              target="_blank"
-              class="hover:text-primary-200 transition-colors font-bold">
-              λ getty
-            </a>
-            ·
-            <a
-              href="https://www.gnu.org/licenses/agpl-3.0.html"
-              target="_blank"
-              class="hover:text-primary-200 transition-colors font-bold">
-              AGPL v3 License
-            </a>
-            ·
-            <a
-              href="https://github.com/gettyteam/getty"
-              target="_blank"
-              class="hover:text-primary-200 transition-colors font-bold">
-              Source Code
-            </a>
-          </p>
-        </div>
-        <nav class="flex items-center gap-4" aria-label="Footer">
-          <a
-            href="https://getty.sh/"
-            aria-label="getty site"
-            target="_blank"
-            rel="noopener"
-            class="inline-flex items-center hover:text-[var(--text-primary)]"
-            title="getty site">
-            <img :src="assetPaths.favicon" alt="" class="w-4 h-4 rounded" />
-          </a>
-          <a
-            href="https://odysee.com"
-            aria-label="Odysee"
-            target="_blank"
-            rel="noopener"
-            class="inline-flex items-center hover:text-[var(--text-primary)]"
-            title="Odysee">
-            <svg viewBox="0 0 192 192" width="16" height="16" fill="none" aria-hidden="true">
-              <path
-                fill="none"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="12.096"
-                d="M98.612 39.193c7.085.276 9.76 4.503 12.192 10.124 3.249 7.494.988 10.141-12.192 13.85-13.187 3.74-19.535-1.171-20.404-10.115-.976-10.115 11.684-12.729 11.684-12.729 3.495-.876 6.36-1.226 8.72-1.13zm65.362 107.42c2.54-9.665-6.121-19.201-11.2-27.806-4.998-8.467-11.972-17.925-18.629-22.87a4.832 4.832 0 0 1-.378-7.376c6.57-6.21 18.15-18.329 21.813-24.725 3.413-6.664 7.628-14.488 5.34-21.513-2.058-6.317-8.8-14.298-15.274-12.806-7.342 1.692-6.837 10.98-9.216 20.638-3.222 13.187-10.86 11.697-13.968 11.697-3.108 0-1.24-4.658-8.46-25.377-7.217-20.72-26.002-15.526-40.27-6.985-18.14 10.874-10.046 34.054-5.562 48.992-2.546 2.453-12.118 4.368-20.834 9.06-10.75 5.78-21.645 9.363-24.66 19.372-1.883 6.254.172 15.997 6.162 18.602 6.645 2.889 12.633-1.694 19.751-9.073a36.226 36.226 0 0 1 7.089-5.482 75.994 75.994 0 0 1 18.276-8.59s6.97 10.707 13.432 23.393c6.457 12.686-6.968 16.918-8.459 16.918-1.497 0-22.675-1.973-17.95 15.926 4.726 17.9 30.598 11.437 43.785 2.728 13.187-8.708 9.947-37.06 9.947-37.06 12.94-1.985 16.915 11.684 18.158 18.628 1.243 6.944 4.06 18.052 11.449 19.412 8.248 1.517 17.528-7.593 19.659-15.705z" />
-            </svg>
-          </a>
-          <a
-            href="https://getty.sh/en/guide/privacypolicy/"
-            aria-label="Privacy Policy"
-            target="_blank"
-            rel="noopener"
-            class="inline-flex items-center hover:text-[var(--text-primary)]"
-            title="Privacy Policy">
-            <svg
-              viewBox="0 0 24 24"
-              width="16"
-              height="16"
-              fill="currentColor"
-              aria-hidden="true"
-              class="text-[#1d1d1d] dark:text-white transition-colors">
-              <path
-                d="M17 9.99V7A5 5 0 0 0 7 7v2.99A4.482 4.482 0 0 0 4.5 14v3A4.507 4.507 0 0 0 9 21.5h6a4.507 4.507 0 0 0 4.5-4.5v-3A4.482 4.482 0 0 0 17 9.99ZM13 16a1 1 0 0 1-2 0v-1a1 1 0 0 1 2 0Zm2-6.5H9V7a3 3 0 0 1 6 0Z" />
-            </svg>
-          </a>
-          <a
-            href="https://getty.sh/en/guide/terms/"
-            aria-label="Terms of Service"
-            target="_blank"
-            rel="noopener"
-            class="inline-flex items-center hover:text-[var(--text-primary)]"
-            title="Terms of Service">
-            <svg
-              viewBox="0 0 24 24"
-              width="16"
-              height="16"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true">
-              <path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z" />
-              <path d="M14 2v6h6" />
-              <path d="M9 13h6" />
-              <path d="M9 17h3" />
-            </svg>
-          </a>
-          <a
-            href="https://github.com/gettyteam/getty"
-            aria-label="GitHub"
-            target="_blank"
-            rel="noopener"
-            class="inline-flex items-center hover:text-[var(--text-primary)]"
-            title="GitHub">
-            <svg
-              viewBox="0 0 24 24"
-              width="16"
-              height="16"
-              fill="currentColor"
-              aria-hidden="true"
-              class="text-[#1d1d1d] dark:text-white transition-colors">
-              <path
-                d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5c.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34c-.46-1.16-1.11-1.47-1.11-1.47c-.91-.62.07-.6.07-.6c1 .07 1.53 1.03 1.53 1.03c.87 1.52 2.34 1.07 2.91.83c.09-.65.35-1.09.63-1.34c-2.22-.25-4.55-1.11-4.55-4.92c0-1.11.38-2 1.03-2.71c-.1-.25-.45-1.29.1-2.64c0 0 .84-.27 2.75 1.02c.79-.22 1.65-.33 2.5-.33c.85 0 1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02c.55 1.35.2 2.39.1 2.64c.65.71 1.03 1.6 1.03 2.71c0 3.82-2.34 4.66-4.57 4.91c.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2Z" />
-            </svg>
-          </a>
-        </nav>
-      </div>
-    </footer>
+    <GettyFooter />
   </div>
 </template>
 

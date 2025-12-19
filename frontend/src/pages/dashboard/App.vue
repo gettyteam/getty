@@ -63,13 +63,27 @@
             data-i18n="dashboardAdmin"></button>
           <button
             id="logout-inline"
-            class="hidden px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors"
+            class="hidden p-2 md:px-3 md:py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors"
             data-visible="false"
             title="Logout"
             aria-label="Logout"
             data-i18n-title="walletLogout"
             data-i18n-aria="walletLogout">
-            <span data-i18n="walletLogout"></span>
+            <span class="flex items-center gap-2">
+              <svg
+                viewBox="0 0 24 24"
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true">
+                <rect x="6" y="3" width="12" height="18" rx="1" />
+                <path d="M10 12h.01" />
+              </svg>
+              <span class="sr-only md:not-sr-only" data-i18n="walletLogout"></span>
+            </span>
           </button>
           <button
             class="theme-toggle"
@@ -113,7 +127,7 @@
         </template>
       </main>
     </div>
-    <DashboardFooter />
+    <GettyFooter />
     <noscript>
       <div class="max-w-7xl mx-auto p-3 text-center text-sm text-gray-300">
         JavaScript is required for widgets to load.
@@ -127,7 +141,6 @@ import { computed, onBeforeUnmount, onMounted, ref, nextTick, watch } from 'vue'
 import AchievementsWidget from './components/AchievementsWidget.vue';
 import BlockedState from './components/BlockedState.vue';
 import ChatWidget from './components/ChatWidget.vue';
-import DashboardFooter from './components/DashboardFooter.vue';
 import LastTipWidget from './components/LastTipWidget.vue';
 import NotificationWidget from './components/NotificationWidget.vue';
 import RaffleWidget from './components/RaffleWidget.vue';
@@ -135,6 +148,7 @@ import TipGoalWidget from './components/TipGoalWidget.vue';
 import { useWidgetStore } from '../../stores/widgetStore';
 import { useTheme } from '../../composables/useTheme';
 import languageManager, { i18nTrigger } from './languageManager';
+import GettyFooter from 'shared/components/GettyFooter.vue';
 
 const store = useWidgetStore();
 const { isDark, toggleTheme } = useTheme();

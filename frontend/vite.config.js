@@ -55,6 +55,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
+      'shared': path.resolve(__dirname, '..', 'shared'),
       'shared-i18n': path.resolve(__dirname, '../shared-i18n')
     }
   },
@@ -70,6 +71,9 @@ export default defineConfig({
   },
   publicDir: path.resolve(__dirname, '../public'),
   server: {
+    fs: {
+      allow: [path.resolve(__dirname, '..')]
+    },
     port: 5174,
     proxy: {
       '/api': 'http://localhost:3000',
