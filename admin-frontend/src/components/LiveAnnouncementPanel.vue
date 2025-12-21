@@ -55,7 +55,7 @@
                     <input class="input" v-model="form.livePostClaimId" placeholder="b6f0a7..." />
                     <button
                       type="button"
-                      class="btn w-8 h-8 p-0 justify-center sm:w-auto sm:h-auto sm:px-4 sm:py-2"
+                      class="btn w-8 h-8 p-0 justify-center sm:w-auto sm:h-auto sm:px-3 sm:py-2"
                       :disabled="!form.livePostClaimId || resolving"
                       @click="resolveFromClaimId">
                       <i v-if="resolving" class="pi pi-spin pi-spinner" aria-hidden="true"></i>
@@ -185,7 +185,7 @@
               <div class="mt-3 flex gap-2 flex-wrap">
                 <button
                   type="button"
-                  class="btn w-8 h-8 p-0 justify-center sm:w-auto sm:h-auto sm:px-4 sm:py-2"
+                  class="btn w-8 h-8 p-0 justify-center sm:w-auto sm:h-auto sm:px-3 sm:py-2"
                   :disabled="sending || hasErrors"
                   @click="send"
                   :aria-label="sending ? t('commonSending') : t('commonSend')"
@@ -198,7 +198,7 @@
                 </button>
                 <button
                   type="button"
-                  class="btn w-8 h-8 p-0 justify-center sm:w-auto sm:h-auto sm:px-4 sm:py-2"
+                  class="btn w-8 h-8 p-0 justify-center sm:w-auto sm:h-auto sm:px-3 sm:py-2"
                   @click="genPreview"
                   :aria-label="t('commonPreview')"
                   :title="t('commonPreview')">
@@ -207,7 +207,7 @@
                 </button>
                 <button
                   type="button"
-                  class="btn w-8 h-8 p-0 justify-center sm:w-auto sm:h-auto sm:px-4 sm:py-2"
+                  class="btn w-8 h-8 p-0 justify-center sm:w-auto sm:h-auto sm:px-3 sm:py-2"
                   :disabled="sending || hasErrors"
                   @click="testSend"
                   :aria-label="t('liveTestSendNow')"
@@ -218,7 +218,7 @@
                 </button>
                 <button
                   type="button"
-                  class="btn w-8 h-8 p-0 justify-center sm:w-auto sm:h-auto sm:px-4 sm:py-2"
+                  class="btn w-8 h-8 p-0 justify-center sm:w-auto sm:h-auto sm:px-3 sm:py-2"
                   @click="saveServerDraft"
                   :disabled="saving"
                   :aria-label="saving ? t('commonSaving') : t('commonSaveDraft')"
@@ -231,7 +231,7 @@
                 </button>
                 <button
                   type="button"
-                  class="btn w-8 h-8 p-0 justify-center sm:w-auto sm:h-auto sm:px-4 sm:py-2"
+                  class="btn w-8 h-8 p-0 justify-center sm:w-auto sm:h-auto sm:px-3 sm:py-2"
                   @click="loadServerDraft"
                   :aria-label="t('commonLoadDraft')"
                   :title="t('commonLoadDraft')">

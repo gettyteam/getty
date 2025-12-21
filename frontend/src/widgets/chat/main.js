@@ -20,6 +20,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     let isAutoScroll = true;
     const isHorizontal = window.location.search.includes('horizontal=1') || window.location.hash.includes('horizontal');
 
+    let horizontalScrollPending = false;
+    let horizontalScrollBehavior = 'auto';
+    function scheduleHorizontalScrollToEnd(behavior = 'auto') {
+        if (!isHorizontal || !chatContainer) return;
+        horizontalScrollBehavior = behavior;
+
+        let reducedMotion = false;
+        try {
+            reducedMotion = !!window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+        } catch { /* ignore */ }
+        if (reducedMotion) horizontalScrollBehavior = 'auto';
+
+        if (horizontalScrollPending) return;
+        horizontalScrollPending = true;
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                horizontalScrollPending = false;
+                const maxLeft = Math.max(0, chatContainer.scrollWidth - chatContainer.clientWidth);
+                try {
+                    if (typeof chatContainer.scrollTo === 'function') {
+                        chatContainer.scrollTo({ left: maxLeft, behavior: horizontalScrollBehavior });
+                    } else {
+                        chatContainer.scrollLeft = maxLeft;
+                    }
+                } catch {
+                    chatContainer.scrollLeft = maxLeft;
+                }
+            });
+        });
+    }
+
     let EMOJI_MAPPING = {};
     try {
         const response = await fetch(`/emojis.json?nocache=${Date.now()}`);
@@ -299,6 +330,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     function applyMessageThemeAdjustments() {
         if (!isOBSWidget) return;
 
+        if (isHorizontal && isAutoScroll) {
+            scheduleHorizontalScrollToEnd('auto');
+        }
+
         const themeStyleTag = document.getElementById('chat-theme-style');
         const anyThemeActive = serverHasTheme ||
             !!(themeStyleTag && typeof themeStyleTag.textContent === 'string' && themeStyleTag.textContent.trim().length > 0);
@@ -315,9 +350,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         setIfCustomVar('--border', chatColors.borderColor, '#161b22');
         setIfCustomVar('--text', chatColors.textColor, '#e6edf3');
 
-        if (isHorizontal) {
-            chatContainer.scrollLeft = chatContainer.scrollWidth;
-        }
     }
 
     function buildDefaultGettyThemeCss() {
@@ -527,10 +559,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         const isDashboard = /index\.html$|\/$/.test(window.location.pathname);
         if (isDashboard) {
             chatContainer.insertBefore(messageEl, chatContainer.firstChild);
-            if (isAutoScroll) chatContainer.scrollTop = 0;
+            if (isAutoScroll && !isHorizontal) chatContainer.scrollTop = 0;
         } else {
             chatContainer.appendChild(messageEl);
-            if (isAutoScroll) chatContainer.scrollTop = chatContainer.scrollHeight;
+            if (isAutoScroll && !isHorizontal) chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        if (isHorizontal && isAutoScroll) {
+            scheduleHorizontalScrollToEnd('smooth');
         }
 
         const themeStyle = document.getElementById('chat-theme-style');
@@ -602,11 +638,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     chatContainer.addEventListener('scroll', () => {
-        isAutoScroll = chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight;
+        if (isHorizontal) {
+            isAutoScroll = (chatContainer.scrollWidth - chatContainer.scrollLeft) <= (chatContainer.clientWidth + 2);
+        } else {
+            isAutoScroll = (chatContainer.scrollHeight - chatContainer.scrollTop) <= (chatContainer.clientHeight + 2);
+        }
     });
 
     if (isHorizontal) {
         chatContainer.classList.add('horizontal-chat');
+        if (isAutoScroll) scheduleHorizontalScrollToEnd('auto');
     }
 
     function applyChatTheme(themeCSS, isLightTheme) {
