@@ -202,7 +202,8 @@ function registerAdminDashboardRoutes(app, context) {
         const helpers = req.app.locals.streamHistoryHelpers;
         const hist = await helpers.loadHistory(req);
         const perf = helpers.computePerformance(hist, 'year', 10);
-        const last = perf.recentStreams && perf.recentStreams.length > 0 ? perf.recentStreams[0] : null;
+        const recent = Array.isArray(perf.recentStreams) ? perf.recentStreams : [];
+        const last = recent.length ? recent[recent.length - 1] : null;
         
         let uniqueChatters = 0;
         const chatNs = req.app.locals.chatNs;
