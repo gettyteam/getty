@@ -96,6 +96,8 @@ const adminExtra = {
       actions: {
         summary: "Stream summary",
         configure: "Configure now",
+        discard: "Discard",
+        openMenu: "Open menu",
         view: "View details"
       }
     },
@@ -815,6 +817,8 @@ const adminExtra = {
       actions: {
         summary: "Resumen de stream",
         configure: "Configurar ahora",
+        discard: "Descartar",
+        openMenu: "Abrir menú",
         view: "Ver detalles"
       }
     },
