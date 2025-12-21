@@ -61,7 +61,7 @@
       </DashboardCard>
     </div>
 
-    <section class="recommendations-section relative" v-if="unconfiguredModules.length > 0">
+    <section class="recommendations-section relative" v-if="visibleUnconfiguredModules.length > 0">
       <div class="mb-4">
         <h2 class="text-xl font-semibold">
           {{ $t('home.recommendations.title') }}
@@ -86,11 +86,12 @@
           ref="scrollContainer"
           class="flex gap-4 overflow-x-auto pb-4 scroll-smooth scrollbar-hide snap-x snap-mandatory">
           <RecommendationCard
-            v-for="module in unconfiguredModules"
+            v-for="module in visibleUnconfiguredModules"
             :key="module.id"
             :module="module"
             class="flex-shrink-0 snap-center"
-            @configure="redirectToModule" />
+            @configure="redirectToModule"
+            @discard="discardRecommendation" />
         </div>
 
         <button
@@ -161,9 +162,40 @@ const communityMetrics = ref({
 
 const unconfiguredModules = ref([]);
 
+const DISMISSED_RECOMMENDATIONS_KEY = 'getty.admin.home.recommendations.dismissed';
+const dismissedRecommendationIds = ref(new Set());
+
+function loadDismissedRecommendations() {
+  try {
+    const raw = window.localStorage.getItem(DISMISSED_RECOMMENDATIONS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(parsed)) {
+      dismissedRecommendationIds.value = new Set(parsed.filter(Boolean));
+      return;
+    }
+  } catch {}
+  dismissedRecommendationIds.value = new Set();
+}
+
+function saveDismissedRecommendations() {
+  try {
+    window.localStorage.setItem(
+      DISMISSED_RECOMMENDATIONS_KEY,
+      JSON.stringify(Array.from(dismissedRecommendationIds.value))
+    );
+  } catch {}
+}
+
+const visibleUnconfiguredModules = computed(() => {
+  return (unconfiguredModules.value || []).filter(
+    (m) => m && m.id && !dismissedRecommendationIds.value.has(m.id)
+  );
+});
+
 let sessionUpdatedHandler = null;
 
 onMounted(async () => {
+  loadDismissedRecommendations();
   await loadDashboardData();
 });
 
@@ -231,6 +263,12 @@ async function loadDashboardData() {
 
 function redirectToModule(module) {
   router.push(module.configurationPath);
+}
+
+function discardRecommendation(module) {
+  if (!module?.id) return;
+  dismissedRecommendationIds.value = new Set([...dismissedRecommendationIds.value, module.id]);
+  saveDismissedRecommendations();
 }
 </script>
 
