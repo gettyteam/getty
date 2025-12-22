@@ -46,13 +46,13 @@ Wander App is a secure and easy-to-use digital wallet for Odysee, allowing you t
 ```bash
 corepack enable
 node -v   # should print v22.x.x
-pnpm -v   # Corepack will provision pnpm@10.25.0
+pnpm -v   # Corepack will provision pnpm@10.26.1
 ```
 
 - Optional: install pnpm manually (if you prefer not to use Corepack):
 
 ```bash
-npm i -g pnpm@10.25.0
+npm i -g pnpm@10.26.1
 ```
 
 ## Installation
