@@ -1,9 +1,5 @@
 'use strict';
 
-/**
- * Imports legacy JSON stream history into PostgreSQL/TimescaleDB.
- */
-
 const fs = require('fs');
 const path = require('path');
 
@@ -42,11 +38,6 @@ async function loadSecrets() {
   }
 }
 
-(async () => {
-  await loadSecrets();
-
-const { ensureTenant, replaceTenantHistory } = require('../lib/db/stream-history');
-
 function parseArgs(argv) {
   const args = {};
   for (let i = 0; i < argv.length; i++) {
@@ -64,24 +55,9 @@ function parseArgs(argv) {
   return args;
 }
 
-function resolveSourcePath(tenantId, explicitPath) {
-  if (explicitPath) {
-    return path.resolve(process.cwd(), explicitPath);
-  }
-  if (!tenantId) {
-    throw new Error('tenantId required when file path not provided');
-  }
-  return path.join(process.cwd(), 'tenant', tenantId, 'data', 'stream-history.json');
-}
-
-function loadHistoryFromFile(filePath) {
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`History file not found: ${filePath}`);
-  }
+function safeReadJson(filePath) {
   const raw = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-  if (!raw || typeof raw !== 'object') {
-    throw new Error('Invalid JSON structure');
-  }
+  if (!raw || typeof raw !== 'object') throw new Error('Invalid JSON structure');
   return raw;
 }
 
@@ -122,65 +98,98 @@ function normalizeSamples(rawSamples) {
     .filter(Boolean);
 }
 
-async function main() {
-  try {
-    const args = parseArgs(process.argv.slice(2));
-    const tenantId = args.tenant ? String(args.tenant) : null;
-    const claimId = args.claim ? String(args.claim) : null;
-    const pubNamespace = args.pub ? String(args.pub) : null;
-    const dryRun = args['dry-run'] === true || args.dry === true;
-    const ingestVersion = args.ingest ? String(args.ingest) : 'migration-json';
-    const sourceLabel = args.source ? String(args.source) : 'json-import';
+function listTenantIds(rootDir) {
+  const entries = fs.readdirSync(rootDir, { withFileTypes: true });
+  return entries.filter((e) => e.isDirectory()).map((e) => e.name);
+}
 
-    if (!tenantId) {
-      console.error(
-        'Usage: node scripts/import-stream-history.js --tenant <tenantId> [--file <path>] [--claim <claimId>] [--dry-run]'
-      );
+function resolveHistoryFile(rootDir, tenantId) {
+  return path.join(rootDir, tenantId, 'data', 'stream-history.json');
+}
+
+(async () => {
+  await loadSecrets();
+
+  const { ensureTenant, replaceTenantHistory } = require('../lib/db/stream-history');
+
+  async function main() {
+    const args = parseArgs(process.argv.slice(2));
+    const root = args.root ? path.resolve(process.cwd(), String(args.root)) : path.join(process.cwd(), 'tenant');
+    const onlyTenant = args.tenant ? String(args.tenant) : null;
+    const dryRun = args['dry-run'] === true || args.dry === true;
+    const ingestVersion = args.ingest ? String(args.ingest) : 'migration-json-bulk';
+    const sourceLabel = args.source ? String(args.source) : 'json-import-bulk';
+
+    if (!fs.existsSync(root)) {
+      console.error('[bulk-import] tenant root not found:', root);
       process.exit(1);
     }
 
-    const filePath = resolveSourcePath(tenantId, args.file);
-    const raw = loadHistoryFromFile(filePath);
-    const segments = normalizeSegments(raw.segments);
-    const samples = normalizeSamples(raw.samples);
-
-    console.warn(
-      '[import] tenant=%s file=%s segments=%d samples=%d',
-      tenantId,
-      filePath,
-      segments.length,
-      samples.length
-    );
-
-    if (dryRun) {
-      console.warn('[import] dry run – no changes applied');
-      process.exit(0);
+    const tenantIds = onlyTenant ? [onlyTenant] : listTenantIds(root);
+    if (!tenantIds.length) {
+      console.warn('[bulk-import] no tenants found under', root);
+      return;
     }
 
-    await ensureTenant({
-      tenantId,
-      claimId,
-      adminNamespace: tenantId,
-      pubNamespace,
-    });
+    let okCount = 0;
+    let skipped = 0;
+    let failed = 0;
 
-    await replaceTenantHistory({
-      tenantId,
-      segments,
-      samples,
-      source: sourceLabel,
-      ingestVersion,
-    });
+    for (const tenantId of tenantIds) {
+      const filePath = resolveHistoryFile(root, tenantId);
+      if (!fs.existsSync(filePath)) {
+        skipped++;
+        continue;
+      }
 
-    console.warn('[import] completed successfully');
-    process.exit(0);
-  } catch (err) {
-    console.error('[import] failed:', err);
-    process.exit(1);
+      try {
+        const raw = safeReadJson(filePath);
+        const segments = normalizeSegments(raw.segments);
+        const samples = normalizeSamples(raw.samples);
+
+        console.warn(
+          '[bulk-import] tenant=%s file=%s segments=%d samples=%d',
+          tenantId,
+          filePath,
+          segments.length,
+          samples.length
+        );
+
+        if (dryRun) {
+          okCount++;
+          continue;
+        }
+
+        await ensureTenant({
+          tenantId,
+          claimId: null,
+          adminNamespace: tenantId,
+          pubNamespace: null,
+        });
+
+        await replaceTenantHistory({
+          tenantId,
+          segments,
+          samples,
+          source: sourceLabel,
+          ingestVersion,
+        });
+
+        okCount++;
+      } catch (err) {
+        failed++;
+        console.error('[bulk-import] tenant=%s failed: %s', tenantId, err?.message || err);
+      }
+    }
+
+    console.warn('[bulk-import] done ok=%d skipped=%d failed=%d', okCount, skipped, failed);
+    if (failed > 0) process.exitCode = 1;
   }
-}
 
-if (require.main === module) {
-  main();
-}
+  if (require.main === module) {
+    main().catch((err) => {
+      console.error('[bulk-import] fatal:', err);
+      process.exit(1);
+    });
+  }
 })();

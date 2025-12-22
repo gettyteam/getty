@@ -242,8 +242,13 @@ function registerAdminDashboardRoutes(app, context) {
 
         if (last) {
           const durationMinutes = Math.round((last.durationHours || 0) * 60);
+          const chattersFromHistory = (() => {
+            const raw = last.uniqueChatters ?? last.unique_chatters;
+            const num = Number(raw);
+            return Number.isFinite(num) && num >= 0 ? Math.floor(num) : null;
+          })();
           metrics = {
-            chatters: uniqueChatters,
+            chatters: chattersFromHistory != null ? chattersFromHistory : uniqueChatters,
             viewers: last.peakViewers || 0,
             duration: `${durationMinutes}m`,
             lastStreamDate: new Date(last.startEpoch)

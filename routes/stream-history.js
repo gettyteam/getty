@@ -310,10 +310,16 @@ function startSegment(hist, ts) {
   markSegmentsDirty(hist);
 }
 
-function endSegment(hist, ts) {
+function endSegment(hist, ts, extra = null) {
   const last = hist.segments[hist.segments.length - 1];
   if (last && !last.end) {
     last.end = ts;
+    try {
+      const uc = Number(extra && (extra.uniqueChatters ?? extra.unique_chatters));
+      if (Number.isFinite(uc) && uc >= 0) {
+        last.uniqueChatters = Math.floor(uc);
+      }
+    } catch {}
     markSegmentsDirty(hist);
   }
 }
@@ -480,7 +486,10 @@ function sanitizeSegments(rawSegments, nowTs) {
       if (!isFinite(start) || !isFinite(endRaw)) return null;
       const end = Math.max(start, endRaw);
       if (end <= start) return null;
-      return { start, end };
+      const ucRaw = seg?.uniqueChatters ?? seg?.unique_chatters;
+      const ucNum = Number(ucRaw);
+      const uniqueChatters = Number.isFinite(ucNum) && ucNum >= 0 ? Math.floor(ucNum) : undefined;
+      return uniqueChatters === undefined ? { start, end } : { start, end, uniqueChatters };
     })
     .filter(Boolean)
     .sort((a, b) => a.start - b.start);
@@ -685,6 +694,11 @@ function computeSessionStats(segments, samples, nowTs, tzOffsetMinutes = 0, limi
       viewerHours,
       activeDayKey: dayKey,
       tzOffsetMinutes,
+      uniqueChatters: (() => {
+        const raw = seg?.uniqueChatters ?? seg?.unique_chatters;
+        const num = Number(raw);
+        return Number.isFinite(num) && num >= 0 ? Math.floor(num) : 0;
+      })(),
     });
   }
 
@@ -1288,6 +1302,67 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
   ensureDir(path.join(process.cwd(), 'config'));
   ensureDir(DATA_DIR);
   const TENANT_ROOT = path.join(process.cwd(), 'tenant');
+  const UNIQUE_CHATTERS_RESET_GAP_MS = 10 * 60 * 1000;
+
+  async function getUniqueChattersSnapshot(nsToken) {
+    if (!nsToken) return 0;
+    let count = 0;
+    try {
+      const chatNs = app?.locals?.chatNs;
+      const session = chatNs && chatNs.sessions ? chatNs.sessions.get(nsToken) : null;
+      if (session && session.uniqueChatters) {
+        const size = Number(session.uniqueChatters.size);
+        if (Number.isFinite(size) && size > 0) count = Math.max(count, size);
+      } else if (session && Array.isArray(session.history)) {
+        const unique = new Set(session.history.map((m) => m.userId || m.username).filter(Boolean));
+        if (unique.size > 0) count = Math.max(count, unique.size);
+      }
+    } catch {}
+
+    try {
+      if (store && store.redis) {
+        const cached = await store.redis.get(`getty:chatters:${nsToken}`);
+        const num = Number(cached);
+        if (Number.isFinite(num) && num > 0) count = Math.max(count, Math.floor(num));
+      }
+    } catch {}
+    return count;
+  }
+
+  async function resetUniqueChatters(nsToken) {
+    if (!nsToken) return;
+    try {
+      const chatNs = app?.locals?.chatNs;
+      const session = chatNs && chatNs.sessions ? chatNs.sessions.get(nsToken) : null;
+      if (session && session.uniqueChatters && typeof session.uniqueChatters.clear === 'function') {
+        session.uniqueChatters.clear();
+      }
+    } catch {}
+    try {
+      if (store && store.redis) {
+        await store.redis.del(`getty:chatters:${nsToken}`);
+      }
+    } catch {}
+  }
+
+  function shouldResetUniqueChattersForNewSegment(hist, atTs) {
+    try {
+      const ts = Number(atTs);
+      if (!Number.isFinite(ts)) return true;
+      const segs = hist && Array.isArray(hist.segments) ? hist.segments : [];
+      if (!segs.length) return true;
+      const last = segs[segs.length - 1];
+      if (!last) return true;
+      if (!last.end) return false;
+      const endTs = Number(last.end);
+      if (!Number.isFinite(endTs)) return true;
+      const gap = ts - endTs;
+      if (gap < 0) return false;
+      return gap > UNIQUE_CHATTERS_RESET_GAP_MS;
+    } catch {
+      return true;
+    }
+  }
 
   function redisKey(ns, key) {
     return `getty:${ns}:${key}`;
@@ -1822,9 +1897,15 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       const hist = await loadHistoryNS(reqLike);
       const last = hist.segments[hist.segments.length - 1];
       if (nowLive) {
-        if (!(last && !last.end)) startSegment(hist, nowTs);
+        if (!(last && !last.end)) {
+          if (shouldResetUniqueChattersForNewSegment(hist, nowTs)) {
+            await resetUniqueChatters(adminNs || null);
+          }
+          startSegment(hist, nowTs);
+        }
       } else if (last && !last.end) {
-        endSegment(hist, nowTs);
+        const uniqueChatters = await getUniqueChattersSnapshot(adminNs || null);
+        endSegment(hist, nowTs, { uniqueChatters });
       }
       if (!Array.isArray(hist.samples)) hist.samples = [];
       const sample = { ts: nowTs, live: nowLive, viewers: viewerCount };
@@ -2099,9 +2180,17 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       const last = hist.segments[hist.segments.length - 1];
       const isOpen = last && !last.end;
       if (live) {
-        if (!isOpen) startSegment(hist, at);
+        if (!isOpen) {
+          const nsToken = req?.ns?.admin || req?.ns?.pub || null;
+          if (shouldResetUniqueChattersForNewSegment(hist, at)) {
+            await resetUniqueChatters(nsToken);
+          }
+          startSegment(hist, at);
+        }
       } else if (isOpen) {
-        endSegment(hist, at);
+        const nsToken = req?.ns?.admin || req?.ns?.pub || null;
+        const uniqueChatters = await getUniqueChattersSnapshot(nsToken);
+        endSegment(hist, at, { uniqueChatters });
       }
 
       const sample = { ts: at, live: !!live, viewers };
@@ -2294,7 +2383,15 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       const samples = Array.isArray(incoming.samples) ? incoming.samples : [];
 
       const safeSegments = segments
-        .map((s) => ({ start: Number(s.start), end: s.end == null ? null : Number(s.end) }))
+        .map((s) => {
+          const start = Number(s.start);
+          const end = s.end == null ? null : Number(s.end);
+          const ucRaw = s?.uniqueChatters ?? s?.unique_chatters;
+          const ucNum = Number(ucRaw);
+          const seg = { start, end };
+          if (Number.isFinite(ucNum) && ucNum >= 0) seg.uniqueChatters = Math.floor(ucNum);
+          return seg;
+        })
         .filter((s) => !isNaN(s.start) && (s.end == null || (!isNaN(s.end) && s.end >= s.start)));
       const safeSamples = samples
         .map((s) => ({

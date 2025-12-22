@@ -37,7 +37,8 @@
     "report:unused-css": "node scripts/unused-css-report.js",
     "verify:hosted": "node scripts/hosted-verify.js",
     "db:migrate": "node scripts/db-run-migrations.js",
-    "db:import-history": "node scripts/import-stream-history.js"
+    "db:import-history": "node scripts/import-stream-history.js",
+    "db:import-history:bulk": "node scripts/import-stream-history-bulk.js"
   },
   "engines": {
     "node": ">=22 <23"
