@@ -14,6 +14,15 @@ async function loadSecrets() {
     require('dotenv').config();
   } catch {}
 
+  if (
+    process.env.GETTY_SKIP_INFISICAL === '1' ||
+    !process.env.INFISICAL_CLIENT_ID ||
+    !process.env.INFISICAL_CLIENT_SECRET ||
+    !process.env.INFISICAL_PROJECT_ID
+  ) {
+    return;
+  }
+
   try {
     const { InfisicalSDK } = await import('@infisical/sdk');
     const client = new InfisicalSDK({
