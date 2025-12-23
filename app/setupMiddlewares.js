@@ -19,6 +19,7 @@ function setupMiddlewares(
     __LOG_LEVEL,
   }
 ) {
+  const isProd = process.env.NODE_ENV === 'production';
   try {
     app.set('store', store);
   } catch {}
@@ -34,11 +35,22 @@ function setupMiddlewares(
   } catch {}
 
   try {
-    app.use(helmet({ contentSecurityPolicy: false }));
+    app.use(
+      helmet({
+        contentSecurityPolicy: false,
+        ...(isProd
+          ? {
+              hsts: false,
+              referrerPolicy: false,
+              frameguard: false,
+              noSniff: false,
+            }
+          : {}),
+      })
+    );
   } catch {}
 
   try {
-    const isProd = process.env.NODE_ENV === 'production';
     const cspFlag = process.env.GETTY_ENABLE_CSP;
     const enableCsp = cspFlag === '1' || (typeof cspFlag === 'undefined' && isProd);
     if (enableCsp) {
@@ -289,7 +301,9 @@ function setupMiddlewares(
   try {
     app.use((req, res, next) => {
       try {
-        res.setHeader('Referrer-Policy', 'no-referrer');
+        if (!isProd) {
+          res.setHeader('Referrer-Policy', 'no-referrer');
+        }
         if (req.path && req.path.startsWith('/api/')) {
           res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
           res.setHeader('Pragma', 'no-cache');
