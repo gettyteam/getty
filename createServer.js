@@ -4568,6 +4568,41 @@ app.post('/api/chat/test-message', limiter, async (req, res) => {
   }
 });
 
+// Preview manual de actividad (para ajustar fuego/highlight sin mandar mensajes reales).
+app.post('/api/chat/activity-preview', limiter, async (req, res) => {
+  try {
+    const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+    const shouldRequireSession = requireSessionFlag || !!process.env.REDIS_URL;
+    const ns = req?.ns?.admin || req?.ns?.pub || null;
+    if (shouldRequireSession && !ns) return res.status(401).json({ error: 'session_required' });
+
+    const body = req.body || {};
+    const username =
+      typeof body.username === 'string' && body.username.trim() ? body.username.trim() : 'TestUser';
+    const reset = !!body.reset;
+    const raw = Number(body.progress);
+    const progress = reset ? 0 : (Number.isFinite(raw) ? Math.max(0, Math.min(100, raw)) : 0);
+    const streak = !!body.streak;
+
+    const payload = { type: 'chatActivityPreview', data: { userKey: username, progress, reset, streak } };
+
+    if (typeof wss.broadcast === 'function' && ns) {
+      const adminNs = (await resolveAdminNsFromReq(req)) || ns;
+      wss.broadcast(adminNs, payload);
+    } else {
+      wss.clients.forEach((client) => {
+        if (client && client.readyState === 1) {
+          try { client.send(JSON.stringify(payload)); } catch {}
+        }
+      });
+    }
+
+    res.json({ ok: true, sent: { userKey: username, progress, reset, streak } });
+  } catch (e) {
+    res.status(500).json({ error: 'failed_to_send_activity_preview', details: e?.message });
+  }
+});
+
 app.get('/widgets/persistent-notifications', async (req, res, next) => {
   try {
     const html = await loadFrontendHtmlTemplate('widgets/persistent-notifications.html', req);
@@ -5090,6 +5125,25 @@ try {
       return next(err);
     }
   });
+} catch {}
+
+try {
+  const distAssetsDir = path.join(FRONTEND_DIST_DIR, 'assets');
+  if (fs.existsSync(distAssetsDir)) {
+    app.use(
+      '/assets',
+      express.static(distAssetsDir, {
+        etag: true,
+        lastModified: true,
+        maxAge: '1h',
+        setHeaders: (res, filePath) => {
+          if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
+            res.setHeader('Cache-Control', 'public, max-age=300');
+          }
+        },
+      })
+    );
+  }
 } catch {}
 
 app.use(

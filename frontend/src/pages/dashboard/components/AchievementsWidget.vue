@@ -28,7 +28,7 @@
         ref="listContainer">
         <transition-group name="list">
           <div v-for="ach in reversedAchievements" :key="ach.id || ach.timestamp" class="ach-card">
-            <div class="ach-icon">🏆</div>
+            <div class="ach-icon">🎉</div>
             <div class="ach-content">
               <div class="ach-app">
                 {{ unlockedText }}
@@ -171,7 +171,7 @@ onMounted(() => {
 .ach-icon {
   width: 32px;
   height: 32px;
-  border-radius: 4px;
+  border-radius: 8px;
   background: #e5e7eb;
   color: #374151;
   display: inline-flex;
@@ -202,7 +202,7 @@ onMounted(() => {
   font-size: 12px;
   margin-bottom: 2px;
   font-weight: bold;
-  color: #059669;
+  color: #080c10;
 }
 
 :global(html.dark) .ach-app {
@@ -255,8 +255,12 @@ onMounted(() => {
 }
 
 .custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: #4a5568 transparent;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 .list-enter-active,

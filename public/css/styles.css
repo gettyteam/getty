@@ -365,6 +365,7 @@ body {
   font-weight: 600;
   margin-right: 6px;
   color: #00ff7f;
+  text-transform: capitalize;
 }
 
 .comment-emoji,

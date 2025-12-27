@@ -1,5 +1,45 @@
 import './chat.css';
 
+let activityEffectApp = null;
+async function tryMountActivityEffect() {
+    try {
+        const { mountChatActivityEffect } = await import('./mountActivityEffect.js');
+        activityEffectApp = mountChatActivityEffect({
+            windowMs: 120000,
+            threshold: 5,
+            maxMessages: 25,
+            highlightDurationMs: 30000,
+            announce: false,
+        });
+        return true;
+    } catch (err) {
+        try {
+            window.__gettyChatActivityMountError = String(err?.message || err);
+        } catch {}
+        try {
+            if (import.meta?.env?.DEV) console.error('[chat widget] activity effect mount failed:', err);
+        } catch {}
+        return false;
+    }
+}
+
+function unmountActivityEffect() {
+    try {
+        if (activityEffectApp && typeof activityEffectApp.unmount === 'function') {
+            activityEffectApp.unmount();
+        }
+    } catch {}
+    activityEffectApp = null;
+    try {
+        const host = document.getElementById('getty-chat-activity-root');
+        if (host && host.parentNode) host.parentNode.removeChild(host);
+    } catch {}
+    try {
+        window.__gettyChatActivityMounted = false;
+        window.__gettyChatActivityApp = null;
+    } catch {}
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     const chatContainer = document.getElementById('chat-container');
     if (!chatContainer) {
@@ -82,15 +122,46 @@ document.addEventListener('DOMContentLoaded', async () => {
         token = token.split('?')[0];
     }
 
-    try {
-        if (typeof randomAvatarBgPerMessage !== 'boolean' || randomAvatarBgPerMessage === false) {
+    let activityEffectEnabled = true;
+
+    async function fetchChatConfig() {
+        try {
             const res = await fetch(`/api/chat-config?nocache=${Date.now()}${token ? `&token=${encodeURIComponent(token)}` : ''}`);
-            const cfg = await res.json();
-            if (cfg && typeof cfg.avatarRandomBg === 'boolean' && localStorage.getItem('chat_avatar_random_bg') === null) {
+            return await res.json();
+        } catch {
+            return null;
+        }
+    }
+
+    function applyActivityEffectEnabled(nextEnabled) {
+        const enabled = typeof nextEnabled === 'boolean' ? nextEnabled : true;
+        activityEffectEnabled = enabled;
+        if (!activityEffectEnabled) {
+            unmountActivityEffect();
+            return;
+        }
+        if (!activityEffectApp) {
+            try { void tryMountActivityEffect(); } catch {}
+        }
+    }
+
+    try {
+        const cfg = await fetchChatConfig();
+        if (cfg) {
+            if (typeof cfg.activityEffectEnabled === 'boolean') {
+                activityEffectEnabled = !!cfg.activityEffectEnabled;
+            }
+            if (
+                (typeof randomAvatarBgPerMessage !== 'boolean' || randomAvatarBgPerMessage === false) &&
+                typeof cfg.avatarRandomBg === 'boolean' &&
+                localStorage.getItem('chat_avatar_random_bg') === null
+            ) {
                 randomAvatarBgPerMessage = !!cfg.avatarRandomBg;
             }
         }
     } catch {}
+
+    applyActivityEffectEnabled(activityEffectEnabled);
     function resolveSocketHost() {
         if (wsPortOverride) {
             return `${window.location.hostname}:${wsPortOverride}`;
@@ -182,15 +253,37 @@ document.addEventListener('DOMContentLoaded', async () => {
                     fetchAndApplyTheme();
                     applyChatColors();
 
+                    try {
+                        if (Object.prototype.hasOwnProperty.call(msg.data || {}, 'activityEffectEnabled')) {
+                            applyActivityEffectEnabled(!!msg.data.activityEffectEnabled);
+                        }
+                    } catch {}
+
                     (async () => {
                         try {
-                            const res = await fetch(`/api/chat-config?nocache=${Date.now()}${token ? `&token=${encodeURIComponent(token)}` : ''}`);
-                            const cfg = await res.json();
+                            const cfg = await fetchChatConfig();
                             if (cfg && typeof cfg.avatarRandomBg === 'boolean') {
                                 randomAvatarBgPerMessage = !!cfg.avatarRandomBg;
                             }
+                            if (cfg && typeof cfg.activityEffectEnabled === 'boolean') {
+                                applyActivityEffectEnabled(!!cfg.activityEffectEnabled);
+                            }
                         } catch {/* ignore */}
                     })();
+                    return;
+                }
+                if (msg.type === 'chatActivityPreview' && msg.data) {
+                    try {
+                        const d = msg.data || {};
+                        const userKey = String(d.userKey || d.username || '').trim();
+                        if (userKey) {
+                            window.dispatchEvent(
+                                new CustomEvent('getty:chat-activity-preview', {
+                                    detail: { userKey, progress: d.progress, reset: !!d.reset, streak: !!d.streak },
+                                })
+                            );
+                        }
+                    } catch {}
                     return;
                 }
                 if (msg.type === 'chatMessage' && msg.data) addMessage(msg.data);
@@ -422,7 +515,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     function addMessage(msg) {
         const messageEl = document.createElement('div');
         messageEl.classList.add('message');
-        if (messageCount++ % 2) messageEl.classList.add('odd');
+        const msgIndex = messageCount++;
+        if (msgIndex % 2) messageEl.classList.add('odd');
+
+        const userKey = String(
+            (msg && (msg.userId || msg.channelName || msg.channelTitle))
+                ? (msg.userId || msg.channelName || msg.channelTitle)
+                : 'Anonymous'
+        );
+        const messageId = `${Date.now()}-${msgIndex}`;
+        try {
+            messageEl.dataset.userId = userKey;
+            messageEl.dataset.messageId = messageId;
+        } catch {}
 
         const header = document.createElement('div');
         header.className = 'message-header';
@@ -548,6 +653,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         messageEl.appendChild(header);
 
+        try {
+            const slot = document.createElement('div');
+            slot.className = 'chat-activity-slot';
+            slot.id = `chat-activity-slot-${messageId}`;
+            slot.setAttribute('aria-hidden', 'true');
+            messageEl.appendChild(slot);
+        } catch {}
+
         if (hasSticker) {
             const stickerContainer = document.createElement('div');
             stickerContainer.className = 'message-sticker-container';
@@ -564,6 +677,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             chatContainer.appendChild(messageEl);
             if (isAutoScroll && !isHorizontal) chatContainer.scrollTop = chatContainer.scrollHeight;
         }
+
+        try {
+            window.dispatchEvent(
+                new CustomEvent('getty:chat-message-added', {
+                    detail: { userKey, messageId, username, at: Date.now() },
+                })
+            );
+        } catch {}
 
         if (isHorizontal && isAutoScroll) {
             scheduleHorizontalScrollToEnd('smooth');
@@ -671,70 +792,83 @@ document.addEventListener('DOMContentLoaded', async () => {
             const res = await fetch(`/api/chat-config?nocache=${Date.now()}${token ? `&token=${encodeURIComponent(token)}` : ''}`);
             const config = await res.json();
             const serverCSS = (config.themeCSS || '').trim();
-            let isLightTheme = !!serverCSS && (serverCSS.includes('--text: #1f2328') || serverCSS.includes('--text: #111'));
+            let isLightTheme =
+                !!serverCSS &&
+                (serverCSS.includes('--text: #1f2328') || serverCSS.includes('--text: #111'));
 
-                        serverHasTheme = !!serverCSS;
-                        if (serverHasTheme) {
-                                await loadColors();
-                                const hasExplicitUserColors = !!(chatColors.usernameColor || chatColors.usernameBgColor);
+            serverHasTheme = !!serverCSS;
 
-                                const donationOverrideCss = '';
+            if (serverHasTheme) {
+                await loadColors();
+                const hasExplicitUserColors = !!(chatColors.usernameColor || chatColors.usernameBgColor);
 
-                                const extraCss = hasExplicitUserColors
-                                    ? `\n.message-username.cyberpunk { color: ${chatColors.usernameColor || '#ffffff'} !important; background: ${chatColors.usernameBgColor || '#11ff79'} !important; }`
-                                    : CYBERPUNK_PALETTE.map((p, i) => `\n.message-username.cyberpunk.cp-${i + 1} { color: ${p.text} !important; background: ${p.bg} !important; text-shadow: 0 0 8px ${p.border} !important; }`).join('');
+                const donationOverrideCss = '';
+                const extraCss = hasExplicitUserColors
+                    ? `\n.message-username.cyberpunk { color: ${chatColors.usernameColor || '#ffffff'} !important; background: ${chatColors.usernameBgColor || '#11ff79'} !important; }`
+                    : CYBERPUNK_PALETTE
+                        .map(
+                            (p, i) =>
+                                `\n.message-username.cyberpunk.cp-${i + 1} { color: ${p.text} !important; background: ${p.bg} !important; text-shadow: 0 0 8px ${p.border} !important; }`
+                        )
+                        .join('');
 
-                                const finalCss = serverCSS + extraCss + (donationOverrideCss ? `\n${donationOverrideCss}` : '');
-                                if (finalCss !== lastThemeCSS) {
-                                        lastThemeCSS = finalCss;
-                                        applyChatTheme(finalCss, isLightTheme);
-                                }
-
-                                try {
-                                    const localAuto = (localStorage.getItem('chatLiveThemeCSS') || '').match(/\/\* AUTO_FONT_SIZES_START \*\/[\s\S]*?\/\* AUTO_FONT_SIZES_END \*\//);
-                                    if (localAuto && !/AUTO_FONT_SIZES_START/.test(finalCss)) {
-                                        const merged = finalCss + '\n' + localAuto[0];
-                                        if (merged !== lastThemeCSS) {
-                                            lastThemeCSS = merged;
-                                            applyChatTheme(merged, isLightTheme);
-                                        }
-                                    }
-                                } catch {}
-
-                updateDonationVars();
-            } else {
-                const local = (localStorage.getItem('chatLiveThemeCSS') || '').trim();
-                const styleTag = document.getElementById('chat-theme-style');
-                const styleEmpty = !styleTag || !(styleTag.textContent || '').trim();
-
-                if (local) {
-                    const sizeBlockMatch = local.match(/\/\* AUTO_FONT_SIZES_START \*\/[\s\S]*?\/\* AUTO_FONT_SIZES_END \*\//);
-                    let combined = local;
-                    if (!sizeBlockMatch) {
-                        const existing = (lastThemeCSS || '').match(
-                            /\/\* AUTO_FONT_SIZES_START \*\/[\s\S]*?\/\* AUTO_FONT_SIZES_END \*\//
-                        );
-                        if (existing) combined += '\n' + existing[0];
-                    }
-
-                    isLightTheme = combined.includes('--text: #1f2328') || combined.includes('--text: #111');
-                    if (combined !== lastThemeCSS || styleEmpty) {
-                        lastThemeCSS = combined;
-                        applyChatTheme(combined, isLightTheme);
-                    }
-                    updateDonationVars();
-                    return;
+                const finalCss = serverCSS + extraCss + (donationOverrideCss ? `\n${donationOverrideCss}` : '');
+                if (finalCss !== lastThemeCSS) {
+                    lastThemeCSS = finalCss;
+                    applyChatTheme(finalCss, isLightTheme);
                 }
 
-                try { localStorage.setItem('chatLiveThemeCSS', DEFAULT_GETTY_THEME_CSS); } catch {}
-                if (DEFAULT_GETTY_THEME_CSS !== lastThemeCSS || styleEmpty) {
-                    lastThemeCSS = DEFAULT_GETTY_THEME_CSS;
-                    applyChatTheme(DEFAULT_GETTY_THEME_CSS, DEFAULT_GETTY_IS_LIGHT);
+                try {
+                    const localAuto = (localStorage.getItem('chatLiveThemeCSS') || '').match(
+                        /\/\* AUTO_FONT_SIZES_START \*\/[\s\S]*?\/\* AUTO_FONT_SIZES_END \*\//
+                    );
+                    if (localAuto && !/AUTO_FONT_SIZES_START/.test(finalCss)) {
+                        const merged = finalCss + '\n' + localAuto[0];
+                        if (merged !== lastThemeCSS) {
+                            lastThemeCSS = merged;
+                            applyChatTheme(merged, isLightTheme);
+                        }
+                    }
+                } catch {}
+
+                updateDonationVars();
+                return;
+            }
+
+            const local = (localStorage.getItem('chatLiveThemeCSS') || '').trim();
+            const themeStyleTag = document.getElementById('chat-theme-style');
+            const styleEmpty = !themeStyleTag || !(themeStyleTag.textContent || '').trim();
+
+            if (local) {
+                const sizeBlockMatch = local.match(
+                    /\/\* AUTO_FONT_SIZES_START \*\/[\s\S]*?\/\* AUTO_FONT_SIZES_END \*\//
+                );
+                let combined = local;
+                if (!sizeBlockMatch) {
+                    const existing = (lastThemeCSS || '').match(
+                        /\/\* AUTO_FONT_SIZES_START \*\/[\s\S]*?\/\* AUTO_FONT_SIZES_END \*\//
+                    );
+                    if (existing) combined += '\n' + existing[0];
+                }
+
+                isLightTheme = combined.includes('--text: #1f2328') || combined.includes('--text: #111');
+                if (combined !== lastThemeCSS || styleEmpty) {
+                    lastThemeCSS = combined;
+                    applyChatTheme(combined, isLightTheme);
                 }
                 updateDonationVars();
                 return;
             }
-    } catch { /* ignore */ }
+
+            try { localStorage.setItem('chatLiveThemeCSS', DEFAULT_GETTY_THEME_CSS); } catch {}
+            if (DEFAULT_GETTY_THEME_CSS !== lastThemeCSS || styleEmpty) {
+                lastThemeCSS = DEFAULT_GETTY_THEME_CSS;
+                applyChatTheme(DEFAULT_GETTY_THEME_CSS, DEFAULT_GETTY_IS_LIGHT);
+            }
+            updateDonationVars();
+        } catch {
+            /* ignore */
+        }
     }
 
     fetchAndApplyTheme();
@@ -776,5 +910,71 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!vars) return;
     let tag = ensureStyleTag('chat-theme-size-vars');
         tag.textContent = /}\s*$/.test(vars) ? vars : (vars + '}');
+    });
+
+    function showStreakNotification(userKey, userName) {
+        try {
+            const audio = new Audio('https://7uajfnf5p4jmr6upjjpido2x7nzwnkuehwm43wjio3g23j24tgxa.arweave.net/_QCStL1_Esj6j0pegbtX-3NmqoQ9mc3ZKHbNradcma4');
+            audio.volume = 1;
+            audio.play().catch(() => {});
+        } catch {}
+
+        const messageEl = document.createElement('div');
+        messageEl.classList.add('message', 'streak-notification');
+        
+        const content = document.createElement('div');
+        content.className = 'streak-content';
+        
+        const icon = document.createElement('div');
+        icon.className = 'streak-icon';
+        
+        const flameDiv = document.createElement('div');
+        flameDiv.className = 'chat-activity-flame blue';
+        flameDiv.style.setProperty('--intensity', '1');
+        
+        flameDiv.innerHTML = `
+                <svg class="chat-activity-flame__svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+                    <defs>
+                        <linearGradient id="__gettyFlameGradBlue" x1="0" y1="1" x2="0" y2="0">
+                            <stop offset="0%" stop-color="rgba(0, 80, 255, 1)" />
+                            <stop offset="55%" stop-color="rgba(0, 140, 255, 1)" />
+                            <stop offset="100%" stop-color="rgba(150, 200, 255, 1)" />
+                        </linearGradient>
+                    </defs>
+                    <path class="chat-activity-flame__outer" fill="url(#__gettyFlameGradBlue)" d="M33 2c2 10-3 15-7 20-5 6-7 10-6 16 1 9 9 17 18 17 10 0 18-8 18-18 0-11-8-17-12-25-2-4-4-7-3-10-4 2-6 6-8 10z" />
+                    <path class="chat-activity-flame__inner" fill="rgba(255,255,255,0.9)" d="M33 20c1 6-2 9-4 12-3 3-4 6-3 9 1 5 5 9 10 9 6 0 10-4 10-10 0-6-4-9-7-13-1-2-2-4-2-7-2 1-3 3-4 5z" />
+                </svg>`;
+        
+        icon.appendChild(flameDiv);
+        
+        const text = document.createElement('div');
+        text.className = 'streak-text';
+        text.innerHTML = `<strong>${userName || userKey}</strong> has reached the chat message streak and is on fire! Congratulations! 🎉`;
+        
+        content.appendChild(icon);
+        content.appendChild(text);
+        messageEl.appendChild(content);
+        
+        const chatContainer = document.getElementById('chat-container');
+        if (chatContainer) {
+             const isDashboard = /index\.html$|\/$/.test(window.location.pathname);
+             if (isDashboard) {
+                chatContainer.insertBefore(messageEl, chatContainer.firstChild);
+             } else {
+                chatContainer.appendChild(messageEl);
+                if (isHorizontal) {
+                    scheduleHorizontalScrollToEnd('smooth');
+                } else {
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                }
+             }
+        }
+    }
+
+    window.addEventListener('getty:chat-streak-reached', (e) => {
+        const { userKey, username } = e.detail || {};
+        if (userKey) {
+            showStreakNotification(userKey, username);
+        }
     });
 });
