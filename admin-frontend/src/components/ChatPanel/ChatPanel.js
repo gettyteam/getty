@@ -23,6 +23,10 @@ export function createChatPanel(t) {
   });
   const transparentBg = ref(false);
   const avatarRandomBg = ref(false);
+  const activityEffectEnabled = ref(true);
+  const hasLoadedConfig = ref(false);
+  let isApplyingLoadedConfig = false;
+  let activityEffectTouched = false;
   const overrideUsername = ref(false);
   const clearedThemeCSS = ref(false);
   const ttsAllChat = ref(false);
@@ -87,6 +91,7 @@ export function createChatPanel(t) {
       const { data } = await api.get('/api/chat-config');
       isBlocked.value = false;
       if (data) {
+        isApplyingLoadedConfig = true;
         const raw = data.chatUrl || '';
         let extracted = '';
         if (raw.startsWith(CLAIM_BASE)) {
@@ -119,9 +124,19 @@ export function createChatPanel(t) {
         form.colors.donation = data.donationColor || form.colors.donation;
         form.colors.donationBg = data.donationBgColor || form.colors.donationBg;
         if (typeof data.avatarRandomBg === 'boolean') avatarRandomBg.value = !!data.avatarRandomBg;
+        if (!activityEffectTouched) {
+          if (typeof data.activityEffectEnabled === 'boolean') {
+            activityEffectEnabled.value = !!data.activityEffectEnabled;
+          } else {
+            activityEffectEnabled.value = true;
+          }
+        }
         original.snapshot = JSON.stringify(form);
+        isApplyingLoadedConfig = false;
+        hasLoadedConfig.value = true;
       }
     } catch (e) {
+      isApplyingLoadedConfig = false;
       if (
         e.response &&
         e.response.data &&
@@ -158,6 +173,7 @@ export function createChatPanel(t) {
         donationColor: form.colors.donation,
         donationBgColor: form.colors.donationBg,
         avatarRandomBg: avatarRandomBg.value,
+        activityEffectEnabled: activityEffectEnabled.value,
       };
       await api.post('/api/chat', payload);
       original.snapshot = JSON.stringify(form);
@@ -181,6 +197,12 @@ export function createChatPanel(t) {
       clearedThemeCSS.value = false;
     }
   }
+
+  watch(activityEffectEnabled, () => {
+    if (!isApplyingLoadedConfig && hasLoadedConfig.value) {
+      activityEffectTouched = true;
+    }
+  });
 
   async function saveTtsAllChat() {
     try {
@@ -239,15 +261,25 @@ export function createChatPanel(t) {
   }
 
   onMounted(async () => {
+    isBlocked.value = false;
     window.addEventListener('getty:config-blocked', handleConfigBlocked);
     try {
       await refresh();
     } catch {}
-    load();
-  });
+    await load();
+    pollStatus();
 
-  onUnmounted(() => {
-    window.removeEventListener('getty:config-blocked', handleConfigBlocked);
+    const id = setInterval(pollStatus, 5000);
+    const onVis = () => {
+      if (document.visibilityState === 'visible') pollStatus();
+    };
+    window.addEventListener('visibilitychange', onVis);
+
+    onUnmounted(() => {
+      clearInterval(id);
+      window.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('getty:config-blocked', handleConfigBlocked);
+    });
   });
 
   const autoSaveTimer = ref(null);
@@ -261,7 +293,7 @@ export function createChatPanel(t) {
       save();
     }, 450);
   }
-  watch([overrideUsername, transparentBg, avatarRandomBg], () => {
+  watch([overrideUsername, transparentBg, avatarRandomBg, activityEffectEnabled], () => {
     scheduleToggleAutosave();
   });
   onUnmounted(() => {
@@ -276,24 +308,7 @@ export function createChatPanel(t) {
     } catch {}
   }
 
-  onMounted(() => {
-    isBlocked.value = false;
-    load();
-    refresh();
-    window.addEventListener('getty:config-blocked', handleConfigBlocked);
-    pollStatus();
-    const id = setInterval(pollStatus, 5000);
-    window.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') pollStatus();
-    });
-
-    try {
-      onUnmounted(() => {
-        clearInterval(id);
-        window.removeEventListener('getty:config-blocked', handleConfigBlocked);
-      });
-    } catch {}
-  });
+  // (removed duplicate onMounted that reloaded config and caused toggle lag)
 
   async function sendTest(kind) {
     try {
@@ -329,6 +344,67 @@ export function createChatPanel(t) {
     } finally {
       testSending.value = false;
       testKind.value = '';
+    }
+  }
+
+  const activityBurst = reactive({
+    count: 10,
+    intervalMs: 120,
+    sending: false,
+  });
+
+  const activityPreview = reactive({
+    progress: 0,
+    sending: false,
+  });
+
+  let __previewDebounce = null;
+  async function setActivityPreview(progress) {
+    try {
+      if (__previewDebounce) clearTimeout(__previewDebounce);
+      __previewDebounce = setTimeout(async () => {
+        try {
+          activityPreview.sending = true;
+          const username = testForm.username || t('testUsernameDefault') || 'TestUser';
+          await api.post('/api/chat/activity-preview', { username, progress });
+        } finally {
+          activityPreview.sending = false;
+        }
+      }, 150);
+    } catch {}
+  }
+
+  async function resetActivityPreview() {
+    try {
+      activityPreview.sending = true;
+      activityPreview.progress = 0;
+      const username = testForm.username || t('testUsernameDefault') || 'TestUser';
+      await api.post('/api/chat/activity-preview', { username, reset: true });
+    } catch (e) {
+      pushToast({
+        type: 'error',
+        message: t('sendFailed') || 'Failed to send',
+        detail: e?.response?.data?.error || e?.message,
+      });
+    } finally {
+      activityPreview.sending = false;
+    }
+  }
+
+  async function simulateBurst() {
+    try {
+      activityBurst.sending = true;
+      const username = testForm.username || t('testUsernameDefault') || 'TestUser';
+      await api.post('/api/chat/activity-preview', { username, streak: true });
+      pushToast({ type: 'success', message: t('sentTestMessage') || 'Effect simulated' });
+    } catch (e) {
+      pushToast({
+        type: 'error',
+        message: t('sendFailed') || 'Failed to send',
+        detail: e?.response?.data?.error || e?.message,
+      });
+    } finally {
+      activityBurst.sending = false;
     }
   }
 
@@ -394,6 +470,7 @@ export function createChatPanel(t) {
     form,
     transparentBg,
     avatarRandomBg,
+    activityEffectEnabled,
     overrideUsername,
     clearedThemeCSS,
     ttsAllChat,
@@ -418,6 +495,11 @@ export function createChatPanel(t) {
     extractClaimId,
     validate,
     sendTest,
+    activityBurst,
+    activityPreview,
+    simulateBurst,
+    setActivityPreview,
+    resetActivityPreview,
     isBlocked,
     blockDetails,
     price,

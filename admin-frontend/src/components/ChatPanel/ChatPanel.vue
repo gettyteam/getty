@@ -289,7 +289,7 @@
             {{ t('testMessagesHint') || 'Send sample messages or donations for preview.' }}
           </p>
           <div
-            class="flex flex-wrap items-center gap-2 mb-3 text-xs"
+            class="flex flex-wrap items-center gap-2 mb-0 text-xs"
             aria-live="polite"
             aria-atomic="false">
             <span class="chat-inline-badge"
@@ -347,7 +347,7 @@
             </div>
           </div>
           <div
-            class="flex gap-2 mt-2"
+            class="flex gap-2 mt-0"
             role="group"
             :aria-label="t('testActionsLabel') || 'Test actions'">
             <button
@@ -372,6 +372,72 @@
                   : t('sendTestDonation') || 'Send test donation'
               }}
             </button>
+          </div>
+
+          <div class="mt-2">
+            <label class="inline-flex items-center gap-2 text-sm cursor-pointer select-none">
+              <div
+                class="switch"
+                @click="activityEffectEnabled = !activityEffectEnabled"
+                :aria-pressed="activityEffectEnabled ? 'true' : 'false'"
+                tabindex="0"
+                @keydown.enter="activityEffectEnabled = !activityEffectEnabled"
+                @keydown.space.prevent="activityEffectEnabled = !activityEffectEnabled">
+                <div class="knob"></div>
+              </div>
+              <span>{{ t('activityEffectEnabled') || 'Flame activity effect' }}</span>
+              <button
+                type="button"
+                class="ml-2 text-amber-400 inline-flex items-center justify-center w-5 h-5 rounded cursor-help custom-tooltip-btn"
+                :data-tooltip="
+                  t('activityEffectEnabledHint') ||
+                  'If disabled, the chat widget will not render the flame activity effect.'
+                "
+                tabindex="0">
+                <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+              </button>
+            </label>
+          </div>
+
+          <div class="mt-0 grid grid-cols-1 sm:grid-cols-2 gap-4 items-start" aria-live="off">
+            <div class="form-group mb-0">
+              <label class="label">{{ t('simulateBurst') || 'Simulate burst' }}</label>
+              <div class="flex gap-2 items-center h-[34px]">
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-compact-secondary h-full w-full"
+                  :disabled="activityBurst.sending || testSending"
+                  @click="simulateBurst">
+                  <i class="pi pi-sparkles"></i>
+                  <span class="ml-0">{{ t('simulateBurstBtn') || 'Simulate Effect' }}</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="form-group mb-0">
+              <label class="label">{{ t('activityPreview') || 'Activity preview' }}</label>
+              <div class="flex gap-2 items-center h-[34px]">
+                <input
+                  class="input flex-1 min-w-0"
+                  v-model.number="activityPreview.progress"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  :style="{ '--range-pct': `${activityPreview.progress}%` }"
+                  @input="setActivityPreview(activityPreview.progress)" />
+                <span class="text-xs opacity-80 w-8 text-right tabular-nums"
+                  >{{ activityPreview.progress }}%</span
+                >
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-compact-secondary h-full whitespace-nowrap"
+                  :disabled="activityPreview.sending || testSending"
+                  @click="resetActivityPreview">
+                  {{ t('resetEffect') || 'Reset' }}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -426,6 +492,7 @@ const {
   form,
   transparentBg,
   avatarRandomBg,
+  activityEffectEnabled,
   overrideUsername,
   errors,
   claimPlaceholder,
@@ -435,6 +502,8 @@ const {
   testForm,
   testSending,
   testKind,
+  activityBurst,
+  activityPreview,
   widgetUrl,
   widgetHorizontalUrl,
   ttsAllChat,
@@ -443,6 +512,9 @@ const {
   save,
   saveTtsAllChat,
   sendTest,
+  simulateBurst,
+  setActivityPreview,
+  resetActivityPreview,
   price,
   refreshPrice,
   isBlocked,

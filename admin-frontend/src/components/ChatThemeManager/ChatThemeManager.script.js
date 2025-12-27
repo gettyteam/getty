@@ -23,7 +23,7 @@ export function createChatThemeManager(t) {
       css: `:root { --bg-main: #080c10; --bg-message: #0a0e12; --bg-message-alt: #0a0e12; --text: #e6edf3; --username: #fff; --donation: #ddb826; --donation-bg: #ececec; }
 	.message { background: #0a0e12 !important; border-radius: 4px; padding: 12px; margin-bottom: 6px; box-sizing: border-box; color: #fff !important; }
 	.message.odd { background: #0a0e12 !important; }
-	.message-username.cyberpunk { color: #fff; font-weight: 600; }
+	.message-username.cyberpunk { color: #fff; font-weight: 600; text-transform: capitalize; }
 	.message-text-inline { color: #fff !important; font-weight: 600; }
 	.message.has-donation { background: #ececec !important; }
 	.message.has-donation .message-username { color: #111 !important; }
@@ -33,9 +33,9 @@ export function createChatThemeManager(t) {
     {
       name: 'X',
       css: `:root { --bg-main: #f7f7f7; --bg-message: #f7f7f7; --bg-message-alt: #f7f7f7; --text: #111; --username: #111; --donation: #f7f7f7; --donation-bg: #3b5aff; }
-	.message { background: #f7f7f7 !important; border-radius: 6px; padding: 12px; margin-bottom: 6px; box-sizing: border-box; border-left: 6px solid #3b5aff !important; color: #111 !important; }
+	.message { background: #f7f7f7 !important; border-radius: 4px; padding: 12px; margin-bottom: 6px; box-sizing: border-box; border-left: 6px solid #3b5aff !important; color: #111 !important; }
 	.message.odd { background: #f7f7f7 !important; }
-	.message-username.cyberpunk { color: #111; font-weight: 600; }
+	.message-username.cyberpunk { color: #111; font-weight: 600; text-transform: capitalize; }
 	.message-text-inline { color: #111 !important; font-weight: 600; }
 	.message.has-donation { background: #3b5aff !important; }
 	.message.has-donation .message-username { color: #fff !important; }
@@ -44,22 +44,22 @@ export function createChatThemeManager(t) {
     },
     {
       name: 'Twitch',
-      css: `:root { --bg-main: #18181b; --bg-message: #111; --bg-message-alt: #111; --text: #fff; --username: #a970ff; --donation: #f7f7f7; --donation-bg: #9147ff; }
-	.message { background: #111 !important; border-radius: 8px; padding: 10px 16px; margin-bottom: 6px; border-left: 6px solid #9147ff; box-shadow: 0 2px 8px rgba(0,0,0,0.08); color: #fff !important; }
-	.message.odd { background: #111 !important; }
-	.message-username.cyberpunk { color: #a970ff; text-shadow: 0 0 4px #9147ff; }
+      css: `:root { --bg-main: #18181b; --bg-message: #0b0b0b; --bg-message-alt: #0b0b0b; --text: #fff; --username: #a970ff; --donation: #f7f7f7; --donation-bg: #9147ff; }
+	.message { background: #0b0b0b !important; border-radius: 4px; padding: 10px 16px; margin-bottom: 6px; border-left: 6px solid #9147ff; box-shadow: 0 2px 8px rgba(0,0,0,0.08); color: #fff !important; }
+	.message.odd { background: #0b0b0b !important; }
+	.message-username.cyberpunk { color: #a970ff; text-shadow: 0 0 4px #9147ff; text-transform: capitalize; }
 	.message-text-inline { color: #fff !important; }
 	.message.has-donation { background: #9147ff !important; }
 	.message.has-donation .message-username { color: #fff !important; }
 	.message.has-donation .message-text-inline { color: #fff !important; }
-	.message-donation { background: #f7f7f7 !important; color: #111 !important; }`,
+	.message-donation { background: #f7f7f7 !important; color: #0b0b0b !important; }`,
     },
     {
       name: 'Claro',
       css: `:root { --bg-main: #ffffff; --bg-message: #f1f5f9; --bg-message-alt: #f1f5f9; --border: #d0d7de; --text: #111; --username: #0969da; --donation: #ffb44e; --donation-bg: #fff4e5; }
-	.message { background: #f1f5f9 !important; border-radius: 8px; padding: 10px 16px; margin-bottom: 6px; border: 1px solid #d0d7de; border-left: 6px solid #d0d7de; box-shadow: 0 2px 4px rgba(0,0,0,0.04); color: #111 !important; }
+	.message { background: #f1f5f9 !important; border-radius: 4px; padding: 10px 16px; margin-bottom: 6px; border: 1px solid #d0d7de; border-left: 6px solid #d0d7de; box-shadow: 0 2px 4px rgba(0,0,0,0.04); color: #111 !important; }
 	.message.odd { background: #f1f5f9 !important; font-size: 14px; }
-	.message-username.cyberpunk { color: #0969da; font-weight: 600; font-size: 14px; }
+	.message-username.cyberpunk { color: #0969da; font-weight: 600; font-size: 14px; text-transform: capitalize; }
 	.message-text-inline { color: #111 !important; font-size: 14px; }
 	.message.has-donation { background: #fff4e5 !important; }
 	.message.has-donation .message-username { color: #111 !important; font-size: 14px; }
@@ -68,12 +68,12 @@ export function createChatThemeManager(t) {
     },
     {
       name: 'Oscuro',
-      css: `:root { --bg-main: #080c10; --bg-message: #0d1114; --bg-message-alt: #0d1114; --border: #313131; --text: #fff; --username: #fff; --donation: #f7f7f7; --donation-bg: #2dcc89; }
-	.message { background: #0d1114 !important; border-radius: 8px; padding: 10px 16px; margin-bottom: 6px; border-left: 6px solid #313131 !important; color: #fff !important; }
+      css: `:root { --bg-main: #080c10; --bg-message: #0d1114; --bg-message-alt: #0d1114; --border: #313131; --text: #fff; --username: #fff; --donation: #f7f7f7; --donation-bg: #ffae12; }
+	.message { background: #0d1114 !important; border-radius: 4px; padding: 10px 16px; margin-bottom: 6px; border-left: 6px solid #313131 !important; color: #fff !important; }
 	.message.odd { background: #0d1114 !important; font-size: 14px; }
-	.message-username.cyberpunk { color: #fff; font-weight: 600; font-size: 14px; }
+	.message-username.cyberpunk { color: #fff; font-weight: 600; font-size: 14px; text-transform: capitalize; }
 	.message-text-inline { color: #fff !important; font-size: 14px; }
-	.message.has-donation { background: #2dcc89 !important; }
+	.message.has-donation { background: #ffae12 !important; }
 	.message.has-donation .message-username { color: #111 !important; font-size: 14px; }
 	.message.has-donation .message-text-inline { color: #111 !important; font-size: 14px; }
 	.message-donation { background: #f7f7f7 !important; color: #111 !important; }`,
@@ -84,7 +84,7 @@ export function createChatThemeManager(t) {
 	:root { --bg-main: transparent; --bg-message: rgba(230,230,230,0.72); --bg-message-alt: rgba(230,230,230,0.72); --border: rgba(0,0,0,0.12); --text: #111; --username: #111; --donation: rgb(16,211,158); --donation-bg: rgba(42,197,213,0.12); }
 	.message { background: rgba(230,230,230,0.72) !important; border: 1px solid rgba(0,0,0,0.12); border-left: 6px solid rgba(0,0,0,0.12); border-radius: 10px; padding: 10px 14px; margin-bottom: 6px; color: #111 !important; backdrop-filter: saturate(120%) blur(4px); -webkit-backdrop-filter: saturate(120%) blur(4px); box-shadow: 0 4px 12px rgba(0,0,0,0.18); will-change: opacity, transform; animation: fadeInUp 0.35s ease-out both, fadeOut 0.35s ease-in 9.65s forwards; }
 	.message.odd { background: rgba(230,230,230,0.72) !important; }
-	.message-username.cyberpunk { color: #111; font-weight: 600; }
+	.message-username.cyberpunk { color: #111; font-weight: 600; text-transform: capitalize; }
 	.message-text-inline { color: #111 !important; }
 	.message.has-donation { background: rgba(42,197,213,0.12) !important; }
 	.message.has-donation .message-username { color: #111 !important; }

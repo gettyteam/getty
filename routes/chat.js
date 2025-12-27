@@ -83,6 +83,7 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
           donationBgColor: config.donationBgColor || '#131313',
           themeCSS: config.themeCSS || '',
           avatarRandomBg: !!config.avatarRandomBg,
+          activityEffectEnabled: config.activityEffectEnabled !== false,
           chatUrl: '',
           odyseeWsUrl: '',
         };
@@ -141,6 +142,7 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
         donationBgColor: z.string().optional(),
         themeCSS: z.string().max(20000).optional(),
         avatarRandomBg: z.boolean().optional(),
+        activityEffectEnabled: z.boolean().optional(),
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: 'Invalid chat config' });
@@ -156,6 +158,7 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
         donationColor,
         donationBgColor,
         avatarRandomBg,
+        activityEffectEnabled,
       } = parsed.data;
       const chatUrl = (parsed.data.chatUrl || '').trim();
       let { themeCSS } = parsed.data;
@@ -205,6 +208,10 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
         donationBgColor: donationBgColor || config.donationBgColor || '#131313',
         themeCSS: typeof themeCSS === 'string' ? themeCSS : config.themeCSS || '',
         avatarRandomBg: avatarRandomBg !== undefined ? !!avatarRandomBg : !!config.avatarRandomBg,
+        activityEffectEnabled:
+          activityEffectEnabled !== undefined
+            ? !!activityEffectEnabled
+            : config.activityEffectEnabled !== false,
       };
       const isHosted = !!(store && req.ns && req.ns.admin);
       let prevUrl = null;

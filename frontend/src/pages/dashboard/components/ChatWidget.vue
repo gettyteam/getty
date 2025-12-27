@@ -221,6 +221,7 @@ onMounted(() => {
   border-radius: 4px;
   font-weight: 700;
   font-size: 12px;
+  text-transform: capitalize;
 }
 
 .message.has-donation .message-username {
@@ -228,7 +229,6 @@ onMounted(() => {
   text-shadow: none !important;
 }
 
-/* High specificity to override global light theme styles */
 #dashboard-chat-widget .message-text-inline {
   display: inline;
   word-break: break-word;
