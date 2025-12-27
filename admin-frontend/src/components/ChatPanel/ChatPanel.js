@@ -308,8 +308,6 @@ export function createChatPanel(t) {
     } catch {}
   }
 
-  // (removed duplicate onMounted that reloaded config and caused toggle lag)
-
   async function sendTest(kind) {
     try {
       testSending.value = true;
