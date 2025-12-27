@@ -4568,7 +4568,6 @@ app.post('/api/chat/test-message', limiter, async (req, res) => {
   }
 });
 
-// Preview manual de actividad (para ajustar fuego/highlight sin mandar mensajes reales).
 app.post('/api/chat/activity-preview', limiter, async (req, res) => {
   try {
     const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
