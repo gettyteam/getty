@@ -5,6 +5,7 @@ const { shouldMaskSensitive, isTrustedLocalAdmin } = require('../lib/trust');
 const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
 const { isOpenTestMode } = require('../lib/test-open-mode');
 const { writeHybridConfig, readHybridConfig } = require('../lib/hybrid-config');
+const { normalizeHexColor, normalizeHexColorOrEmpty } = require('../lib/color-sanitize');
 
 function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}) {
   const store = options.store;
@@ -196,16 +197,15 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
         ...config,
         chatUrl,
         odyseeWsUrl: odyseeWsUrl || config.odyseeWsUrl || '',
-        bgColor: bgColor || config.bgColor || '#080c10',
-        msgBgColor: msgBgColor || config.msgBgColor || '#0a0e12',
-        msgBgAltColor: msgBgAltColor || config.msgBgAltColor || '#0d1114',
-        borderColor: borderColor || config.borderColor || '#161b22',
-        textColor: textColor || config.textColor || '#e6edf3',
-        usernameColor: usernameColor !== undefined ? usernameColor : (config.usernameColor ?? ''),
-        usernameBgColor:
-          usernameBgColor !== undefined ? usernameBgColor : (config.usernameBgColor ?? ''),
-        donationColor: donationColor || config.donationColor || '#ddb826',
-        donationBgColor: donationBgColor || config.donationBgColor || '#131313',
+        bgColor: normalizeHexColor(bgColor, config.bgColor || '#080c10'),
+        msgBgColor: normalizeHexColor(msgBgColor, config.msgBgColor || '#0a0e12'),
+        msgBgAltColor: normalizeHexColor(msgBgAltColor, config.msgBgAltColor || '#0d1114'),
+        borderColor: normalizeHexColor(borderColor, config.borderColor || '#161b22'),
+        textColor: normalizeHexColor(textColor, config.textColor || '#e6edf3'),
+        usernameColor: normalizeHexColorOrEmpty(usernameColor, config.usernameColor ?? ''),
+        usernameBgColor: normalizeHexColorOrEmpty(usernameBgColor, config.usernameBgColor ?? ''),
+        donationColor: normalizeHexColor(donationColor, config.donationColor || '#ddb826'),
+        donationBgColor: normalizeHexColor(donationBgColor, config.donationBgColor || '#131313'),
         themeCSS: typeof themeCSS === 'string' ? themeCSS : config.themeCSS || '',
         avatarRandomBg: avatarRandomBg !== undefined ? !!avatarRandomBg : !!config.avatarRandomBg,
         activityEffectEnabled:

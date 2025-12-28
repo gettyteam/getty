@@ -29,6 +29,7 @@ const widgetEntries = {
   'widgets/persistent-notifications': path.resolve(rootDir, 'widgets/persistent-notifications.html'),
   'widgets/raffle': path.resolve(rootDir, 'widgets/raffle.html'),
   'widgets/socialmedia': path.resolve(rootDir, 'widgets/socialmedia.html'),
+  'widgets/goal-followers': path.resolve(rootDir, 'widgets/goal-followers.html'),
   'widgets/tip-goal': path.resolve(rootDir, 'widgets/tip-goal.html'),
   'widgets/tip-notification': path.resolve(rootDir, 'widgets/tip-notification.html')
 };

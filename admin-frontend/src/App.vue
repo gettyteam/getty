@@ -385,7 +385,15 @@
               </span>
               <span>{{ t('tipGoal') }}</span>
             </RouterLink>
-            <!-- Wander auth panel removed; login now handled by header button -->
+            <RouterLink
+              class="sidebar-link os-nav-link"
+              active-class="active"
+              to="/admin/goal-followers">
+              <span class="icon os-icon" aria-hidden="true">
+                <i class="pi pi-users" aria-hidden="true"></i>
+              </span>
+              <span>{{ t('goalFollowersTitle') }}</span>
+            </RouterLink>
             <RouterLink
               class="sidebar-link os-nav-link"
               active-class="active"

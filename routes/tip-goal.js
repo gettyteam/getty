@@ -6,6 +6,10 @@ const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
 const { writeHybridConfig, readHybridConfig } = require('../lib/hybrid-config');
 const { isOpenTestMode } = require('../lib/test-open-mode');
 const { getStorage, STORAGE_PROVIDERS } = require('../lib/storage');
+const {
+  normalizeHexColor,
+  normalizeTipGoalProgressColor,
+} = require('../lib/color-sanitize');
 
 const WUZZY_PROVIDER = 'wuzzy';
 
@@ -619,6 +623,14 @@ function registerTipGoalRoutes(
         const progressColor = Object.prototype.hasOwnProperty.call(req.body, 'progressColor')
           ? data.progressColor
           : prevCfg.progressColor;
+
+        const safeBgColor = normalizeHexColor(bgColor, prevCfg.bgColor || '#080c10');
+        const safeFontColor = normalizeHexColor(fontColor, prevCfg.fontColor || '#ffffff');
+        const safeBorderColor = normalizeHexColor(borderColor, prevCfg.borderColor || '#00ff7f');
+        const safeProgressColor = normalizeTipGoalProgressColor(
+          progressColor,
+          prevCfg.progressColor || 'linear-gradient(90deg, #7058a4, #c83fee)'
+        );
         const audioSource = Object.prototype.hasOwnProperty.call(req.body, 'audioSource')
           ? data.audioSource || 'remote'
           : prevCfg.audioSource || 'remote';
@@ -806,10 +818,10 @@ function registerTipGoalRoutes(
           monthlyGoal,
           currentAmount,
           theme,
-          bgColor: bgColor || prevCfg.bgColor || '#080c10',
-          fontColor: fontColor || prevCfg.fontColor || '#ffffff',
-          borderColor: borderColor || prevCfg.borderColor || '#00ff7f',
-          progressColor: progressColor || prevCfg.progressColor || 'linear-gradient(90deg, #7058a4, #c83fee)',
+          bgColor: safeBgColor,
+          fontColor: safeFontColor,
+          borderColor: safeBorderColor,
+          progressColor: safeProgressColor,
           audioSource,
           hasCustomAudio: !!hasCustomAudio,
           audioFileName,

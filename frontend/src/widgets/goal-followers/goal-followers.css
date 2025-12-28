@@ -1,0 +1,124 @@
+:root {
+  --gf-bg: transparent;
+  --gf-card-bg: rgba(8, 12, 16, 0.92);
+  --gf-font: #ffffff;
+  --gf-muted: rgba(255, 255, 255, 0.75);
+  --gf-progress: #00ff7f;
+  --gf-radius: 16px;
+}
+
+#goal-followers-widget {
+  width: 100vw;
+  height: 100vh;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.gf-root {
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Helvetica,
+    Arial;
+  color: var(--gf-font);
+  background: var(--gf-bg);
+}
+
+.gf-card {
+  width: var(--gf-width, 560px);
+  height: var(--gf-height, 140px);
+  background: var(--gf-card-bg);
+  border-radius: var(--gf-radius);
+  padding: 16px 18px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  overflow: hidden;
+}
+
+.gf-title {
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.gf-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.gf-current {
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--gf-progress);
+}
+
+.gf-target {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--gf-muted);
+}
+
+.gf-track {
+  width: 100%;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.gf-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--gf-progress);
+  border-radius: inherit;
+  transition: width 0.35s ease;
+}
+
+.gf-percent {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.75);
+  mix-blend-mode: screen;
+}
+
+.gf-status {
+  font-size: 14px;
+  color: var(--gf-muted);
+}
+
+.gf-celebrating .gf-card {
+  outline: 2px solid rgba(0, 255, 127, 0.2);
+}
+
+.gf-confetti {
+  position: absolute;
+  width: 10px;
+  height: 14px;
+  border-radius: 2px;
+  opacity: 0.95;
+  animation: gf-fall 1.9s linear forwards;
+}
+
+@keyframes gf-fall {
+  0% {
+    transform: translate3d(0, -20px, 0) rotate(0deg);
+  }
+  100% {
+    transform: translate3d(var(--dx, 0px), calc(var(--dy, 220px)), 0) rotate(var(--rot, 420deg));
+    opacity: 0.1;
+  }
+}

@@ -116,12 +116,30 @@ if (!window.__tip_goal_widget_started) {
       try {
         const tag = ensureStyleTag('tip-goal-inline-vars');
         const parts = [];
+
+        const isHex = (value) => {
+          if (typeof value !== 'string') return false;
+          const v = value.trim();
+          return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v);
+        };
+        const isSafeGradient = (value) => {
+          if (typeof value !== 'string') return false;
+          const v = value.trim();
+          return /^linear-gradient\(\s*(?:(?:to\s+(?:right|left|top|bottom))|(?:\d{1,3}(?:\.\d+)?deg))\s*,\s*(?:#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})(?:\s+\d{1,3}%\s*)?)(?:\s*,\s*(?:#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})(?:\s+\d{1,3}%\s*)?)){1,5}\s*\)$/.test(
+            v
+          );
+        };
+        const safeColor = (value) => (isHex(value) ? value.trim() : '');
+        const safeProgress = (value) => (isHex(value) || isSafeGradient(value) ? value.trim() : '');
+
         if (modern && Object.keys(modern).length) {
           const decl = [
-            modern.bg ? `--modern-bg:${modern.bg};` : '',
-            modern.text ? `--modern-text:${modern.text};` : '',
-            modern.accent ? `--modern-accent:${modern.accent};` : '',
-            modern.progressBg ? `--modern-progress-bg:${modern.progressBg};` : ''
+            safeColor(modern.bg) ? `--modern-bg:${safeColor(modern.bg)};` : '',
+            safeColor(modern.text) ? `--modern-text:${safeColor(modern.text)};` : '',
+            safeColor(modern.accent) ? `--modern-accent:${safeColor(modern.accent)};` : '',
+            safeProgress(modern.progressBg)
+              ? `--modern-progress-bg:${safeProgress(modern.progressBg)};`
+              : ''
           ]
             .filter(Boolean)
             .join('');
@@ -129,10 +147,10 @@ if (!window.__tip_goal_widget_started) {
         }
         if (base && Object.keys(base).length) {
           const decl = [
-            base.bg ? `--tg-bg:${base.bg};` : '',
-            base.border ? `--tg-border:${base.border};` : '',
-            base.text ? `--tg-text:${base.text};` : '',
-            base.progress ? `--tg-progress:${base.progress};` : ''
+            safeColor(base.bg) ? `--tg-bg:${safeColor(base.bg)};` : '',
+            safeColor(base.border) ? `--tg-border:${safeColor(base.border)};` : '',
+            safeColor(base.text) ? `--tg-text:${safeColor(base.text)};` : '',
+            safeProgress(base.progress) ? `--tg-progress:${safeProgress(base.progress)};` : ''
           ]
             .filter(Boolean)
             .join('');

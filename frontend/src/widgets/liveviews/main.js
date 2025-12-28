@@ -323,8 +323,34 @@ function applyLiveviewsConfig(config) {
 
   const viewerCountEl = document.getElementById('viewer-count');
   if (viewerCountEl) {
-    const sizePx = (config.size || '32').toString().endsWith('px') ? config.size : `${config.size}px`;
-    setLiveviewsVars({ bg: config.bg, fg: config.color, font: config.font, sizePx });
+    const rawSize = config && config.size ? String(config.size).trim() : '32';
+    const m = rawSize.match(/^(\d{1,3})(?:px)?$/i);
+    const parsedSize = m ? parseInt(m[1], 10) : 32;
+    const safeSize = Math.min(200, Math.max(8, Number.isFinite(parsedSize) ? parsedSize : 32));
+
+    const rawFont = config && typeof config.font === 'string' ? config.font.trim() : '';
+    const isSafeFont = (v) => {
+      if (!v || v.length > 120) return false;
+      if (/[;{}():<>@\n\r\t\0\\]/.test(v)) return false;
+      if (/url\s*\(|@import\b|@charset\b/i.test(v)) return false;
+      const parts = v
+        .split(',')
+        .map((p) => p.trim())
+        .filter(Boolean)
+        .slice(0, 8);
+      if (!parts.length) return false;
+      const tokenRe = /^[a-zA-Z0-9 _-]+$/;
+      const quotedRe = /^(?:'[^'\n\r]{1,64}'|"[^"\n\r]{1,64}")$/;
+      for (const part of parts) {
+        if (quotedRe.test(part)) continue;
+        if (!tokenRe.test(part)) return false;
+      }
+      return true;
+    };
+    const safeFont = isSafeFont(rawFont) ? rawFont : LIVEVIEWS_FONT_STACK;
+
+    const sizePx = `${safeSize}px`;
+    setLiveviewsVars({ bg: config.bg, fg: config.color, font: safeFont, sizePx });
   }
 
   renderLiveviewsUI();
@@ -384,8 +410,33 @@ async function fetchViewerCountAndDisplay(url) {
     liveviewsState.labelIsCustom = !!(config && typeof config.viewersLabel === 'string' && config.viewersLabel.trim());
     liveviewsState.customLabel = liveviewsState.labelIsCustom ? config.viewersLabel.trim() : '';
     try {
-      const sizePx = size.toString().endsWith('px') ? size : `${size}px`;
-      setLiveviewsVars({ bg, fg: color, font, sizePx });
+      const rawSize = String(size || '32').trim();
+      const m = rawSize.match(/^(\d{1,3})(?:px)?$/i);
+      const parsedSize = m ? parseInt(m[1], 10) : 32;
+      const safeSize = Math.min(200, Math.max(8, Number.isFinite(parsedSize) ? parsedSize : 32));
+
+      const rawFont = typeof font === 'string' ? font.trim() : '';
+      const isSafeFont = (v) => {
+        if (!v || v.length > 120) return false;
+        if (/[;{}():<>@\n\r\t\0\\]/.test(v)) return false;
+        if (/url\s*\(|@import\b|@charset\b/i.test(v)) return false;
+        const parts = v
+          .split(',')
+          .map((p) => p.trim())
+          .filter(Boolean)
+          .slice(0, 8);
+        if (!parts.length) return false;
+        const tokenRe = /^[a-zA-Z0-9 _-]+$/;
+        const quotedRe = /^(?:'[^'\n\r]{1,64}'|"[^"\n\r]{1,64}")$/;
+        for (const part of parts) {
+          if (quotedRe.test(part)) continue;
+          if (!tokenRe.test(part)) return false;
+        }
+        return true;
+      };
+      const safeFont = isSafeFont(rawFont) ? rawFont : LIVEVIEWS_FONT_STACK;
+      const sizePx = `${safeSize}px`;
+      setLiveviewsVars({ bg, fg: color, font: safeFont, sizePx });
     } catch {}
     const previousLive = liveviewsState.live;
     if (data && data.data && typeof data.data.ViewerCount !== 'undefined') {
@@ -419,8 +470,33 @@ async function fetchViewerCountAndDisplay(url) {
     liveviewsState.labelIsCustom = !!(config && typeof config.viewersLabel === 'string' && config.viewersLabel.trim());
     liveviewsState.customLabel = liveviewsState.labelIsCustom ? config.viewersLabel.trim() : '';
     try {
-      const sizePx = size.toString().endsWith('px') ? size : `${size}px`;
-      setLiveviewsVars({ bg, fg: color, font, sizePx });
+      const rawSize = String(size || '32').trim();
+      const m = rawSize.match(/^(\d{1,3})(?:px)?$/i);
+      const parsedSize = m ? parseInt(m[1], 10) : 32;
+      const safeSize = Math.min(200, Math.max(8, Number.isFinite(parsedSize) ? parsedSize : 32));
+
+      const rawFont = typeof font === 'string' ? font.trim() : '';
+      const isSafeFont = (v) => {
+        if (!v || v.length > 120) return false;
+        if (/[;{}():<>@\n\r\t\0\\]/.test(v)) return false;
+        if (/url\s*\(|@import\b|@charset\b/i.test(v)) return false;
+        const parts = v
+          .split(',')
+          .map((p) => p.trim())
+          .filter(Boolean)
+          .slice(0, 8);
+        if (!parts.length) return false;
+        const tokenRe = /^[a-zA-Z0-9 _-]+$/;
+        const quotedRe = /^(?:'[^'\n\r]{1,64}'|"[^"\n\r]{1,64}")$/;
+        for (const part of parts) {
+          if (quotedRe.test(part)) continue;
+          if (!tokenRe.test(part)) return false;
+        }
+        return true;
+      };
+      const safeFont = isSafeFont(rawFont) ? rawFont : LIVEVIEWS_FONT_STACK;
+      const sizePx = `${safeSize}px`;
+      setLiveviewsVars({ bg, fg: color, font: safeFont, sizePx });
     } catch {}
     const previousLive = liveviewsState.live;
     liveviewsState.live = false;

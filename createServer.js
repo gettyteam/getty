@@ -686,6 +686,7 @@ const { initChannelUploadMonitor } = require('./services/channel-upload-monitor'
 const registerGoalAudioRoutes = require('./routes/goal-audio');
 const registerAchievementsAudioRoutes = require('./routes/achievements-audio');
 const registerTipGoalRoutes = require('./routes/tip-goal');
+const registerGoalFollowersRoutes = require('./routes/goal-followers');
 const registerStorageRoutes = require('./routes/storage');
 const registerRaffleRoutes = require('./routes/raffle');
 const registerSocialMediaRoutes = require('./routes/socialmedia');
@@ -719,6 +720,7 @@ const LAST_TIP_CONFIG_FILE = path.join(__CONFIG_DIR, 'last-tip-config.json');
 const CHAT_CONFIG_FILE = path.join(__CONFIG_DIR, 'chat-config.json');
 const RAFFLE_CONFIG_FILE = path.join(__CONFIG_DIR, 'raffle-config.json');
 const GOAL_AUDIO_UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads', 'goal-audio');
+const GOAL_FOLLOWERS_AUDIO_UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads', 'goal-followers-audio');
 const DASHBOARD_TEMPLATE_PRIMARY = path.join(
   __dirname,
   'dist-frontend',
@@ -4437,6 +4439,10 @@ if (!fs.existsSync(GOAL_AUDIO_UPLOADS_DIR)) {
   fs.mkdirSync(GOAL_AUDIO_UPLOADS_DIR, { recursive: true });
 }
 
+if (!fs.existsSync(GOAL_FOLLOWERS_AUDIO_UPLOADS_DIR)) {
+  fs.mkdirSync(GOAL_FOLLOWERS_AUDIO_UPLOADS_DIR, { recursive: true });
+}
+
 const goalAudioUpload = multer({
   storage: multer.memoryStorage(),
   limits: {
@@ -4464,6 +4470,14 @@ registerTipGoalRoutes(
 );
 
 registerGoalAudioRoutes(app, wss, strictLimiter, GOAL_AUDIO_UPLOADS_DIR);
+registerGoalAudioRoutes(app, wss, strictLimiter, GOAL_FOLLOWERS_AUDIO_UPLOADS_DIR, {
+  settingsFilename: 'goal-followers-audio-settings.json',
+  settingsEndpoint: '/api/goal-followers-audio-settings',
+  audioEndpoint: '/api/goal-followers-audio',
+  customAudioEndpoint: '/api/goal-followers-custom-audio',
+  broadcastType: 'goalFollowersAudioSettingsUpdate',
+});
+  registerGoalFollowersRoutes(app, strictLimiter, { configDir: __CONFIG_DIR, wss });
 registerAchievementsAudioRoutes(app, wss, strictLimiter);
 registerExternalNotificationsRoutes(app, externalNotifications, strictLimiter, { store });
 registerLiveviewsRoutes(app, strictLimiter, { store });
@@ -4642,6 +4656,15 @@ app.get('/obs/widgets', (req, res) => {
         height: 120,
       },
     },
+    goalFollowers: {
+      name: 'Followers Goal',
+      url: `${baseUrl}/widgets/goal-followers`,
+      params: {
+        position: 'bottom-right',
+        width: 560,
+        height: 140,
+      },
+    },
     tipNotification: {
       name: 'Donation Notification',
       url: `${baseUrl}/widgets/tip-notification`,
@@ -4711,6 +4734,24 @@ app.get('/widgets/last-tip', async (req, res, next) => {
 app.get('/widgets/tip-goal', async (req, res, next) => {
   try {
     const html = await loadFrontendHtmlTemplate('widgets/tip-goal.html', req);
+    if (!html) return next();
+    const finalHtml = finalizeHtmlResponse(html, res);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    if (res.locals?.cspNonce) {
+      try {
+        res.setHeader('X-CSP-Nonce', res.locals.cspNonce);
+      } catch {}
+    }
+    return res.send(finalHtml);
+  } catch (err) {
+    return next(err);
+  }
+});
+
+app.get('/widgets/goal-followers', async (req, res, next) => {
+  try {
+    const html = await loadFrontendHtmlTemplate('widgets/goal-followers.html', req);
     if (!html) return next();
     const finalHtml = finalizeHtmlResponse(html, res);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -7627,7 +7668,19 @@ if (!fs.existsSync(GOAL_AUDIO_UPLOADS_DIR)) {
   fs.mkdirSync(GOAL_AUDIO_UPLOADS_DIR, { recursive: true });
 }
 
+if (!fs.existsSync(GOAL_FOLLOWERS_AUDIO_UPLOADS_DIR)) {
+  fs.mkdirSync(GOAL_FOLLOWERS_AUDIO_UPLOADS_DIR, { recursive: true });
+}
+
 registerGoalAudioRoutes(app, wss, strictLimiter, GOAL_AUDIO_UPLOADS_DIR);
+registerGoalAudioRoutes(app, wss, strictLimiter, GOAL_FOLLOWERS_AUDIO_UPLOADS_DIR, {
+  settingsFilename: 'goal-followers-audio-settings.json',
+  settingsEndpoint: '/api/goal-followers-audio-settings',
+  audioEndpoint: '/api/goal-followers-audio',
+  customAudioEndpoint: '/api/goal-followers-custom-audio',
+  broadcastType: 'goalFollowersAudioSettingsUpdate',
+});
+  registerGoalFollowersRoutes(app, strictLimiter, { configDir: __CONFIG_DIR, wss });
 
 app.get('/api/status', (_req, res) => {
   try {

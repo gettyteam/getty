@@ -5,22 +5,25 @@ const axios = require('axios');
 
 const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
 const { getStorage } = require('../lib/supabase-storage');
+const { normalizeHexColor } = require('../lib/color-sanitize');
+const { normalizeCssFontFamily, normalizeCssPxNumber } = require('../lib/css-sanitize');
 
 const LIVEVIEWS_FONT_STACK =
   'Roobert, Tajawal, Inter, "Helvetica Neue", Helvetica, Arial, sans-serif';
 
 function getLiveviewsConfigWithDefaults(partial) {
+  const base = partial && typeof partial === 'object' ? partial : {};
   return {
-    bg: typeof partial.bg === 'string' && partial.bg.trim() ? partial.bg : '#222222',
-    color: typeof partial.color === 'string' && partial.color.trim() ? partial.color : '#ffffff',
+    bg: normalizeHexColor(base.bg, '#222222'),
+    color: normalizeHexColor(base.color, '#ffffff'),
     font:
-      typeof partial.font === 'string' && partial.font.trim() ? partial.font : LIVEVIEWS_FONT_STACK,
-    size: typeof partial.size === 'string' && partial.size.trim() ? partial.size : '32',
-    icon: typeof partial.icon === 'string' ? partial.icon : '',
-    claimid: typeof partial.claimid === 'string' ? partial.claimid : '',
+      normalizeCssFontFamily(base.font, LIVEVIEWS_FONT_STACK) || LIVEVIEWS_FONT_STACK,
+    size: normalizeCssPxNumber(base.size, '32', { min: 8, max: 200 }),
+    icon: typeof base.icon === 'string' ? base.icon : '',
+    claimid: typeof base.claimid === 'string' ? base.claimid : '',
     viewersLabel:
-      typeof partial.viewersLabel === 'string' && partial.viewersLabel.trim()
-        ? partial.viewersLabel
+      typeof base.viewersLabel === 'string' && base.viewersLabel.trim()
+        ? base.viewersLabel
         : 'viewers',
   };
 }

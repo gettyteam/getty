@@ -129,9 +129,14 @@ if (!window.__last_tip_started) {
       const merged = { ...lastTipColors };
       if (extra && typeof extra === 'object') {
         const keys = ['bgColor', 'fontColor', 'borderColor', 'amountColor', 'iconBgColor', 'fromColor'];
+        const isHex = (value) => {
+          if (typeof value !== 'string') return false;
+          const v = value.trim();
+          return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v);
+        };
         for (const key of keys) {
-          if (typeof extra[key] === 'string' && extra[key]) {
-            merged[key] = extra[key];
+          if (typeof extra[key] === 'string' && isHex(extra[key])) {
+            merged[key] = extra[key].trim();
           }
         }
       }

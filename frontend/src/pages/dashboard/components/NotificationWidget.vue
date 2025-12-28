@@ -263,7 +263,6 @@ onMounted(() => {
   font-size: 16px;
   color: var(--tn-text, #ffffff);
   font-weight: 600;
-  opacity: 0.9;
 }
 
 .notification-from {

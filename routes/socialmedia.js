@@ -2,6 +2,7 @@ const { z } = require('zod');
 const { isTrustedLocalAdmin, shouldMaskSensitive } = require('../lib/trust');
 const path = require('path');
 const { saveTenantConfig, loadTenantConfig } = require('../lib/tenant-config');
+const { normalizeHexColorOrEmpty } = require('../lib/color-sanitize');
 
 async function resolveNsFromReq(req) {
   try {
@@ -215,12 +216,12 @@ function registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, option
         icon: String(it.icon || '').trim(),
         link: String(it.link || '').trim(),
         ...(it.customIcon ? { customIcon: String(it.customIcon).trim() } : {}),
-        ...(it.bgColor ? { bgColor: String(it.bgColor).trim() } : {}),
-        ...(it.textColor ? { textColor: String(it.textColor).trim() } : {}),
-        ...(it.linkColor ? { linkColor: String(it.linkColor).trim() } : {}),
-        ...(it.borderColor ? { borderColor: String(it.borderColor).trim() } : {}),
+        ...(it.bgColor ? { bgColor: normalizeHexColorOrEmpty(String(it.bgColor).trim(), '') } : {}),
+        ...(it.textColor ? { textColor: normalizeHexColorOrEmpty(String(it.textColor).trim(), '') } : {}),
+        ...(it.linkColor ? { linkColor: normalizeHexColorOrEmpty(String(it.linkColor).trim(), '') } : {}),
+        ...(it.borderColor ? { borderColor: normalizeHexColorOrEmpty(String(it.borderColor).trim(), '') } : {}),
         ...(it.useGradient !== undefined ? { useGradient: !!it.useGradient } : {}),
-        ...(it.gradientTo ? { gradientTo: String(it.gradientTo).trim() } : {}),
+        ...(it.gradientTo ? { gradientTo: normalizeHexColorOrEmpty(String(it.gradientTo).trim(), '') } : {}),
       }));
 
       const MAX_NAME = 50;

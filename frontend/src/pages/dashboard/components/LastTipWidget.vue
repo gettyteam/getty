@@ -277,7 +277,6 @@ onMounted(() => {
 .usd-value {
   font-size: 0.6em;
   margin-left: 8px;
-  opacity: 0.8;
-  font-weight: normal;
+  font-weight: 600;
 }
 </style>

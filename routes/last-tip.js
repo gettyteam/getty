@@ -4,6 +4,7 @@ const { z } = require('zod');
 const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
 const { readHybridConfig, writeHybridConfig } = require('../lib/hybrid-config');
 const { isOpenTestMode } = require('../lib/test-open-mode');
+const { normalizeHexColor } = require('../lib/color-sanitize');
 
 const ARWEAVE_RX = /^[A-Za-z0-9_-]{43}$/;
 function isValidArweaveAddress(addr) {
@@ -632,12 +633,12 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
       }
       const newConfig = {
         ...config,
-        bgColor: bgColor || config.bgColor || '#080c10',
-        fontColor: fontColor || config.fontColor || '#ffffff',
-        borderColor: borderColor || config.borderColor || '#00ff7f',
-        amountColor: amountColor || config.amountColor || '#00ff7f',
-        iconBgColor: iconBgColor || config.iconBgColor || '#4f36ff',
-        fromColor: fromColor || config.fromColor || '#e9e9e9',
+        bgColor: normalizeHexColor(bgColor, config.bgColor || '#080c10'),
+        fontColor: normalizeHexColor(fontColor, config.fontColor || '#ffffff'),
+        borderColor: normalizeHexColor(borderColor, config.borderColor || '#00ff7f'),
+        amountColor: normalizeHexColor(amountColor, config.amountColor || '#00ff7f'),
+        iconBgColor: normalizeHexColor(iconBgColor, config.iconBgColor || '#4f36ff'),
+        fromColor: normalizeHexColor(fromColor, config.fromColor || '#e9e9e9'),
 
         ...(walletProvided ? { walletAddress: effectiveWallet } : {}),
         title:

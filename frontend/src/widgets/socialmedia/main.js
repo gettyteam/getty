@@ -79,6 +79,13 @@ if (!window.__socialmedia_widget_started) {
 
     const sanitizeEntries = (items) => {
       if (!Array.isArray(items)) return [];
+
+      const isHex = (value) => {
+        if (typeof value !== 'string') return false;
+        const v = value.trim();
+        return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v);
+      };
+
       return items
         .map((entry) => {
           if (!entry) return null;
@@ -95,12 +102,12 @@ if (!window.__socialmedia_widget_started) {
             icon: resolvedIcon,
             link,
             customIcon: resolvedCustomIcon,
-            bgColor: entry.bgColor || '',
-            textColor: entry.textColor || '',
-            linkColor: entry.linkColor || '',
-            borderColor: entry.borderColor || '',
+            bgColor: isHex(entry.bgColor) ? entry.bgColor.trim() : '',
+            textColor: isHex(entry.textColor) ? entry.textColor.trim() : '',
+            linkColor: isHex(entry.linkColor) ? entry.linkColor.trim() : '',
+            borderColor: isHex(entry.borderColor) ? entry.borderColor.trim() : '',
             useGradient: !!entry.useGradient,
-            gradientTo: entry.gradientTo || ''
+            gradientTo: isHex(entry.gradientTo) ? entry.gradientTo.trim() : ''
           };
         })
         .filter(Boolean);

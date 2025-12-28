@@ -19,6 +19,7 @@ export const routes = [
   { path: '/admin/raffle', name: 'raffle', component: () => import('../views/RaffleView.vue') },
   { path: '/admin/achievements', name: 'achievements', component: () => import('../views/AchievementsView.vue') },
   { path: '/admin/tip-goal', name: 'tip-goal', component: () => import('../views/TipGoalView.vue') },
+  { path: '/admin/goal-followers', name: 'goal-followers', component: () => import('../views/GoalFollowersView.vue') },
   { path: '/admin/last-tip', name: 'last-tip', component: () => import('../views/LastTipView.vue') },
 ];
 
