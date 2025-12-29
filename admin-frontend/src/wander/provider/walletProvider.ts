@@ -40,6 +40,31 @@ function adaptWindowProvider(
   if (!raw) return null;
   const provider = raw;
   const providerName = meta?.name || '';
+
+  const DEBUG_WALLET =
+    typeof window !== 'undefined' &&
+    typeof window.localStorage !== 'undefined' &&
+    window.localStorage.getItem('getty:debugWallet') === '1';
+
+  const debugLog = (message: string, payload?: unknown) => {
+    if (!DEBUG_WALLET) return;
+    try {
+      // eslint-disable-next-line no-console
+      console.debug(message, payload);
+    } catch {
+      /* noop */
+    }
+  };
+
+  const errorLog = (message: string, payload?: unknown) => {
+    if (!DEBUG_WALLET) return;
+    try {
+      // eslint-disable-next-line no-console
+      console.error(message, payload);
+    } catch {
+      /* noop */
+    }
+  };
   const cache = {
     address: '' as string,
     addressTs: 0,
@@ -109,36 +134,94 @@ function adaptWindowProvider(
     [...EXTENDED_WALLET_PERMISSIONS, 'DISPATCH']
   ];
 
-  async function requestPermissions(step: number): Promise<void> {
-    const perms = PERMISSION_STEPS[step] || [];
+  const LEGACY_INVALID_PERMISSIONS = new Set<string>(['SIGN_MESSAGE']);
+
+  async function requestPermissions(perms: PermissionName[]): Promise<void> {
     if (!perms.length) return;
+
+    const safePerms = perms.filter((p) => !LEGACY_INVALID_PERMISSIONS.has(String(p))) as PermissionName[];
+    if (!safePerms.length) return;
+
+    const preferConnectPermissions = providerName === 'arweaveWallet' || providerName === 'wander';
+
     try {
-      if (provider.connect) await provider.connect(perms as PermissionName[]);
-      else if (provider.connectPermissions) await provider.connectPermissions(perms as PermissionName[]);
+      debugLog('[walletProvider.ensurePermissions] requesting', {
+        providerName,
+        preferConnectPermissions,
+        perms: safePerms
+      });
     } catch {
       /* noop */
+    }
+
+    try {
+      if (preferConnectPermissions) {
+        if (provider.connectPermissions) await provider.connectPermissions(safePerms);
+        else if (provider.connect) await provider.connect(safePerms);
+        else throw new Error('Wallet does not support permission requests');
+        return;
+      }
+
+      if (provider.connect) await provider.connect(safePerms);
+      else if (provider.connectPermissions) await provider.connectPermissions(safePerms);
+      else throw new Error('Wallet does not support permission requests');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Permission request failed for ${providerName} with [${safePerms.join(', ')}]: ${msg}`);
     }
   }
 
   const granted = new Set<PermissionName>();
 
   async function ensurePermissions(targets: PermissionName[]): Promise<void> {
-    const missing = targets.filter((p) => !granted.has(p));
-    if (!missing.length) return;
-    for (let i = 0; i < PERMISSION_STEPS.length; i++) {
-      await requestPermissions(i);
-      try {
-        if (provider.getPermissions) {
-          const current = await provider.getPermissions();
-          if (Array.isArray(current)) {
-            for (const perm of current) granted.add(perm as PermissionName);
-          }
-        }
-      } catch {
-        /* noop */
+    const safeTargets = targets.filter((p) => !LEGACY_INVALID_PERMISSIONS.has(String(p))) as PermissionName[];
+    const refreshGranted = async () => {
+      if (!provider.getPermissions) return;
+      const current = await provider.getPermissions();
+      if (Array.isArray(current)) {
+        for (const perm of current) granted.add(perm as PermissionName);
       }
-      const stillMissing = targets.filter((p) => !granted.has(p));
-      if (!stillMissing.length) break;
+    };
+
+    try {
+      await refreshGranted();
+    } catch {
+      /* noop */
+    }
+
+    let missing = safeTargets.filter((p) => !granted.has(p));
+    if (!missing.length) return;
+
+    await requestPermissions([...safeTargets]);
+
+    try {
+      await refreshGranted();
+    } catch {
+      for (const p of safeTargets) granted.add(p);
+    }
+
+    missing = safeTargets.filter((p) => !granted.has(p));
+
+    if (missing.length) {
+      for (let i = 0; i < PERMISSION_STEPS.length; i++) {
+        const stepPerms = PERMISSION_STEPS[i] || [];
+        try {
+          await requestPermissions(stepPerms);
+        } catch {
+          /* noop */
+        }
+        try {
+          await refreshGranted();
+        } catch {
+          /* noop */
+        }
+        missing = safeTargets.filter((p) => !granted.has(p));
+        if (!missing.length) break;
+      }
+    }
+
+    if (missing.length) {
+      throw new Error(`Missing permission(s): ${missing.join(', ')}`);
     }
     if (!walletLoadedDispatched && granted.size) {
       walletLoadedDispatched = true;
@@ -248,12 +331,31 @@ function adaptWindowProvider(
 
     const attempt = async (label: string, fn: () => Promise<unknown>): Promise<unknown> => {
       try {
+        // Debug trace to capture provider and argument types when trying different
+        // signMessage variants. This helps reproduce "Input is not an ArrayBuffer"
+        // errors coming from the injected Wander SDK.
+        debugLog('[walletProvider.signMessage] attempt', {
+          providerName,
+          label,
+          bytesCopyIsUint8: bytesCopy instanceof Uint8Array,
+          arrayBufferExactIsArrayBuffer: arrayBufferExact instanceof ArrayBuffer,
+          bufferSliceIsArrayBuffer: bufferSlice instanceof ArrayBuffer,
+          bufferCopyIsArrayBuffer: bufferCopy instanceof ArrayBuffer
+        });
+
         const result = await fn();
         if (result) {
           return result;
         }
       } catch (error: unknown) {
         const errMsg = error instanceof Error ? error.message : String(error);
+        errorLog('[walletProvider.signMessage] attempt error', {
+          providerName,
+          label,
+          error: errMsg,
+          bytesCopyIsUint8: bytesCopy instanceof Uint8Array,
+          arrayBufferExactIsArrayBuffer: arrayBufferExact instanceof ArrayBuffer
+        });
         errors.push(`${label}: ${errMsg}`);
       }
       return null;
@@ -261,45 +363,44 @@ function adaptWindowProvider(
 
     let signed: unknown = null;
 
+    const isWanderInjected = providerName === 'arweaveWallet' || providerName === 'wander';
+
     if (!signed && signMessageFn) {
 
-      const preferArrayBufferFirst = providerName === 'wander';
+      const preferArrayBufferFirst = false;
 
       if (preferArrayBufferFirst) {
-        signed = await attempt('signMessage(ArrayBuffer:exact)', () => signMessageFn(arrayBufferExact));
-        if (signed) successLabel = 'signMessage(ArrayBuffer:exact)';
-
-        if (!signed) {
-          signed = await attempt('signMessage(ArrayBuffer:slice)', () => signMessageFn(bufferSlice));
-          if (signed) successLabel = 'signMessage(ArrayBuffer:slice)';
-        }
-
-        if (!signed) {
-          signed = await attempt('signMessage(ArrayBuffer:buffer)', () => signMessageFn(bufferCopy));
-          if (signed) successLabel = 'signMessage(ArrayBuffer:buffer)';
-        }
-
-        if (!signed) {
-          signed = await attempt('signMessage(Uint8Array)', () => signMessageFn(bytesCopy));
-          if (signed) successLabel = 'signMessage(Uint8Array)';
-        }
-      } else {
-        signed = await attempt('signMessage(Uint8Array)', () => signMessageFn(bytesCopy));
+        signed = await attempt('signMessage(Uint8Array)', () => signMessageFn(bytesCopy, { hashAlgorithm: 'SHA-256' }));
         if (signed) successLabel = 'signMessage(Uint8Array)';
 
         if (!signed) {
-          signed = await attempt('signMessage(ArrayBuffer:exact)', () => signMessageFn(arrayBufferExact));
+          signed = await attempt('signMessage(Uint8Array)', () => signMessageFn(bytesCopy, { hashAlgorithm: 'SHA-256' }));
+          if (signed) successLabel = 'signMessage(Uint8Array)';
+        }
+
+        if (!signed) {
+          signed = await attempt('signMessage(ArrayBufferView:DataView)', () =>
+            signMessageFn(new DataView(arrayBufferExact), { hashAlgorithm: 'SHA-256' })
+          );
+          if (signed) successLabel = 'signMessage(ArrayBufferView:DataView)';
+        }
+
+      } else {
+        signed = await attempt('signMessage(Uint8Array)', () => signMessageFn(bytesCopy, { hashAlgorithm: 'SHA-256' }));
+        if (signed) successLabel = 'signMessage(Uint8Array)';
+
+        if (!signed) {
+          signed = await attempt('signMessage(ArrayBufferView:DataView)', () =>
+            signMessageFn(new DataView(arrayBufferExact), { hashAlgorithm: 'SHA-256' })
+          );
+          if (signed) successLabel = 'signMessage(ArrayBufferView:DataView)';
+        }
+
+        if (!signed && !isWanderInjected) {
+          signed = await attempt('signMessage(ArrayBuffer:exact)', () =>
+            signMessageFn(arrayBufferExact, { hashAlgorithm: 'SHA-256' })
+          );
           if (signed) successLabel = 'signMessage(ArrayBuffer:exact)';
-        }
-
-        if (!signed) {
-          signed = await attempt('signMessage(ArrayBuffer:slice)', () => signMessageFn(bufferSlice));
-          if (signed) successLabel = 'signMessage(ArrayBuffer:slice)';
-        }
-
-        if (!signed) {
-          signed = await attempt('signMessage(ArrayBuffer:buffer)', () => signMessageFn(bufferCopy));
-          if (signed) successLabel = 'signMessage(ArrayBuffer:buffer)';
         }
       }
     }
@@ -312,6 +413,25 @@ function adaptWindowProvider(
       if (!signed) {
         signed = await attempt('signature(ArrayBuffer,RSA-PSS)', () => signatureFn(arrayBufferExact, algo));
         if (signed) successLabel = 'signature(ArrayBuffer,RSA-PSS)';
+      }
+    }
+
+    if (!signed && signMessageFn && !isWanderInjected) {
+      const arrayBufferErrorFound = errors.some((e) => /ArrayBuffer/.test(e));
+      if (arrayBufferErrorFound) {
+        const wrapperAttempts: Array<{ label: string; fn: () => Promise<unknown> }> = [
+          { label: 'signMessage({data:ArrayBuffer})', fn: () => signMessageFn({ data: arrayBufferExact }, {}) },
+          { label: 'signMessage({message:ArrayBuffer})', fn: () => signMessageFn({ message: arrayBufferExact }, {}) },
+          { label: 'signMessage({data:Uint8Array})', fn: () => signMessageFn({ data: bytesCopy }, {}) },
+        ];
+        for (const wa of wrapperAttempts) {
+          const res = await attempt(wa.label, wa.fn);
+          if (res) {
+            signed = res;
+            successLabel = wa.label;
+            break;
+          }
+        }
       }
     }
 

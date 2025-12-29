@@ -10,6 +10,15 @@ const {
 const CONFIG_FILENAME = 'channel-analytics-config.json';
 const CONFIG_FILE_PATH = path.join(process.cwd(), 'config', CONFIG_FILENAME);
 
+const ANALYTICS_LKG_TTL_SECONDS = 15 * 60;
+
+function getAnalyticsLkgCacheKey(ns, claimId, rangeKey) {
+  const safeNs = String(ns || '').replace(/[^a-zA-Z0-9:_-]/g, '_');
+  const safeClaim = String(claimId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const safeRange = String(rangeKey || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  return `getty:channelAnalytics:lkg:${safeNs}:${safeClaim}:${safeRange}`;
+}
+
 function readBooleanEnvFlag(key, defaultValue = true) {
   const raw = process.env[key];
   if (typeof raw !== 'string') return defaultValue;
@@ -34,19 +43,38 @@ function getEnvAnalytics() {
   };
 }
 
-function resolveEffectiveSecrets(raw = {}) {
+function getOdyseeDeviceCookieName() {
+  try {
+    return (process.env.ODYSEE_DEVICE_COOKIE || 'getty_odysee_auth_token').trim();
+  } catch {
+    return 'getty_odysee_auth_token';
+  }
+}
+
+function readOdyseeAuthTokenFromCookie(req) {
+  try {
+    const name = getOdyseeDeviceCookieName();
+    const raw = req?.cookies?.[name];
+    return typeof raw === 'string' ? raw.trim() : '';
+  } catch {
+    return '';
+  }
+}
+
+function resolveEffectiveSecrets(raw = {}, req) {
   const envValues = getEnvAnalytics();
+  const cookieAuthToken = readOdyseeAuthTokenFromCookie(req);
   return {
     claimId: envValues.claimId || raw.claimId || '',
-    authToken: envValues.authToken || raw.authToken || '',
+    authToken: envValues.authToken || raw.authToken || cookieAuthToken || '',
     idToken: envValues.idToken || '',
     lbryId: envValues.lbryId || '',
   };
 }
 
-function sanitizeConfig(raw = {}, extras = {}) {
+function sanitizeConfig(raw = {}, extras = {}, req) {
   const envValues = getEnvAnalytics();
-  const effective = resolveEffectiveSecrets(raw);
+  const effective = resolveEffectiveSecrets(raw, req);
   return {
     channelHandle: raw.channelHandle || '',
     claimId: effective.claimId || '',
@@ -103,13 +131,25 @@ function registerChannelAnalyticsRoutes(app, strictLimiter, options = {}) {
     try {
       const loaded = await loadTenantConfig(req, store, CONFIG_FILE_PATH, CONFIG_FILENAME);
       const config = loaded?.data || {};
+
+      try {
+        const cookieToken = readOdyseeAuthTokenFromCookie(req);
+        if (cookieToken && !config.authToken) {
+          const merged = { ...config, authToken: cookieToken, updatedAt: new Date().toISOString() };
+          await saveTenantConfig(req, store, CONFIG_FILE_PATH, CONFIG_FILENAME, merged);
+          config.authToken = cookieToken;
+        }
+      } catch {
+        /* noop */
+      }
+
       const identity = await lookupChannelIdentity(config);
-      return res.json(sanitizeConfig(config, { channelIdentity: identity }));
+      return res.json(sanitizeConfig(config, { channelIdentity: identity }, req));
     } catch (err) {
       try {
         console.warn('[channel-analytics] failed to load config', err.message);
       } catch {}
-      return res.json(sanitizeConfig({}, { channelIdentity: null }));
+      return res.json(sanitizeConfig({}, { channelIdentity: null }, req));
     }
   });
 
@@ -161,7 +201,8 @@ function registerChannelAnalyticsRoutes(app, strictLimiter, options = {}) {
       if (!isClaimId(nextClaim) && !envValues.claimId) {
         return res.status(400).json({ error: 'missing_claim', message: 'Channel claim_id is required.' });
       }
-      const effectiveAuthToken = envValues.authToken || nextAuth;
+      const cookieAuthToken = readOdyseeAuthTokenFromCookie(req);
+      const effectiveAuthToken = envValues.authToken || nextAuth || cookieAuthToken;
       if (!effectiveAuthToken && !(allowAuthInput && clearToken)) {
         return res.status(400).json({ error: 'missing_auth', message: 'auth_token is required.' });
       }
@@ -170,7 +211,7 @@ function registerChannelAnalyticsRoutes(app, strictLimiter, options = {}) {
         ...current,
         claimId: nextClaim,
         channelHandle: providedHandle || current.channelHandle || '',
-        authToken: nextAuth,
+        authToken: nextAuth || cookieAuthToken || '',
         updatedAt: new Date().toISOString(),
         lastResolvedHandle: resolvedHandleMeta,
         lastResolvedAt: resolvedAtMeta,
@@ -178,7 +219,7 @@ function registerChannelAnalyticsRoutes(app, strictLimiter, options = {}) {
 
       await saveTenantConfig(req, store, CONFIG_FILE_PATH, CONFIG_FILENAME, merged);
       const identity = await lookupChannelIdentity(merged);
-      return res.json({ success: true, config: sanitizeConfig(merged, { channelIdentity: identity }) });
+      return res.json({ success: true, config: sanitizeConfig(merged, { channelIdentity: identity }, req) });
     } catch (err) {
       try {
         console.error('[channel-analytics] failed to persist config', err.message || err);
@@ -198,7 +239,7 @@ function registerChannelAnalyticsRoutes(app, strictLimiter, options = {}) {
     try {
       const loaded = await loadTenantConfig(req, store, CONFIG_FILE_PATH, CONFIG_FILENAME);
       const config = loaded?.data || {};
-      const effective = resolveEffectiveSecrets(config);
+      const effective = resolveEffectiveSecrets(config, req);
       if (!isClaimId(effective.claimId)) {
         return res.status(400).json({ error: 'missing_claim' });
       }
@@ -206,15 +247,58 @@ function registerChannelAnalyticsRoutes(app, strictLimiter, options = {}) {
         return res.status(400).json({ error: 'missing_auth' });
       }
       const rangeKey = normalizeRangeKey(req.query?.range || 'week');
-      const data = await buildChannelAnalytics({
-        claimId: effective.claimId,
-        authToken: effective.authToken,
-        channelHandle: config.channelHandle || '',
-        idToken: effective.idToken || undefined,
-        lbryId: effective.lbryId || undefined,
-        rangeKey,
-      });
-      return res.json({ data });
+
+      const cacheKey = store?.redis
+        ? getAnalyticsLkgCacheKey(ns, effective.claimId, rangeKey)
+        : '';
+
+      try {
+        const data = await buildChannelAnalytics({
+          claimId: effective.claimId,
+          authToken: effective.authToken,
+          channelHandle: config.channelHandle || '',
+          idToken: effective.idToken || undefined,
+          lbryId: effective.lbryId || undefined,
+          rangeKey,
+        });
+
+        const fetchedAt = new Date().toISOString();
+        if (cacheKey) {
+          try {
+            await store.redis.set(
+              cacheKey,
+              JSON.stringify({ data, fetchedAt }),
+              'EX',
+              ANALYTICS_LKG_TTL_SECONDS
+            );
+          } catch {
+            /* noop */
+          }
+        }
+
+        return res.json({ data, stale: false, fetchedAt });
+      } catch (err) {
+        if (cacheKey) {
+          try {
+            const raw = await store.redis.get(cacheKey);
+            if (raw && raw !== 'null' && raw !== 'undefined') {
+              const parsed = JSON.parse(raw);
+              if (parsed && typeof parsed === 'object' && parsed.data) {
+                return res.json({
+                  data: parsed.data,
+                  stale: true,
+                  fetchedAt: parsed.fetchedAt || null,
+                  cacheFallback: true,
+                });
+              }
+            }
+          } catch {
+            /* noop */
+          }
+        }
+
+        throw err;
+      }
     } catch (err) {
       try {
         console.error('[channel-analytics] overview failed', err.message || err);

@@ -57,7 +57,7 @@
         <label class="text-xs opacity-70">{{ t('publicAuth.emailLabel') }}</label>
         <input
           v-model.trim="odyseeEmail"
-          class="w-full px-3 py-2 rounded-lg border border-border bg-transparent text-sm"
+          class="w-full px-3 py-2 rounded-lg border border-border bg-transparent text-sm placeholder:text-[var(--text-secondary)] placeholder:opacity-90"
           type="email"
           autocomplete="username"
           :placeholder="t('publicAuth.emailPlaceholder')" />
@@ -65,7 +65,7 @@
         <label class="text-xs opacity-70">{{ t('publicAuth.passwordLabel') }}</label>
         <input
           v-model="odyseePassword"
-          class="w-full px-3 py-2 rounded-lg border border-border bg-transparent text-sm"
+          class="w-full px-3 py-2 rounded-lg border border-border bg-transparent text-sm placeholder:text-[var(--text-secondary)] placeholder:opacity-90"
           type="password"
           autocomplete="current-password"
           :placeholder="t('publicAuth.passwordPlaceholder')" />
@@ -87,7 +87,7 @@
         <label class="text-xs opacity-70">{{ t('publicAuth.walletAddressOptionalLabel') }}</label>
         <input
           v-model.trim="odyseeWalletAddress"
-          class="w-full px-3 py-2 rounded-lg border border-border bg-transparent text-sm"
+          class="w-full px-3 py-2 rounded-lg border border-border bg-transparent text-sm placeholder:text-[var(--text-secondary)] placeholder:opacity-90"
           type="text"
           autocomplete="off"
           :placeholder="t('publicAuth.walletAddressOptionalPlaceholder')" />
@@ -118,31 +118,24 @@
       <div
         ref="walletChipEl"
         class="relative group flex items-center gap-2 p-2 md:px-3 md:py-2 rounded-lg border border-border text-sm bg-[var(--bg-card)]/60 backdrop-blur-sm"
-        :title="!needsWalletVerification ? 'Wallet: ' + session.state.address : ''"
+        :title="walletChipTitle"
         tabindex="0"
         @click="onWalletChipToggleTooltip"
         @keydown.enter.prevent="onWalletChipToggleTooltip"
         @keydown.space.prevent="onWalletChipToggleTooltip"
         @keydown.esc.stop.prevent="hideWalletChipTooltip">
         <span class="hidden md:inline-flex">
-          <WsStatusDot
-            :connected="walletConnected"
-            size="sm"
-            sr-label="Estado de la sesión de wallet" />
+          <WsStatusDot :connected="walletConnected" size="sm" sr-label="Wallet session status" />
         </span>
-        <i
-          class="pi pi-wallet text-[14px] md:text-[16px] leading-none opacity-80"
-          aria-hidden="true"></i>
+        <i class="pi pi-wallet text-[14px] md:text-[16px] leading-none" aria-hidden="true"></i>
         <span
           class="font-mono truncate max-w-[110px] hidden md:inline"
-          aria-label="Dirección wallet">
+          :aria-label="isOdyseePrincipal ? 'Odysee session' : 'Wallet address'">
           {{ shortAddr }}
         </span>
-        <span
-          v-if="balanceLabel"
-          class="balance-label hidden md:inline text-xs font-mono opacity-80"
-          >{{ balanceLabel }}</span
-        >
+        <span v-if="balanceLabel" class="balance-label hidden md:inline text-xs font-mono">{{
+          balanceLabel
+        }}</span>
 
         <span
           v-if="needsWalletVerification"
@@ -222,9 +215,26 @@ const needsWalletVerification = computed(() => {
   return !caps.includes('config.write');
 });
 
+const isOdyseePrincipal = computed(() => {
+  const addr = session.state.address;
+  return typeof addr === 'string' && addr.startsWith('odysee:');
+});
+
+const walletChipTitle = computed(() => {
+  if (needsWalletVerification.value) return '';
+  const addr = session.state.address;
+  if (!addr) return '';
+  if (isOdyseePrincipal.value) return 'Odysee session';
+  return `Wallet: ${addr}`;
+});
+
 const shortAddr = computed(() => {
-  if (!session.state.address) return '';
-  return session.state.address.slice(0, 5) + '...' + session.state.address.slice(-5);
+  const addr = session.state.address;
+  if (!addr) return '';
+  if (isOdyseePrincipal.value) {
+    return 'Odysee session';
+  }
+  return addr.slice(0, 5) + '...' + addr.slice(-5);
 });
 
 function hideWalletChipTooltip() {
@@ -369,6 +379,10 @@ async function submitOdyseeLogin() {
 
               res = await fetchJson('/api/auth/odysee/login', { method: 'POST', body });
               if (res && res.success) {
+                try {
+                  const hash = res.walletHash;
+                  if (hash) localStorage.setItem('getty_last_odysee_walletHash', String(hash));
+                } catch {}
                 if (res.widgetToken) persistWidgetToken(res.widgetToken, res.expiresAt);
                 await session.refreshSession();
                 try {
@@ -398,6 +412,10 @@ async function submitOdyseeLogin() {
     }
 
     if (res.widgetToken) persistWidgetToken(res.widgetToken, res.expiresAt);
+    try {
+      const hash = res.walletHash;
+      if (hash) localStorage.setItem('getty_last_odysee_walletHash', String(hash));
+    } catch {}
     await session.refreshSession();
     try {
       window.dispatchEvent(new CustomEvent('getty-session-updated'));
@@ -418,12 +436,7 @@ async function startWanderLogin() {
     const provider = await ensureProvider();
     if (!provider.hasProvider) throw new Error('Extension not detected');
 
-    await provider.ensurePermissions([
-      'ACCESS_ADDRESS',
-      'ACCESS_PUBLIC_KEY',
-      'SIGN_MESSAGE',
-      'SIGNATURE',
-    ]);
+    await provider.ensurePermissions(['ACCESS_ADDRESS', 'ACCESS_PUBLIC_KEY', 'SIGNATURE']);
     const address = await provider.getActiveAddress();
     if (!address) throw new Error('No se obtuvo dirección');
     const nonce = await fetchJson('/api/auth/wander/nonce', { method: 'POST', body: { address } });
@@ -459,6 +472,10 @@ async function startWanderLogin() {
     }
     if (!verify.success) throw new Error(verify.error || 'verify_failed');
     await session.refreshSession();
+    try {
+      const hash = session.state.walletHash;
+      if (hash) localStorage.setItem('getty_last_wander_walletHash', String(hash));
+    } catch {}
     try {
       window.dispatchEvent(new CustomEvent('getty-session-updated'));
     } catch {}

@@ -155,9 +155,9 @@ const lastStreamMetrics = ref({
 });
 
 const communityMetrics = ref({
-  totalViews: 0,
-  totalContent: 0,
-  totalFollowers: 0,
+  totalViews: { value: 0, trend: 'up', loading: true, error: false, errorClass: 'text-[1rem]' },
+  totalContent: { value: 0, trend: 'up', loading: true, error: false, errorClass: 'text-[1rem]' },
+  totalFollowers: { value: 0, trend: 'up', loading: true, error: false, errorClass: 'text-[1rem]' },
 });
 
 const unconfiguredModules = ref([]);
@@ -230,18 +230,106 @@ async function loadDashboardData() {
     }
 
     try {
+      communityMetrics.value = {
+        totalViews: {
+          value: 0,
+          trend: 'up',
+          loading: true,
+          error: false,
+          errorClass: 'text-[1rem]',
+        },
+        totalContent: {
+          value: 0,
+          trend: 'up',
+          loading: true,
+          error: false,
+          errorClass: 'text-[1rem]',
+        },
+        totalFollowers: {
+          value: 0,
+          trend: 'up',
+          loading: true,
+          error: false,
+          errorClass: 'text-[1rem]',
+        },
+      };
       const analytics = await fetchChannelAnalytics('week');
       if (analytics && analytics.totals) {
         communityMetrics.value = {
-          totalViews: { value: analytics.totals.views || 0, trend: 'up' },
-          totalContent: { value: analytics.totals.videos || 0, trend: 'up' },
-          totalFollowers: { value: analytics.totals.subscribers || 0, trend: 'up' },
+          totalViews: {
+            value: analytics.totals.views || 0,
+            trend: 'up',
+            loading: false,
+            error: false,
+            errorClass: 'text-[1rem]',
+          },
+          totalContent: {
+            value: analytics.totals.videos || 0,
+            trend: 'up',
+            loading: false,
+            error: false,
+            errorClass: 'text-[1rem]',
+          },
+          totalFollowers: {
+            value: analytics.totals.subscribers || 0,
+            trend: 'up',
+            loading: false,
+            error: false,
+            errorClass: 'text-[1rem]',
+          },
+        };
+      } else {
+        communityMetrics.value = {
+          totalViews: {
+            value: 0,
+            trend: 'up',
+            loading: false,
+            error: true,
+            errorClass: 'text-[1rem]',
+          },
+          totalContent: {
+            value: 0,
+            trend: 'up',
+            loading: false,
+            error: true,
+            errorClass: 'text-[1rem]',
+          },
+          totalFollowers: {
+            value: 0,
+            trend: 'up',
+            loading: false,
+            error: true,
+            errorClass: 'text-[1rem]',
+          },
         };
       }
     } catch (e) {
       if (e.response?.data?.error !== 'missing_claim') {
         console.warn('Failed to load channel analytics', e);
       }
+      communityMetrics.value = {
+        totalViews: {
+          value: 0,
+          trend: 'up',
+          loading: false,
+          error: true,
+          errorClass: 'text-[1rem]',
+        },
+        totalContent: {
+          value: 0,
+          trend: 'up',
+          loading: false,
+          error: true,
+          errorClass: 'text-[1rem]',
+        },
+        totalFollowers: {
+          value: 0,
+          trend: 'up',
+          loading: false,
+          error: true,
+          errorClass: 'text-[1rem]',
+        },
+      };
     }
 
     const metrics = await fetchStreamMetrics();

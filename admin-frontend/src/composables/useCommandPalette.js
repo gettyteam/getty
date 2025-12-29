@@ -89,6 +89,14 @@ export function useCommandPalette() {
       icon: 'pi pi-bullseye',
       section: 'Navigation'
     },
+    {
+      id: 'nav-goal-followers',
+      title: t('goalFollowersTitle') || 'Followers',
+      type: 'navigation',
+      path: '/admin/goal-followers',
+      icon: 'pi pi-users',
+      section: 'Navigation'
+    },
     { 
       id: 'nav-social', 
       title: t('socialMediaTitle') || 'Social Media', 

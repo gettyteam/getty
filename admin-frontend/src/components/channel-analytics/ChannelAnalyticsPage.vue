@@ -44,7 +44,11 @@
               <span>{{ card.label }}</span>
             </p>
             <p class="value">
-              <AnimatedNumber :value="card.rawValue" :formatter="numberFormatter" />
+              <SkeletonLoader v-if="overview.loading" class="w-24 h-10" />
+              <span v-else-if="totalsUnavailable" class="text-[1.5rem] font-semibold">
+                {{ t('commonNotAvailable') }}
+              </span>
+              <AnimatedNumber v-else :value="card.rawValue" :formatter="numberFormatter" />
             </p>
             <p class="hint">{{ card.hint }}</p>
           </div>
@@ -295,8 +299,9 @@ import ChannelBarChart from './ChannelBarChart.vue';
 import ChannelAnalyticsConfig from './ChannelAnalyticsConfig.vue';
 import MiniTrendChart from './MiniTrendChart.vue';
 import BlockedState from '../shared/BlockedState.vue';
+import SkeletonLoader from '../SkeletonLoader.vue';
 import {
-  fetchChannelAnalytics,
+  fetchChannelAnalyticsEnvelope,
   fetchChannelAnalyticsConfig,
   type ChannelAnalyticsOverview,
   type ChannelAnalyticsConfigResponse,
@@ -313,9 +318,18 @@ const contentViewsSeriesEnabled = true;
 const wallet = useWalletSession();
 const range = ref<ChannelAnalyticsRange>('week');
 const configVisible = ref(false);
-const overview = reactive<{ loading: boolean; data: ChannelAnalyticsOverview | null }>({
+const overview = reactive<{
+  loading: boolean;
+  data: ChannelAnalyticsOverview | null;
+  error: boolean;
+  stale: boolean;
+  fetchedAt: string | null;
+}>({
   loading: false,
   data: null,
+  error: false,
+  stale: false,
+  fetchedAt: null,
 });
 const configState = reactive<{ loading: boolean; data: ChannelAnalyticsConfigResponse | null }>({
   loading: false,
@@ -373,13 +387,25 @@ async function loadOverview(selectedRange = range.value) {
   if (!analyticsReady.value) {
     overview.data = null;
     overview.loading = false;
+    overview.error = false;
+    overview.stale = false;
+    overview.fetchedAt = null;
     return;
   }
   overview.loading = true;
+  overview.error = false;
+  overview.stale = false;
+  overview.fetchedAt = null;
   try {
-    overview.data = await fetchChannelAnalytics(selectedRange);
+    const envelope = await fetchChannelAnalyticsEnvelope(selectedRange);
+    overview.data = envelope?.data || null;
+    overview.stale = !!envelope?.stale;
+    overview.fetchedAt = envelope?.fetchedAt || null;
   } catch (err) {
     overview.data = null;
+    overview.error = true;
+    overview.stale = false;
+    overview.fetchedAt = null;
     const code = extractApiErrorCode(err);
     if (code === 'missing_claim' || code === 'missing_auth') {
       pushToast({ type: 'warning', message: t('channelAnalyticsMissingConfig') });
@@ -422,9 +448,18 @@ watch(
       loadOverview(range.value);
     } else if (!ready) {
       overview.data = null;
+      overview.error = false;
     }
   }
 );
+
+const totalsUnavailable = computed(() => {
+  if (overview.loading) return false;
+  if (overview.error) return true;
+  if (!analyticsReady.value) return false;
+  if (['halfyear', 'year'].includes(range.value)) return false;
+  return !overview.data;
+});
 
 onMounted(async () => {
   await ensureSession();

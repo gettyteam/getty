@@ -124,6 +124,7 @@ function setCssVars(cfg) {
     const decl = [];
     if (cfg && typeof cfg === 'object') {
       if (cfg.color) decl.push(`--gf-progress:${String(cfg.color)};`);
+      if (cfg.bgColor) decl.push(`--gf-card-bg:${String(cfg.bgColor)};`);
       decl.push(`--gf-radius:${Number(cfg.borderRadius) || 16}px;`);
       decl.push(`--gf-width:${clamp(cfg.width, 1, 1920)}px;`);
       decl.push(`--gf-height:${clamp(cfg.height, 1, 1080)}px;`);

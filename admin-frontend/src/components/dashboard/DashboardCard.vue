@@ -21,7 +21,13 @@
             $t(`home.metrics.${key}`)
           }}</span>
           <div class="flex items-center gap-2">
-            <span class="text-2xl font-bold tracking-tight">{{ metric.value }}</span>
+            <SkeletonLoader v-if="metric.loading" class="w-20 h-8" />
+            <span
+              v-else-if="metric.error"
+              :class="[metric.errorClass || 'text-[1.5rem]', 'font-bold tracking-tight']">
+              {{ $t('commonNotAvailable') }}
+            </span>
+            <span v-else class="text-2xl font-bold tracking-tight">{{ metric.value }}</span>
             <div v-if="metric.trend === 'up'" class="text-green-500 flex items-center">
               <svg
                 width="1.5rem"
@@ -59,6 +65,7 @@
 
 <script setup>
 import { computed } from 'vue';
+import SkeletonLoader from '@/components/SkeletonLoader.vue';
 
 const props = defineProps({
   title: { type: String, required: true },

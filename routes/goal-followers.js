@@ -43,14 +43,49 @@ function resolveAuthSecrets(raw = {}) {
   };
 }
 
+function getOdyseeDeviceCookieName() {
+  try {
+    return (process.env.ODYSEE_DEVICE_COOKIE || 'getty_odysee_auth_token').trim();
+  } catch {
+    return 'getty_odysee_auth_token';
+  }
+}
+
+function readOdyseeAuthTokenFromCookie(req) {
+  try {
+    const name = getOdyseeDeviceCookieName();
+    const raw = req?.cookies?.[name];
+    return typeof raw === 'string' ? raw.trim() : '';
+  } catch {
+    return '';
+  }
+}
+
 async function loadOdyseeAuthFromTenant(req, store) {
   try {
     const cfgFile = path.join(process.cwd(), 'config', 'channel-analytics-config.json');
     const loaded = await loadTenantConfig(req, store, cfgFile, 'channel-analytics-config.json');
     const raw = loaded?.data || {};
-    return resolveAuthSecrets(raw);
+    const resolved = resolveAuthSecrets(raw);
+    if (resolved.authToken) return resolved;
+    const cookieToken = readOdyseeAuthTokenFromCookie(req);
+    if (cookieToken) {
+      return {
+        ...resolved,
+        authToken: cookieToken,
+      };
+    }
+    return resolved;
   } catch {
-    return resolveAuthSecrets({});
+    const resolved = resolveAuthSecrets({});
+    const cookieToken = readOdyseeAuthTokenFromCookie(req);
+    if (cookieToken) {
+      return {
+        ...resolved,
+        authToken: cookieToken,
+      };
+    }
+    return resolved;
   }
 }
 
@@ -69,6 +104,7 @@ function normalizeConfig(raw = {}) {
       : 0,
     claimId: typeof base.claimId === 'string' ? base.claimId.trim() : '',
     color: normalizeHexColor(base.color, '#00ff7f'),
+    bgColor: normalizeHexColor(base.bgColor, '#080c10'),
     borderRadius: Number.isFinite(borderRadiusRaw) ? Math.max(0, Math.min(borderRadiusRaw, 999)) : 16,
     width: Number.isFinite(widthRaw) ? Math.max(1, Math.min(widthRaw, 1920)) : 560,
     height: Number.isFinite(heightRaw) ? Math.max(1, Math.min(heightRaw, 1080)) : 140,
@@ -83,6 +119,7 @@ function sanitizeConfigForClient(raw = {}, extras = {}) {
     goal: cfg.goal,
     claimId: cfg.claimId,
     color: cfg.color,
+    bgColor: cfg.bgColor,
     borderRadius: cfg.borderRadius,
     width: cfg.width,
     height: cfg.height,
@@ -118,6 +155,7 @@ function registerGoalFollowersRoutes(app, strictLimiter, options = {}) {
     goal: z.coerce.number().int().positive(),
     claimId: z.string().optional().default(''),
     color: z.string().optional().default('#00ff7f'),
+    bgColor: z.string().optional().default('#080c10'),
     borderRadius: z.coerce.number().optional().default(16),
     width: z.coerce.number().optional().default(560),
     height: z.coerce.number().optional().default(140),
@@ -203,6 +241,7 @@ function registerGoalFollowersRoutes(app, strictLimiter, options = {}) {
         goal: clamp(next.goal, 1, 1_000_000_000),
         claimId: typeof next.claimId === 'string' ? next.claimId.trim() : '',
         color: normalizeHexColor(next.color, '#00ff7f'),
+        bgColor: normalizeHexColor(next.bgColor, '#080c10'),
         borderRadius: clamp(next.borderRadius, 0, 999),
         width: clamp(next.width, 1, 1920),
         height: clamp(next.height, 1, 1080),
@@ -215,6 +254,18 @@ function registerGoalFollowersRoutes(app, strictLimiter, options = {}) {
 
       const store = resolveStore(req.app);
       await saveTenantConfig(req, store, CONFIG_FILE_PATH, CONFIG_FILENAME, normalized);
+
+      try {
+        const nsToken = req?.ns?.admin || req?.ns?.pub || null;
+        const cacheEnabled = isHostedMode() && !isOpenTestMode();
+        const cacheKey =
+          cacheEnabled && nsToken && normalized.claimId
+            ? getFollowersCurrentCacheKey(nsToken, normalized.claimId)
+            : '';
+        if (cacheKey && store && store.redis) {
+          await store.redis.del(cacheKey);
+        }
+      } catch {}
 
       const auth = await loadOdyseeAuthFromTenant(req, store);
       const out = sanitizeConfigForClient(normalized, { hasAuthToken: !!auth.authToken });
@@ -281,24 +332,60 @@ function registerGoalFollowersRoutes(app, strictLimiter, options = {}) {
       }
 
       const { fetchChannelSubscriberCount, fetchChannelStats } = require('../services/channel-analytics');
-      let count = await fetchChannelSubscriberCount({
-        authToken: auth.authToken,
-        claimId: cfg.claimId,
-        idToken: auth.idToken || undefined,
-        lbryId: auth.lbryId || undefined,
-      });
+      let count = null;
+      let resolvedFromUpstream = false;
 
-      if (!count || Number(count) <= 0) {
+      try {
+        const direct = await fetchChannelSubscriberCount({
+          authToken: auth.authToken,
+          claimId: cfg.claimId,
+          idToken: auth.idToken || undefined,
+          lbryId: auth.lbryId || undefined,
+        });
+        const numeric = Number(direct);
+        if (Number.isFinite(numeric) && numeric >= 0) {
+          count = numeric;
+          resolvedFromUpstream = true;
+        }
+      } catch {
+        /* noop */
+      }
+
+      if (!resolvedFromUpstream) {
         try {
           const stats = await fetchChannelStats({
             authToken: auth.authToken,
             claimId: cfg.claimId,
           });
           const subs = Number(stats?.ChannelSubs);
-          if (Number.isFinite(subs) && subs > 0) {
+          if (Number.isFinite(subs) && subs >= 0) {
             count = subs;
+            resolvedFromUpstream = true;
           }
-        } catch {}
+        } catch {
+          /* noop */
+        }
+      }
+
+      const prevFollowers = Number.isFinite(Number(cfg.currentFollowers))
+        ? Math.max(0, Math.floor(Number(cfg.currentFollowers)))
+        : 0;
+
+      if (!resolvedFromUpstream) {
+        if (prevFollowers > 0) {
+          return res.json({
+            active: true,
+            currentFollowers: prevFollowers,
+            stale: true,
+            reason: 'upstream_failed',
+          });
+        }
+        return res.json({
+          active: false,
+          currentFollowers: 0,
+          stale: true,
+          reason: 'upstream_failed',
+        });
       }
 
       const currentFollowers = Number.isFinite(Number(count)) ? Math.max(0, Math.floor(Number(count))) : 0;
@@ -308,10 +395,6 @@ function registerGoalFollowersRoutes(app, strictLimiter, options = {}) {
           await store.redis.set(cacheKey, String(currentFollowers), 'EX', HOSTED_CURRENT_CACHE_TTL_SECONDS);
         } catch {}
       }
-
-      const prevFollowers = Number.isFinite(Number(cfg.currentFollowers))
-        ? Math.max(0, Math.floor(Number(cfg.currentFollowers)))
-        : 0;
 
       if (currentFollowers !== prevFollowers) {
         const nextCfg = { ...cfg, currentFollowers, updatedAt: cfg.updatedAt || null };
