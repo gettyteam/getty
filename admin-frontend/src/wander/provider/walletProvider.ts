@@ -331,9 +331,6 @@ function adaptWindowProvider(
 
     const attempt = async (label: string, fn: () => Promise<unknown>): Promise<unknown> => {
       try {
-        // Debug trace to capture provider and argument types when trying different
-        // signMessage variants. This helps reproduce "Input is not an ArrayBuffer"
-        // errors coming from the injected Wander SDK.
         debugLog('[walletProvider.signMessage] attempt', {
           providerName,
           label,
