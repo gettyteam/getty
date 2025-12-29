@@ -199,7 +199,11 @@
   }
 
   .os-header {
-    @apply sticky top-0 z-40 bg-white/70 dark:bg-neutral-950/60 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-b border-neutral-200 dark:border-neutral-800;
+    @apply sticky top-0 z-40 backdrop-blur border-b border-neutral-200 dark:border-neutral-800;
+    background-color: rgb(253 252 252 / 0.7);
+  }
+  .os-header:is(.dark *) {
+    background-color: rgb(9 9 11 / 0.6);
   }
   .os-header-inner {
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center gap-3;

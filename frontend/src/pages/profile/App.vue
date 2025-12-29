@@ -1659,7 +1659,7 @@ if (typeof window !== 'undefined') {
 }
 
 .public-profile-page.theme-light {
-  --profile-bg: #ffffff;
+  --profile-bg: #fdfcfc;
   --text-primary: #0f172a;
   --text-secondary: #475569;
   --surface-card: #ffffff;

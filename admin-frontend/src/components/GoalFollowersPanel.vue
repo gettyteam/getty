@@ -132,11 +132,9 @@
             </h3>
           </div>
 
-          <div class="gf-setting-item">
-            <div class="gf-setting-control">
+          <div class="gf-setting-item is-vertical">
+            <div class="gf-colors-grid">
               <ColorInput v-model="form.bgColor" :label="t('goalFollowersBackgroundColorLabel')" />
-            </div>
-            <div class="gf-setting-control">
               <ColorInput v-model="form.color" :label="t('goalFollowersColorLabel')" />
             </div>
           </div>

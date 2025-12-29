@@ -143,7 +143,11 @@
   }
 
   .os-header {
-    @apply sticky top-0 z-40 bg-white/70 dark:bg-neutral-950/60 backdrop-blur border-b border-neutral-200 dark:border-neutral-800;
+    @apply sticky top-0 z-40 backdrop-blur border-b border-neutral-200 dark:border-neutral-800;
+    background-color: rgb(253 252 252 / 0.7);
+  }
+  .os-header:is(.dark *) {
+    background-color: rgb(9 9 11 / 0.6);
   }
   .os-header-inner {
     @apply h-14 px-4 flex items-center gap-3;
@@ -410,7 +414,7 @@
   }
   .admin-sidebar {
     @apply flex flex-col gap-4 pr-4 border-r border-[var(--card-border)] backdrop-blur-sm transition-all duration-300;
-    background: var(--bg-card);
+    background: var(--bg-background);
     box-sizing: border-box;
   }
 
@@ -427,7 +431,7 @@
       transform: translateX(-100%);
       z-index: 60;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-      background: var(--bg-card);
+      background: var(--bg-background);
     }
     html.mobile-sidebar-open .admin-sidebar {
       transform: translateX(0);
@@ -496,10 +500,18 @@
     @apply flex flex-col gap-2;
   }
   .sidebar-title {
-    @apply text-xs uppercase tracking-wider font-semibold text-[var(--text-secondary)] px-2;
+    @apply text-xs uppercase tracking-wider font-semibold px-2;
+    color: rgb(82 82 91);
+  }
+  html.dark .sidebar-title {
+    color: rgb(145 145 145);
   }
   .sidebar-nav .sidebar-link {
-    @apply rounded-lg px-3 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors relative;
+    @apply rounded-lg px-3 py-2 text-sm font-medium hover:text-[var(--text-primary)] transition-colors relative;
+    color: rgb(82 82 91);
+  }
+  html.dark .sidebar-nav .sidebar-link:not(.active) {
+    color: rgb(145 145 145);
   }
 
   .sidebar-collapsed .sidebar-nav .sidebar-link {

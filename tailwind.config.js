@@ -44,7 +44,7 @@ module.exports = {
         background: {
           DEFAULT: 'var(--bg-background)',
           dark: '#09090b',
-          light: '#ffffff',
+          light: '#fdfcfc',
         },
         card: {
           DEFAULT: 'var(--bg-card)',
