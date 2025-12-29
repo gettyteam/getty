@@ -1,7 +1,6 @@
 export type PermissionName =
   | 'ACCESS_ADDRESS'
   | 'ACCESS_PUBLIC_KEY'
-  | 'SIGN_MESSAGE'
   | 'SIGNATURE'
   | 'SIGN_TRANSACTION'
   | 'DISPATCH';
@@ -55,7 +54,8 @@ export interface RawWalletProvider {
   getOwner?(): Promise<string>;
   disconnect?(): Promise<void>;
   signMessage?(
-    data: unknown
+    data: unknown,
+    options?: unknown
   ): Promise<Uint8Array | ArrayBuffer | string | null | undefined>;
   verifyMessage?(data: unknown, signature: Uint8Array | ArrayBuffer | string): Promise<boolean>;
 }
@@ -63,7 +63,6 @@ export interface RawWalletProvider {
 export const MINIMUM_WALLET_PERMISSIONS: readonly PermissionName[] = [
   'ACCESS_ADDRESS',
   'ACCESS_PUBLIC_KEY',
-  'SIGN_MESSAGE',
   'SIGNATURE'
 ];
 

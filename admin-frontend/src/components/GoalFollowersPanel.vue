@@ -17,17 +17,16 @@
           <div class="gf-setting-item is-vertical" aria-live="polite">
             <div class="gf-setting-text">
               <div class="gf-setting-title">{{ t('goalFollowersCustomTitleLabel') }}</div>
-              <div class="gf-setting-desc">{{ t('goalFollowersCustomTitleHint') }}</div>
             </div>
             <div class="gf-setting-control full-width">
               <input
-                class="input"
-                :aria-invalid="!!errors.title"
-                :class="{ 'input-error': errors.title }"
                 id="gf-title"
-                v-model="form.title"
+                class="input"
                 type="text"
                 maxlength="40"
+                v-model="form.title"
+                :aria-invalid="!!errors.title"
+                :class="{ 'input-error': errors.title }"
                 :placeholder="t('goalFollowersCustomTitlePlaceholder')" />
               <div class="gf-field-foot">
                 <span :class="errors.title ? 'error' : ''">{{
@@ -134,9 +133,8 @@
           </div>
 
           <div class="gf-setting-item">
-            <div class="gf-setting-text">
-              <div class="gf-setting-title">{{ t('goalFollowersColorLabel') }}</div>
-              <div class="gf-setting-desc">{{ t('goalFollowersColorHint') }}</div>
+            <div class="gf-setting-control">
+              <ColorInput v-model="form.bgColor" :label="t('goalFollowersBackgroundColorLabel')" />
             </div>
             <div class="gf-setting-control">
               <ColorInput v-model="form.color" :label="t('goalFollowersColorLabel')" />
@@ -300,8 +298,17 @@
                 type="button"
                 :disabled="testCelebrationBusy"
                 @click="testGoalCelebration">
-                <i class="pi pi-sparkles" aria-hidden="true"></i>
-                <span class="gf-obs-action-label">{{ t('goalFollowersTestCelebration') }}</span>
+                <i class="pi pi-sparkles" aria-hidden="true"></i
+                ><span class="gf-obs-action-label">{{ t('goalFollowersTestCelebration') }}</span>
+              </button>
+
+              <button
+                class="btn btn-secondary btn-compact-secondary"
+                type="button"
+                :disabled="saving"
+                @click="resetColors">
+                <i class="pi pi-palette" aria-hidden="true"></i
+                ><span class="gf-obs-action-label">{{ t('goalFollowersResetColors') }}</span>
               </button>
             </div>
           </div>
@@ -347,6 +354,7 @@ const form = reactive({
   goal: 100,
   claimId: '',
   color: '#00ff7f',
+  bgColor: '#080c10',
   borderRadius: 16,
   width: 560,
   height: 140,
@@ -426,6 +434,7 @@ const previewVars = computed(() => ({
   '--gf-width': `${PREVIEW_WIDTH}px`,
   '--gf-height': `${PREVIEW_HEIGHT}px`,
   '--gf-radius': `${Math.max(0, Math.min(999, Number(form.borderRadius) || 16))}px`,
+  '--gf-card-bg': form.bgColor || '#080c10',
   '--gf-progress': form.color || '#00ff7f',
   '--gf-progress-pct': `${previewPctValue.value.toFixed(1)}%`,
 }));
@@ -541,6 +550,11 @@ async function testGoalCelebration() {
   }
 }
 
+function resetColors() {
+  form.bgColor = '#080c10';
+  form.color = '#00ff7f';
+}
+
 const currentFollowersHint = computed(() =>
   hasAuthToken.value ? t('goalFollowersCurrentHint') : t('goalFollowersCurrentHintMissingAuth')
 );
@@ -551,6 +565,7 @@ function serializeSnapshot() {
     goal: form.goal,
     claimId: form.claimId,
     color: form.color,
+    bgColor: form.bgColor,
     borderRadius: form.borderRadius,
     width: form.width,
     height: form.height,
@@ -582,6 +597,7 @@ async function loadConfig() {
       form.goal = typeof data.goal === 'number' ? data.goal : 100;
       form.claimId = data.claimId || '';
       form.color = data.color || '#00ff7f';
+      form.bgColor = data.bgColor || '#080c10';
       form.borderRadius = typeof data.borderRadius === 'number' ? data.borderRadius : 16;
       form.width = typeof data.width === 'number' ? data.width : 560;
       form.height = typeof data.height === 'number' ? data.height : 140;
@@ -675,14 +691,13 @@ async function save() {
       goal: form.goal,
       claimId: form.claimId,
       color: form.color,
+      bgColor: form.bgColor,
       borderRadius: form.borderRadius,
       width: form.width,
       height: form.height,
     };
     const res = await api.post('/api/goal-followers', payload);
     if (res?.data?.success) {
-      // Persist audio selection alongside the main config, so "Save Settings" does what users
-      // expect (same behavior as Tip Goal).
       const audioForm = new FormData();
       audioForm.append('audioSource', audio.audioSource || 'remote');
       audioForm.append('enabled', String(!!audioCfg.enabled));
@@ -698,6 +713,8 @@ async function save() {
       await api.post('/api/goal-followers-audio-settings', audioForm);
       await loadAudioState();
       resolveStorageSelection();
+
+      await refreshCurrentFollowers();
 
       originalSnapshot.value = serializeSnapshot();
       pushToast({ type: 'success', message: t('goalFollowersSaveSuccess') });
@@ -757,7 +774,7 @@ onMounted(async () => {
   await storage.fetchProviders();
   await loadAll();
   await refreshCurrentFollowers();
-  setInterval(refreshCurrentFollowers, 15000);
+  setInterval(refreshCurrentFollowers, 60000);
 });
 </script>
 

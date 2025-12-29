@@ -70,6 +70,22 @@
         </button>
 
         <WalletLoginButton />
+        <div class="hidden sm:flex items-center gap-2">
+          <div
+            v-if="odyseeTenantText && !wanderTenantText"
+            class="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm text-muted-foreground"
+            :title="odyseeTenantTitle">
+            <img :src="odyseeLogo" alt="" class="h-4 w-4" aria-hidden="true" />
+            <span class="text-foreground font-medium">{{ odyseeTenantText }}</span>
+          </div>
+          <div
+            v-if="wanderTenantText"
+            class="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm text-muted-foreground"
+            :title="wanderTenantTitle">
+            <img :src="wanderLogo" alt="" class="h-4 w-4" aria-hidden="true" />
+            <span class="text-foreground font-medium">{{ wanderTenantText }}</span>
+          </div>
+        </div>
         <a
           href="/index.html"
           target="_blank"
@@ -573,6 +589,8 @@ import WalletLoginButton from './components/WalletLoginButton.vue';
 import WalletLogoutButton from './components/WalletLogoutButton.vue';
 import { useWanderSession } from './wander/store/wanderSession';
 import { fetchChannelAnalyticsConfig } from './services/channelAnalytics';
+import odyseeLogo from './assets/odysee.svg?url';
+import wanderLogo from './assets/wander.svg?url';
 
 const bodyClasses = [
   'bg-background',
@@ -617,9 +635,12 @@ const configBlockedDetails = ref(null);
 
 let channelConfigUpdatedHandler = null;
 
+const channelAnalyticsHasAuthToken = ref(false);
+
 async function refreshSidebarIcon() {
   try {
     const cfg = await fetchChannelAnalyticsConfig();
+    channelAnalyticsHasAuthToken.value = !!cfg?.hasAuthToken;
     const thumb = cfg?.channelIdentity?.thumbnailUrl;
     const configured = Boolean(cfg?.claimId && String(cfg.claimId).trim());
     const identityLabel = String(
@@ -639,9 +660,16 @@ async function refreshSidebarIcon() {
 
     sidebarIconAlt.value = identityLabel || DEFAULT_SIDEBAR_ICON_ALT;
   } catch {
+    channelAnalyticsHasAuthToken.value = false;
     sidebarIcon.value = DEFAULT_SIDEBAR_ICON;
     sidebarIconAlt.value = DEFAULT_SIDEBAR_ICON_ALT;
     usingDefaultChannelAvatar.value = false;
+  } finally {
+    try {
+      loadTenantIndicators();
+    } catch {
+      /* noop */
+    }
   }
 }
 
@@ -657,6 +685,70 @@ const analyticsActive = computed(
 );
 
 const wanderSession = useWanderSession();
+
+const lastOdyseeWalletHash = ref('');
+const lastWanderWalletHash = ref('');
+
+function shortenTenantValue(value) {
+  const v = String(value || '').trim();
+  if (!v) return '';
+  if (v.length <= 14) return v;
+  return `${v.slice(0, 8)}…${v.slice(-6)}`;
+}
+
+function loadTenantIndicators() {
+  try {
+    lastOdyseeWalletHash.value = String(
+      localStorage.getItem('getty_last_odysee_walletHash') || ''
+    ).trim();
+  } catch {
+    lastOdyseeWalletHash.value = '';
+  }
+  try {
+    lastWanderWalletHash.value = String(
+      localStorage.getItem('getty_last_wander_walletHash') || ''
+    ).trim();
+  } catch {
+    lastWanderWalletHash.value = '';
+  }
+
+  if (!lastOdyseeWalletHash.value && channelAnalyticsHasAuthToken.value) {
+    const candidate = String(wanderSession.state.walletHash || '').trim();
+    if (candidate) {
+      lastOdyseeWalletHash.value = candidate;
+      try {
+        localStorage.setItem('getty_last_odysee_walletHash', candidate);
+      } catch {}
+    }
+  }
+}
+
+const odyseeTenantText = computed(() => shortenTenantValue(lastOdyseeWalletHash.value));
+const wanderTenantText = computed(() => {
+  if (!wanderSession.state.address || wanderSession.state.sessionStale) return '';
+  const caps = Array.isArray(wanderSession.state.capabilities)
+    ? wanderSession.state.capabilities
+    : [];
+  const verified = caps.includes('config.write');
+  if (!verified) return '';
+  return shortenTenantValue(wanderSession.state.walletHash);
+});
+
+const odyseeTenantTitle = computed(() => {
+  const v = String(lastOdyseeWalletHash.value || '').trim();
+  return v ? `walletHash: ${v}` : '';
+});
+
+const wanderTenantTitle = computed(() => {
+  if (!wanderSession.state.address || wanderSession.state.sessionStale) return '';
+  const caps = Array.isArray(wanderSession.state.capabilities)
+    ? wanderSession.state.capabilities
+    : [];
+  const verified = caps.includes('config.write');
+  if (!verified) return '';
+  const v = String(wanderSession.state.walletHash || '').trim();
+  return v ? `walletHash: ${v}` : '';
+});
 const LAYOUT_RESIZE_EVENT = 'admin:layout-resized';
 let layoutResizeFrame = null;
 
@@ -914,8 +1006,12 @@ onMounted(() => {
   });
 
   refreshSidebarIcon();
+  loadTenantIndicators();
   try {
-    channelConfigUpdatedHandler = () => refreshSidebarIcon();
+    channelConfigUpdatedHandler = () => {
+      refreshSidebarIcon();
+      loadTenantIndicators();
+    };
     window.addEventListener('getty-session-updated', channelConfigUpdatedHandler);
     window.addEventListener('getty-channel-analytics-config-updated', channelConfigUpdatedHandler);
   } catch {}

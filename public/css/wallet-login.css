@@ -403,7 +403,8 @@ html.dark .getty-login-chooser-overlay {
 }
 
 .getty-login-chooser__input::placeholder {
-  opacity: 0.55;
+  color: var(--getty-chooser-muted);
+  opacity: 0.85;
 }
 
 .getty-login-chooser__hint {

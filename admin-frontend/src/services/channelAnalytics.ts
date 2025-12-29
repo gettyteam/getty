@@ -27,6 +27,13 @@ export interface ChannelAnalyticsOverview {
   highlights: ChannelAnalyticsHighlights | null;
 }
 
+export interface ChannelAnalyticsOverviewEnvelope {
+  data: ChannelAnalyticsOverview;
+  stale?: boolean;
+  fetchedAt?: string | null;
+  cacheFallback?: boolean;
+}
+
 export interface ChannelAnalyticsHighlightVideo {
   uri: string | null;
   title: string | null;
@@ -75,9 +82,30 @@ export interface ChannelAnalyticsConfigPayload {
   clearAuthToken?: boolean;
 }
 
-export async function fetchChannelAnalytics(range: ChannelAnalyticsRange) {
+function extractOverviewEnvelope(responseData: any): ChannelAnalyticsOverviewEnvelope | null {
+  if (!responseData) return null;
+  if (responseData.data && responseData.data.totals && responseData.data.bars) {
+    return responseData as ChannelAnalyticsOverviewEnvelope;
+  }
+
+  if (responseData.totals && responseData.bars && responseData.range) {
+    return { data: responseData as ChannelAnalyticsOverview };
+  }
+  return null;
+}
+
+export async function fetchChannelAnalyticsEnvelope(range: ChannelAnalyticsRange) {
   const response = await api.get('/api/channel-analytics/overview', { params: { range } });
-  return response?.data?.data as ChannelAnalyticsOverview;
+  const envelope = extractOverviewEnvelope(response?.data);
+  if (!envelope) {
+    return { data: response?.data?.data as ChannelAnalyticsOverview } as ChannelAnalyticsOverviewEnvelope;
+  }
+  return envelope;
+}
+
+export async function fetchChannelAnalytics(range: ChannelAnalyticsRange) {
+  const envelope = await fetchChannelAnalyticsEnvelope(range);
+  return envelope.data;
 }
 
 export async function fetchChannelAnalyticsConfig() {

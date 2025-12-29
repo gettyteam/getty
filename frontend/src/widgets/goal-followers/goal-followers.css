@@ -1,6 +1,6 @@
 :root {
   --gf-bg: transparent;
-  --gf-card-bg: rgba(8, 12, 16, 0.92);
+  --gf-card-bg: rgba(8, 12, 16);
   --gf-font: #ffffff;
   --gf-muted: rgba(255, 255, 255, 0.75);
   --gf-progress: #00ff7f;

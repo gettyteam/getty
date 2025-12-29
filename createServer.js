@@ -1401,8 +1401,15 @@ app.use((req, res, next) => {
   next();
 });
 
-const limiter = rateLimit({ windowMs: 60 * 1000, max: 60 });
-const strictLimiter = rateLimit({ windowMs: 60 * 1000, max: 20 });
+const rlWindowMs = parseInt(process.env.GETTY_RL_WINDOW_MS || '60000', 10);
+const rlMax = parseInt(process.env.GETTY_RL_MAX || '60', 10);
+
+const strictWindowMs = parseInt(process.env.GETTY_STRICT_RL_WINDOW_MS || String(rlWindowMs), 10);
+const strictDefaultMax = process.env.NODE_ENV === 'production' ? 20 : 120;
+const strictMax = parseInt(process.env.GETTY_STRICT_RL_MAX || String(strictDefaultMax), 10);
+
+const limiter = rateLimit({ windowMs: rlWindowMs, max: rlMax });
+const strictLimiter = rateLimit({ windowMs: strictWindowMs, max: strictMax });
 
 try {
   const ENABLE_AUDIT = process.env.GETTY_ENABLE_AUDIT === '1';

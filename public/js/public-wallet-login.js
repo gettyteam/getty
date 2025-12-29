@@ -1644,7 +1644,7 @@ class WanderWalletLogin {
         existingPerms = (await wallet.getPermissions()) || [];
       } catch {}
     }
-    const needed = ['ACCESS_ADDRESS', 'ACCESS_PUBLIC_KEY', 'SIGN_MESSAGE'];
+    const needed = ['ACCESS_ADDRESS', 'ACCESS_PUBLIC_KEY', 'SIGNATURE'];
     const hasAll = needed.every((p) => existingPerms.includes(p));
     const address = hasAll
       ? await this.getActiveAddressSafe(wallet)
@@ -2445,7 +2445,6 @@ class WanderWalletLogin {
       'ACCESS_ADDRESS',
       'ACCESS_PUBLIC_KEY',
       'SIGNATURE',
-      'SIGN_MESSAGE',
       'DISPATCH',
     ];
     const attempts = [];

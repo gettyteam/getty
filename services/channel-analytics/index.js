@@ -84,12 +84,17 @@ function buildFormPayload(fields) {
 }
 
 function buildFormHeaders(token, extras) {
+  const userAgent =
+    (typeof process.env.GETTY_ODYSEE_USER_AGENT === 'string' && process.env.GETTY_ODYSEE_USER_AGENT.trim()) ||
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
   return {
     ...buildAuthHeaders(token, extras),
     Origin: ODYSEE_WEB_ORIGIN,
     Referer: `${ODYSEE_WEB_ORIGIN}/`,
     'Content-Type': 'application/x-www-form-urlencoded',
     Accept: '*/*',
+    'User-Agent': userAgent,
+    'Accept-Language': 'en-US,en;q=0.9',
   };
 }
 
@@ -447,7 +452,16 @@ async function fetchSubscriptionCount(authToken, claimId, extras = {}) {
       { timeout: 7000, headers }
     );
     const counts = resp?.data?.data || resp?.data?.result || {};
-    const value = counts?.sub_count || counts?.subscriptions || counts?.count || 0;
+    const value =
+      counts?.sub_count ||
+      counts?.subscriber_count ||
+      counts?.subscriberCount ||
+      counts?.followers ||
+      counts?.follower_count ||
+      counts?.followerCount ||
+      counts?.subscriptions ||
+      counts?.count ||
+      0;
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
   } catch (err) {
@@ -545,7 +559,7 @@ async function fetchChannelReactions(authToken, claimIds) {
       const resp = await axios.post(ODYSEE_REACTION_LIST_URL, payload, {
         timeout: 10000,
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          ...buildFormHeaders(authToken),
         },
       });
       const data = resp?.data?.data || {};
@@ -580,12 +594,7 @@ async function fetchChannelStats({ authToken, channelHandle, claimId }) {
   try {
     const resp = await axios.post(ODYSEE_CHANNEL_STATS_URL, payload, {
       timeout: 7000,
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Accept: '*/*',
-        Origin: ODYSEE_WEB_ORIGIN,
-        Referer: `${ODYSEE_WEB_ORIGIN}/`,
-      },
+      headers: buildFormHeaders(authToken),
     });
     return resp?.data?.data || null;
   } catch (err) {
@@ -745,6 +754,20 @@ function normalizeStatNumber(value) {
   return Number.isFinite(numeric) ? numeric : 0;
 }
 
+function pickField(raw, keys) {
+  if (!raw || typeof raw !== 'object') return undefined;
+  if (!Array.isArray(keys)) return undefined;
+  for (const key of keys) {
+    if (!key) continue;
+    if (raw[key] !== undefined) return raw[key];
+    const snake = String(key).replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
+    if (snake && raw[snake] !== undefined) return raw[snake];
+    const lower = String(key).toLowerCase();
+    if (lower && raw[lower] !== undefined) return raw[lower];
+  }
+  return undefined;
+}
+
 function buildOdyseeContentUrl(uri) {
   if (!uri || typeof uri !== 'string') return null;
   let value = uri.trim();
@@ -772,29 +795,85 @@ function createVideoHighlight({ uri, title, views, change }) {
 
 function mapChannelStats(raw) {
   if (!raw || typeof raw !== 'object') return null;
+  const channelUri = pickField(raw, ['ChannelURI', 'channelUri', 'uri', 'channel_uri']);
+  const subs = pickField(raw, [
+    'ChannelSubs',
+    'ChannelSubscribers',
+    'channelSubs',
+    'subscribers',
+    'subscriberCount',
+    'subscriber_count',
+    'followers',
+    'followerCount',
+    'follower_count',
+  ]);
+  const subsChange = pickField(raw, [
+    'ChannelSubChange',
+    'ChannelSubsChange',
+    'channelSubChange',
+    'subChange',
+    'subscriberChange',
+    'subscriber_change',
+    'followerChange',
+    'follower_change',
+  ]);
+  const views = pickField(raw, [
+    'AllContentViews',
+    'AllContentViewCount',
+    'allContentViews',
+    'views',
+    'viewCount',
+    'view_count',
+    'all_content_views',
+    'all_content_view_count',
+  ]);
+  const viewsChange = pickField(raw, [
+    'AllContentViewChange',
+    'AllContentViewsChange',
+    'allContentViewChange',
+    'viewsChange',
+    'view_change',
+    'all_content_view_change',
+  ]);
+
+  const topAllTimeUri = pickField(raw, ['VideoURITopAllTime', 'videoUriTopAllTime', 'video_uri_top_all_time']);
+  const topAllTimeTitle = pickField(raw, ['VideoTitleTopAllTime', 'videoTitleTopAllTime', 'video_title_top_all_time']);
+  const topAllTimeViews = pickField(raw, ['VideoViewsTopAllTime', 'videoViewsTopAllTime', 'video_views_top_all_time']);
+  const topAllTimeChange = pickField(raw, ['VideoViewChangeTopAllTime', 'videoViewChangeTopAllTime', 'video_view_change_top_all_time']);
+
+  const topNewUri = pickField(raw, ['VideoURITopNew', 'videoUriTopNew', 'video_uri_top_new']);
+  const topNewTitle = pickField(raw, ['VideoTitleTopNew', 'videoTitleTopNew', 'video_title_top_new']);
+  const topNewViews = pickField(raw, ['VideoViewsTopNew', 'videoViewsTopNew', 'video_views_top_new']);
+  const topNewChange = pickField(raw, ['VideoViewChangeTopNew', 'videoViewChangeTopNew', 'video_view_change_top_new']);
+
+  const topCommentedUri = pickField(raw, ['VideoURITopCommentNew', 'videoUriTopCommentNew', 'video_uri_top_comment_new']);
+  const topCommentedTitle = pickField(raw, ['VideoTitleTopCommentNew', 'videoTitleTopCommentNew', 'video_title_top_comment_new']);
+  const topCommentedViews = pickField(raw, ['VideoCommentTopCommentNew', 'videoCommentTopCommentNew', 'video_comment_top_comment_new']);
+  const topCommentedChange = pickField(raw, ['VideoCommentChangeTopCommentNew', 'videoCommentChangeTopCommentNew', 'video_comment_change_top_comment_new']);
+
   return {
-    channelUri: raw.ChannelURI || null,
-    subs: normalizeStatNumber(raw.ChannelSubs),
-    subsChange: normalizeStatNumber(raw.ChannelSubChange),
-    views: normalizeStatNumber(raw.AllContentViews),
-    viewsChange: normalizeStatNumber(raw.AllContentViewChange),
+    channelUri: channelUri || null,
+    subs: normalizeStatNumber(subs),
+    subsChange: normalizeStatNumber(subsChange),
+    views: normalizeStatNumber(views),
+    viewsChange: normalizeStatNumber(viewsChange),
     topAllTime: createVideoHighlight({
-      uri: raw.VideoURITopAllTime,
-      title: raw.VideoTitleTopAllTime,
-      views: raw.VideoViewsTopAllTime,
-      change: raw.VideoViewChangeTopAllTime,
+      uri: topAllTimeUri,
+      title: topAllTimeTitle,
+      views: topAllTimeViews,
+      change: topAllTimeChange,
     }),
     topNew: createVideoHighlight({
-      uri: raw.VideoURITopNew,
-      title: raw.VideoTitleTopNew,
-      views: raw.VideoViewsTopNew,
-      change: raw.VideoViewChangeTopNew,
+      uri: topNewUri,
+      title: topNewTitle,
+      views: topNewViews,
+      change: topNewChange,
     }),
     topCommented: createVideoHighlight({
-      uri: raw.VideoURITopCommentNew,
-      title: raw.VideoTitleTopCommentNew,
-      views: raw.VideoCommentTopCommentNew,
-      change: raw.VideoCommentChangeTopCommentNew,
+      uri: topCommentedUri,
+      title: topCommentedTitle,
+      views: topCommentedViews,
+      change: topCommentedChange,
     }),
   };
 }
