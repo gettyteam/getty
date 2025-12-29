@@ -1,16 +1,16 @@
 {
   "en": {
-    "version": "1.1.4",
-    "title": "Welcome to the new dashboard!",
-    "message": "We've updated getty v1.1.4 Handshake: Discover the new features and functionalities in this new update.",
-    "link": "https://getty.sh/en/blog/update.1.1.4/",
+    "version": "1.1.5",
+    "title": "Welcome to getty!",
+    "message": "Introducing getty v1.1.5: dýnami: Discover the new features and functionalities in this new update.",
+    "link": "https://getty.sh/en/blog/update.1.1.5/",
     "linkText": "Visit our blog"
   },
   "es": {
-    "version": "1.1.4",
-    "title": "¡Bienvenido al nuevo panel!",
-    "message": "Actualizamos getty v1.1.4 Handshake: Descubre las nuevas características y funcionalidades en esta nueva actualización.",
-    "link": "https://getty.sh/es/blog/update.1.1.4/",
+    "version": "1.1.5",
+    "title": "¡Bienvenido a getty!",
+    "message": "Presentamos getty v1.1.5: dýnami: Descubre las nuevas características y funcionalidades en esta nueva actualización.",
+    "link": "https://getty.sh/es/blog/update.1.1.5/",
     "linkText": "Visita nuestro blog"
   }
 }
