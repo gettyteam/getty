@@ -222,8 +222,6 @@ async function connectAddress() {
   try {
     const provider = await resolveProvider();
     if (!provider.hasProvider) throw new Error(t('wanderAuth.errorNoWallet'));
-    // Request the full minimal permission set (SIGNATURE is required for signMessage in Wander)
-    // during the user click so the wallet can prompt for signing permission now.
     await provider.ensurePermissions([...MINIMUM_WALLET_PERMISSIONS]);
     const addr = await provider.getActiveAddress();
     if (!addr) throw new Error(t('wanderAuth.errorNoAddressFromExtension'));
@@ -340,8 +338,6 @@ async function verifySignature() {
         throw new Error(t('wanderAuth.errorAddressMismatch'));
       const msg = challengeMessage.value;
       if (!msg) throw new Error(t('wanderAuth.errorNoChallenge'));
-      // Require the user to have connected their address first (this ensures
-      // the wallet had a chance to grant signing permissions in a user gesture).
       if (!extState.value.permissions.address)
         throw new Error(t('wanderAuth.errorAddressRequired'));
 
