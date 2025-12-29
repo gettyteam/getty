@@ -114,6 +114,10 @@ const ODYSEE_CHANNEL_STATS_URL = `${ODYSEE_PUBLIC_API}/channel/stats`;
 const ODYSEE_WEB_ORIGIN = process.env.ODYSEE_WEB_ORIGIN || DEFAULT_WEB_ORIGIN;
 const SUPPORTED_RANGES = ['day', 'week', 'month', 'halfyear', 'year'];
 
+const ODYSEE_UPSTREAM_BLOCK_MS = 5 * 60 * 1000;
+let __viewCountBlockedUntilMs = 0;
+let __subCountBlockedUntilMs = 0;
+
 const RANGE_PRESETS = {
   day: {
     count: 14,
@@ -442,7 +446,8 @@ function buildAuthHeaders(token, extras = {}) {
 }
 
 async function fetchSubscriptionCount(authToken, claimId, extras = {}) {
-  if (!authToken || !isClaimId(claimId)) return 0;
+  if (!authToken || !isClaimId(claimId)) return null;
+  if (Date.now() < __subCountBlockedUntilMs) return null;
   const headers = buildFormHeaders(authToken, extras);
   const payload = buildFormPayload({ auth_token: authToken, claim_id: claimId });
   try {
@@ -453,22 +458,27 @@ async function fetchSubscriptionCount(authToken, claimId, extras = {}) {
     );
     const counts = resp?.data?.data || resp?.data?.result || {};
     const value =
-      counts?.sub_count ||
-      counts?.subscriber_count ||
-      counts?.subscriberCount ||
-      counts?.followers ||
-      counts?.follower_count ||
-      counts?.followerCount ||
-      counts?.subscriptions ||
-      counts?.count ||
-      0;
+      counts?.sub_count ??
+      counts?.subscriber_count ??
+      counts?.subscriberCount ??
+      counts?.followers ??
+      counts?.follower_count ??
+      counts?.followerCount ??
+      counts?.subscriptions ??
+      counts?.count ??
+      null;
+    if (value === null || value === undefined) return null;
     const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : 0;
+    return Number.isFinite(parsed) ? parsed : null;
   } catch (err) {
+    const status = err?.response?.status;
+    if (status === 403 || status === 429) {
+      __subCountBlockedUntilMs = Date.now() + ODYSEE_UPSTREAM_BLOCK_MS;
+    }
     try {
       console.warn('[channel-analytics] sub_count failed', err.message);
     } catch {}
-    return 0;
+    return null;
   }
 }
 
@@ -479,8 +489,11 @@ async function fetchChannelSubscriberCount({ authToken, claimId, idToken, lbryId
 async function fetchViewCounts(authToken, claimTargets, extras = {}) {
   const map = new Map();
   if (!authToken || !Array.isArray(claimTargets) || !claimTargets.length) return map;
+  if (Date.now() < __viewCountBlockedUntilMs) return map;
   const headers = buildFormHeaders(authToken, extras);
+  let blocked = false;
   for (const target of claimTargets) {
+    if (blocked) break;
     if (!target.claimId && !target.permanentUrl) continue;
     const normalizedUrl = normalizePermanentUrl(target.permanentUrl);
     let handled = false;
@@ -525,6 +538,10 @@ async function fetchViewCounts(authToken, claimTargets, extras = {}) {
         const status = err?.response?.status;
         if (status === 400) {
           continue;
+        }
+        if (status === 403 || status === 429) {
+          __viewCountBlockedUntilMs = Date.now() + ODYSEE_UPSTREAM_BLOCK_MS;
+          blocked = true;
         }
         try {
           console.warn('[channel-analytics] view_count failed for claim', target.claimId || normalizedUrl, err.message);

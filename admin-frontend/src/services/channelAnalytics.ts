@@ -82,6 +82,33 @@ export interface ChannelAnalyticsConfigPayload {
   clearAuthToken?: boolean;
 }
 
+const __inflight = new Map<string, Promise<any>>();
+const __lastOk = new Map<string, { ts: number; value: any }>();
+const __COOLDOWN_MS = 1500;
+
+function withDedupe<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const now = Date.now();
+  const cached = __lastOk.get(key);
+  if (cached && now - cached.ts < __COOLDOWN_MS) {
+    return Promise.resolve(cached.value as T);
+  }
+
+  const inflight = __inflight.get(key);
+  if (inflight) return inflight as Promise<T>;
+
+  const p = (async () => {
+    const value = await fn();
+    __lastOk.set(key, { ts: Date.now(), value });
+    return value;
+  })()
+    .finally(() => {
+      __inflight.delete(key);
+    });
+
+  __inflight.set(key, p);
+  return p;
+}
+
 function extractOverviewEnvelope(responseData: any): ChannelAnalyticsOverviewEnvelope | null {
   if (!responseData) return null;
   if (responseData.data && responseData.data.totals && responseData.data.bars) {
@@ -95,12 +122,15 @@ function extractOverviewEnvelope(responseData: any): ChannelAnalyticsOverviewEnv
 }
 
 export async function fetchChannelAnalyticsEnvelope(range: ChannelAnalyticsRange) {
-  const response = await api.get('/api/channel-analytics/overview', { params: { range } });
-  const envelope = extractOverviewEnvelope(response?.data);
-  if (!envelope) {
-    return { data: response?.data?.data as ChannelAnalyticsOverview } as ChannelAnalyticsOverviewEnvelope;
-  }
-  return envelope;
+  const key = `channelAnalytics:overview:${String(range)}`;
+  return withDedupe(key, async () => {
+    const response = await api.get('/api/channel-analytics/overview', { params: { range } });
+    const envelope = extractOverviewEnvelope(response?.data);
+    if (!envelope) {
+      return { data: response?.data?.data as ChannelAnalyticsOverview } as ChannelAnalyticsOverviewEnvelope;
+    }
+    return envelope;
+  });
 }
 
 export async function fetchChannelAnalytics(range: ChannelAnalyticsRange) {
@@ -109,8 +139,11 @@ export async function fetchChannelAnalytics(range: ChannelAnalyticsRange) {
 }
 
 export async function fetchChannelAnalyticsConfig() {
-  const response = await api.get('/config/channel-analytics-config.json');
-  return response.data as ChannelAnalyticsConfigResponse;
+  const key = 'channelAnalytics:config';
+  return withDedupe(key, async () => {
+    const response = await api.get('/config/channel-analytics-config.json');
+    return response.data as ChannelAnalyticsConfigResponse;
+  });
 }
 
 export async function saveChannelAnalyticsConfig(payload: ChannelAnalyticsConfigPayload) {

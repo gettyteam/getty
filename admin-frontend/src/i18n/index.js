@@ -1063,7 +1063,7 @@ const adminExtra = {
     loadFailedChat: 'Error al cargar configuración de chat',
     urlCopied: 'URL copiada al portapapeles',
     statusTitle: 'Analíticas',
-    statusOverviewNav: 'Resumen de stream',
+    statusOverviewNav: 'Transmisión',
     statusModules: 'Módulos',
     statusSystem: 'Sistema',
     statusLocale: 'Idioma',

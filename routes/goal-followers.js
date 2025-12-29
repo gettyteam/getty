@@ -342,10 +342,12 @@ function registerGoalFollowersRoutes(app, strictLimiter, options = {}) {
           idToken: auth.idToken || undefined,
           lbryId: auth.lbryId || undefined,
         });
-        const numeric = Number(direct);
-        if (Number.isFinite(numeric) && numeric >= 0) {
-          count = numeric;
-          resolvedFromUpstream = true;
+        if (direct !== null && direct !== undefined) {
+          const numeric = Number(direct);
+          if (Number.isFinite(numeric) && numeric >= 0) {
+            count = numeric;
+            resolvedFromUpstream = true;
+          }
         }
       } catch {
         /* noop */
@@ -361,6 +363,21 @@ function registerGoalFollowersRoutes(app, strictLimiter, options = {}) {
           if (Number.isFinite(subs) && subs >= 0) {
             count = subs;
             resolvedFromUpstream = true;
+          }
+        } catch {
+          /* noop */
+        }
+      }
+
+      if (resolvedFromUpstream && Number(count) === 0) {
+        try {
+          const stats = await fetchChannelStats({
+            authToken: auth.authToken,
+            claimId: cfg.claimId,
+          });
+          const subs = Number(stats?.ChannelSubs);
+          if (Number.isFinite(subs) && subs > 0) {
+            count = subs;
           }
         } catch {
           /* noop */

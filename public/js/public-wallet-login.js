@@ -266,7 +266,7 @@ class WanderWalletLogin {
 
     const bindLegacyMenu = () => {
       if (!langMenu) return;
-      // Skip legacy binding if another owner already marked it as bound
+
       if (langBtn.dataset.langMenuBound === 'true' || langMenu.dataset.langMenuBound === 'true')
         return;
       if (langBtn.dataset.langMenuBridge === 'legacy') return;
@@ -1287,9 +1287,6 @@ class WanderWalletLogin {
           return;
         }
 
-        try {
-          console.warn('[odysee-login] failed', resp);
-        } catch {}
         if (resp?.error === 'odysee_email_not_found') {
           setErr(this.t('publicAuth.emailNotFound'));
           return;
@@ -1318,20 +1315,21 @@ class WanderWalletLogin {
           } catch {}
 
           setErr(
-            'No se pudo detectar tu wallet. Ingresa tu dirección de Arweave o permite acceso a Wander para obtenerla.'
+            'Your wallet could not be detected. Enter your Arweave address or allow Wander access to obtain it.'
           );
           return;
         }
 
-        let msg = resp?.error || 'odysee_login_failed';
-        const reason = resp?.details?.reason;
-        const method = resp?.details?.method;
-        const rpcErr = resp?.details?.rpcError;
-        if (reason) msg += ` (${reason})`;
-        if (method) msg += ` [${method}]`;
-        if (rpcErr && typeof rpcErr === 'object' && rpcErr.message) msg += `: ${rpcErr.message}`;
-        else if (rpcErr && typeof rpcErr !== 'object') msg += `: ${String(rpcErr)}`;
-        setErr(msg);
+        const code = resp?.error || 'odysee_login_failed';
+        if (code === 'odysee_login_failed') {
+          setErr(
+            this.t('publicAuth.loginFailed') ||
+              "Couldn't sign in. Check your email and password, then try again."
+          );
+          return;
+        }
+
+        setErr(code);
         return;
       }
 
@@ -1556,7 +1554,6 @@ class WanderWalletLogin {
       if (stored) return String(stored).trim();
     } catch {}
 
-    // Avoid opening a wallet-connect modal unless explicitly allowed.
     if (!allowConnect) return '';
 
     try {

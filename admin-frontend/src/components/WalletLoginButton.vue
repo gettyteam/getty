@@ -396,19 +396,18 @@ async function submitOdyseeLogin() {
         } catch {}
 
         throw new Error(
-          'No se pudo detectar tu wallet. Ingresa tu dirección de Arweave o permite acceso a Wander para obtenerla.'
+          'Your wallet could not be detected. Enter your Arweave address or allow Wander access to obtain it..'
         );
       }
 
-      let msg = res?.error || 'odysee_login_failed';
-      const reason = res?.details?.reason;
-      const method = res?.details?.method;
-      const rpcErr = res?.details?.rpcError;
-      if (reason) msg += ` (${reason})`;
-      if (method) msg += ` [${method}]`;
-      if (rpcErr && typeof rpcErr === 'object' && rpcErr.message) msg += `: ${rpcErr.message}`;
-      else if (rpcErr && typeof rpcErr !== 'object') msg += `: ${String(rpcErr)}`;
-      throw new Error(msg);
+      const code = res?.error || 'odysee_login_failed';
+      if (code === 'odysee_login_failed') {
+        throw new Error(
+          t('publicAuth.loginFailed') ||
+            'Login failed. Check your email and password and try again.'
+        );
+      }
+      throw new Error(code);
     }
 
     if (res.widgetToken) persistWidgetToken(res.widgetToken, res.expiresAt);

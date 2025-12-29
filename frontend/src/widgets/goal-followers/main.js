@@ -197,14 +197,28 @@ function withWidgetToken(url, widgetToken) {
 }
 
 async function safeFetchJson(url, widgetToken) {
+  if (safeFetchJson.__blockedUntil && Date.now() < safeFetchJson.__blockedUntil) return null;
   try {
     const res = await fetch(withWidgetToken(url, widgetToken), { cache: 'no-store' });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      if (res.status === 429) {
+        const prev = typeof safeFetchJson.__backoffMs === 'number' ? safeFetchJson.__backoffMs : 0;
+        const next = Math.min(prev ? Math.round(prev * 1.8) : 5000, 60000);
+        safeFetchJson.__backoffMs = next;
+        safeFetchJson.__blockedUntil = Date.now() + next;
+      }
+      return null;
+    }
+    safeFetchJson.__backoffMs = 0;
+    safeFetchJson.__blockedUntil = 0;
     return await res.json();
   } catch {
     return null;
   }
 }
+
+safeFetchJson.__backoffMs = 0;
+safeFetchJson.__blockedUntil = 0;
 
 async function loadAudioSettings(widgetToken) {
   const settings = await safeFetchJson(`/api/goal-followers-audio-settings`, widgetToken);
@@ -246,7 +260,10 @@ async function main() {
   let ws = null;
   let wsConnected = false;
   let reconnectTimer = null;
-  let reconnectDelay = 1000;
+  let reconnectDelay = 5000;
+
+  let tickInFlight = null;
+  let lastTickAt = 0;
 
   const render = (state) => {
     lastStatus = state || { active: false };
@@ -465,7 +482,7 @@ async function main() {
     if (reconnectTimer) return;
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null;
-      reconnectDelay = Math.min(15000, reconnectDelay * 1.5);
+      reconnectDelay = Math.min(60000, Math.round(reconnectDelay * 1.6));
       connectWebSocket();
     }, reconnectDelay);
   };
@@ -490,9 +507,9 @@ async function main() {
 
       ws.onopen = async () => {
         wsConnected = true;
-        reconnectDelay = 1000;
+        reconnectDelay = 5000;
         try {
-          await tick();
+          await runTick('ws-open');
         } catch {}
       };
 
@@ -583,16 +600,32 @@ async function main() {
     await handleStatus(status);
   };
 
-  await tick();
+  const runTick = async (_reason) => {
+    if (tickInFlight) return tickInFlight;
+    const now = Date.now();
+    if (now - lastTickAt < 5000) return null;
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return null;
+    lastTickAt = now;
+    tickInFlight = (async () => {
+      try {
+        await tick();
+      } finally {
+        tickInFlight = null;
+      }
+    })();
+    return tickInFlight;
+  };
+
+  await runTick('initial');
 
   connectWebSocket();
 
-  const FALLBACK_TICK_MS = 15000;
-  const CURRENT_POLL_MS = 60000;
+  const FALLBACK_TICK_MS = 120000;
+  const CURRENT_POLL_MS = 120000;
 
   setInterval(async () => {
     if (wsConnected) return;
-    await tick();
+    await runTick('fallback');
   }, FALLBACK_TICK_MS);
 
   setInterval(async () => {

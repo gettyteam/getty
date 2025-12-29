@@ -474,6 +474,9 @@ onMounted(() => {
     sessionUpdatedHandler = async () => {
       await ensureSession();
       await loadConfig();
+      if (analyticsReady.value && !['halfyear', 'year'].includes(range.value)) {
+        await loadOverview(range.value);
+      }
     };
     window.addEventListener('getty-session-updated', sessionUpdatedHandler as any);
   } catch {}

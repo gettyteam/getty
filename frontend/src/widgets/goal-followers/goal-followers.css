@@ -8,8 +8,8 @@
 }
 
 #goal-followers-widget {
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 80vh;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -29,11 +29,14 @@
 }
 
 .gf-card {
-  width: var(--gf-width, 560px);
-  height: var(--gf-height, 140px);
+  width: var(--gf-width, 450px);
+  height: var(--gf-height, 150px);
+  max-width: 100%;
+  max-height: 100%;
   background: var(--gf-card-bg);
   border-radius: var(--gf-radius);
   padding: 16px 18px;
+  box-sizing: border-box;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
@@ -70,6 +73,10 @@
 .gf-track {
   width: 100%;
   height: 18px;
+  min-height: 18px;
+  flex: 0 0 18px;
+  display: block;
+  line-height: 18px;
   background: rgba(255, 255, 255, 0.12);
   border-radius: 8px;
   overflow: hidden;
@@ -78,6 +85,7 @@
 
 .gf-fill {
   height: 100%;
+  min-height: 18px;
   width: 0%;
   background: var(--gf-progress);
   border-radius: inherit;

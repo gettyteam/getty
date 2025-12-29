@@ -8,6 +8,7 @@
   "publicAuth.odyseeHint": "Sign in with your Odysee account.",
   "publicAuth.emailVerificationRequired": "We sent you a magic link by email. Click it, then come back here to finish signing in.",
   "publicAuth.emailNotFound": "That email address isn't registered on Odysee.",
+  "publicAuth.loginFailed": "Couldn't sign in. Check your email and password, then try again.",
   "publicAuth.needsWalletVerification": "To edit settings, connect Wander and sign to verify your wallet.",
   "publicAuth.needsWalletAddress": "No wallet detected. Connect Wander or enter your Arweave address to use your saved settings.",
   "publicAuth.verifyWithWander": "Verify with Wander",
