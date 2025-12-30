@@ -11,14 +11,14 @@
         <div class="flex items-center gap-4">
           <a href="/" class="logo-link" aria-label="getty home" data-i18n-aria="dashboardHome">
             <img
-              :src="'/img/getty-fav.png'"
+              src="/img/getty-fav.png"
               alt="getty"
               class="h-8 w-8 sm:hidden"
               decoding="async"
               fetchpriority="high"
               height="32"
               width="32" />
-            <span class="hidden sm:inline-flex items-center">
+            <div class="desktop-logo-hidden flex items-center">
               <img
                 src="https://aqet2p7rnwvvcvraawg2ojq7sfyals6jav2dh6vm7occr347kfsa.arweave.net/BAk9P_Ftq1FWIAWNpyYfkXAFy8kFdDP6rPuEKO-fUWQ"
                 alt="getty"
@@ -32,7 +32,7 @@
                 class="h-10 w-auto light-logo"
                 decoding="async"
                 height="40" />
-            </span>
+            </div>
           </a>
           <div
             id="user-welcome-message"
@@ -233,27 +233,6 @@ async function fetchModulesStatus() {
     await nextTick();
 
     languageManager.updatePageLanguage();
-
-    setTimeout(() => {
-      notifyLegacyBridge();
-    }, 1000);
-  }
-}
-
-function notifyLegacyBridge() {
-  const root = document.getElementById('app-root');
-  window.__GETTY_VUE_IS_READY = true;
-  window.dispatchEvent(
-    new CustomEvent('getty-dashboard-vue-ready', {
-      detail: { root },
-    })
-  );
-  if (typeof window.__GETTY_DASHBOARD_VUE_READY__ === 'function') {
-    try {
-      window.__GETTY_DASHBOARD_VUE_READY__();
-    } catch (error) {
-      console.warn('[dashboard] failed to notify legacy bridge', error);
-    }
   }
 }
 
@@ -280,3 +259,11 @@ onBeforeUnmount(() => {
   });
 });
 </script>
+
+<style>
+@media (max-width: 639px) {
+  .desktop-logo-hidden {
+    display: none !important;
+  }
+}
+</style>

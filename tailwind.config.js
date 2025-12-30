@@ -7,6 +7,9 @@ module.exports = {
     './public/**/*.js',
     './admin-frontend/index.html',
     './admin-frontend/src/**/*.{vue,js,ts,jsx,tsx,html}',
+    './frontend/*.html',
+    './frontend/src/**/*.{vue,js,ts,jsx,tsx,html}',
+    './frontend/widgets/**/*.html',
   ],
   darkMode: 'class',
   theme: {

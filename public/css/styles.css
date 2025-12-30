@@ -144,7 +144,6 @@ body {
   justify-content: center;
 }
 
-/* Estilos para formularios de administración */
 .admin-sections {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
