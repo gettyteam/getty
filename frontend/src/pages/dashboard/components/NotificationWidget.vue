@@ -1,62 +1,51 @@
 <template>
-  <section class="os-card overflow-hidden flex flex-col md:order-3 lg:order-3">
-    <h2 class="os-panel-title">
-      <span class="icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24">
-          <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path>
-          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-        </svg>
-      </span>
-      <span data-i18n="notificationsTitle">{{
-        getI18nText('notificationsTitle', 'Notifications')
-      }}</span>
-    </h2>
-    <div class="flex-1 flex flex-col justify-center relative">
-      <BlockedState v-if="isBlocked" module-name="Notifications" />
-      <template v-else>
-        <transition name="fade" mode="out-in">
-          <div
-            v-if="!currentNotification"
-            key="waiting"
-            class="flex items-center justify-center h-full text-gray-500 text-sm p-4"
-            data-i18n="notificationWaiting">
-            {{ getI18nText('notificationWaiting', 'Waiting for tips...') }}
-          </div>
-
-          <div v-else key="card" class="notification-card" :style="cssVars">
-            <div class="notification-content">
-              <div class="notification-icon">
-                <img :src="avatarUrl" alt="User Avatar" @error="handleImageError" />
+  <component
+    :is="embedded ? 'div' : 'section'"
+    :class="
+      embedded
+        ? 'flex-1 flex flex-col justify-center relative min-h-0'
+        : 'os-card overflow-hidden flex flex-col md:order-3 lg:order-3'
+    ">
+    <BlockedState v-if="isBlocked" module-name="Notifications" />
+    <template v-else>
+      <transition name="fade" mode="out-in">
+        <div
+          v-if="!currentNotification"
+          key="waiting"
+          class="flex items-center justify-center h-full text-gray-500 text-sm p-4"
+          data-i18n="notificationWaiting">
+          {{ getI18nText('notificationWaiting', 'Waiting for tips...') }}
+        </div>
+        <div v-else key="card" class="notification-card" :style="cssVars">
+          <div class="notification-content">
+            <div class="notification-icon">
+              <img :src="avatarUrl" alt="User Avatar" @error="handleImageError" />
+            </div>
+            <div class="notification-text">
+              <div class="amount-container">
+                <span class="ar-amount">{{ arAmount }} AR</span>
+                <span class="usd-value">(${{ usdAmount }} USD)</span>
               </div>
-              <div class="notification-text">
-                <div class="notification-title" data-i18n="notificationTipReceived">
-                  {{ getI18nText('notificationTipReceived', '🎉 Tip Received!') }}
-                </div>
-                <div class="amount-container">
-                  <span class="ar-amount">{{ arAmount }} AR</span>
-                  <span class="usd-value">(${{ usdAmount }} USD)</span>
-                </div>
-                <div class="notification-from">
-                  {{ senderLabel }}
-                  <span data-i18n="notificationFrom">{{
-                    getI18nText('notificationFrom', 'From:')
-                  }}</span>
-                  {{ senderName }}
-                  <span class="thank-you">👏</span>
-                </div>
-                <!-- eslint-disable vue/no-v-html -->
-                <div
-                  v-if="formattedMessage"
-                  class="notification-message"
-                  v-html="sanitizedMessage"></div>
-                <!-- eslint-enable vue/no-v-html -->
+              <div class="notification-from">
+                {{ senderLabel }}
+                <span data-i18n="notificationFrom">
+                  {{ getI18nText('notificationFrom', 'From:') }}
+                </span>
+                {{ senderName }}
+                <span class="thank-you">👏</span>
               </div>
+              <!-- eslint-disable vue/no-v-html -->
+              <div
+                v-if="formattedMessage"
+                class="notification-message"
+                v-html="sanitizedMessage"></div>
+              <!-- eslint-enable vue/no-v-html -->
             </div>
           </div>
-        </transition>
-      </template>
-    </div>
-  </section>
+        </div>
+      </transition>
+    </template>
+  </component>
 </template>
 
 <script setup lang="ts">
@@ -70,6 +59,10 @@ import { i18nTrigger } from '../languageManager';
 
 defineProps({
   isBlocked: {
+    type: Boolean,
+    default: false,
+  },
+  embedded: {
     type: Boolean,
     default: false,
   },
@@ -119,7 +112,8 @@ const arAmount = computed(() => {
     const rawUsd = parseFloat(data.credits || 0) || 0;
     val = store.arPrice > 0 ? rawUsd / store.arPrice : rawUsd / 5;
   }
-  return val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 });
+  const truncated = Math.trunc(val * 1000) / 1000;
+  return truncated.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 });
 
 const usdAmount = computed(() => {
@@ -234,14 +228,6 @@ onMounted(() => {
 .notification-text {
   flex: 1;
   overflow: hidden;
-}
-
-.notification-title {
-  font-size: 20px;
-  font-weight: 800;
-  margin-bottom: 5px;
-  color: var(--tn-text, #ffffff);
-  line-height: 1.2;
 }
 
 .amount-container {

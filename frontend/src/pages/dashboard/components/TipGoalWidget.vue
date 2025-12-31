@@ -1,39 +1,37 @@
 <template>
   <section class="os-card overflow-hidden flex flex-col md:order-2 lg:order-2">
-    <h2 class="os-panel-title">
-      <span class="icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="10"></circle>
-          <path d="M12 6v6l4 2"></path>
-        </svg>
-      </span>
-      <span>{{ title }}</span>
-    </h2>
-    <div class="flex-1 flex flex-col justify-center">
+    <div
+      class="flex-1 flex flex-col"
+      :class="showNotificationsBelow ? 'overflow-hidden' : 'justify-center'">
       <BlockedState v-if="isBlocked" module-name="Tip Goal" />
-      <div
-        v-else
-        id="goal-widget"
-        class="p-4"
-        :class="{ celebrating: isCelebrating }"
-        :style="cssVars">
-        <div v-if="!hasData" class="skeleton skeleton-lg mb-2" data-skeleton="goal"></div>
+      <template v-else>
+        <div
+          id="dashboard-goal-widget"
+          class="p-4 bg-card dark:bg-neutral-950"
+          :class="{ celebrating: isCelebrating }"
+          :style="goalStyle">
+          <div v-if="!hasData" class="skeleton skeleton-lg mb-2" data-skeleton="goal"></div>
 
-        <div v-else class="goal-container">
-          <div class="goal-header">
-            <div class="goal-title">{{ title }}</div>
-            <div class="goal-amounts">
-              <span class="current-ar">{{ currentAR }}</span>
-              <span class="goal-ar">/ {{ goalAR }} AR</span>
-              <span class="usd-value">{{ usdValue }}</span>
+          <div v-else class="goal-container">
+            <div class="goal-header">
+              <div class="goal-title">{{ title }}</div>
+              <div class="goal-amounts">
+                <span class="current-ar">{{ currentAR }}</span>
+                <span class="goal-ar">/ {{ goalAR }} AR</span>
+                <span class="usd-value">{{ usdValue }}</span>
+              </div>
+            </div>
+            <div class="progress-container" :class="{ 'reached-goal': reachedGoal }">
+              <div class="progress-bar" :style="{ width: progressPercentage + '%' }"></div>
+              <div class="progress-text">{{ progressPercentage.toFixed(1) }}%</div>
             </div>
           </div>
-          <div class="progress-container" :class="{ 'reached-goal': reachedGoal }">
-            <div class="progress-bar" :style="{ width: progressPercentage + '%' }"></div>
-            <div class="progress-text">{{ progressPercentage.toFixed(1) }}%</div>
-          </div>
         </div>
-      </div>
+
+        <div v-if="showNotificationsBelow" class="flex-1 min-h-0">
+          <NotificationWidget :is-blocked="notificationBlocked" :embedded="true" />
+        </div>
+      </template>
     </div>
   </section>
 </template>
@@ -42,11 +40,20 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useWidgetStore } from '../../../stores/widgetStore';
 import BlockedState from './BlockedState.vue';
+import NotificationWidget from './NotificationWidget.vue';
 // @ts-ignore
 import { i18nTrigger } from '../languageManager';
 
 defineProps({
   isBlocked: {
+    type: Boolean,
+    default: false,
+  },
+  showNotificationsBelow: {
+    type: Boolean,
+    default: false,
+  },
+  notificationBlocked: {
     type: Boolean,
     default: false,
   },
@@ -101,11 +108,32 @@ const reachedGoal = computed(() => progressPercentage.value >= 100);
 
 const cssVars = computed(() => {
   const c = store.tipGoal || {};
+
+  const normalizeHex = (v: any) => (typeof v === 'string' ? v.trim().toLowerCase() : '');
+  const isObsDefaultBg = normalizeHex(c.bgColor) === '#080c10';
+  const isObsDefaultText = ['#ffffff', '#fff'].includes(normalizeHex(c.fontColor));
+
+  const shouldUseCustomBg = !!c.bgColor && !isObsDefaultBg;
+
   return {
-    '--tg-bg': c.bgColor || '#222',
-    '--tg-border': c.borderColor || '#ffcc00',
-    '--tg-text': c.fontColor || '#fff',
-    '--tg-progress': c.progressColor || '#00ff7f',
+    '--tg-bg': shouldUseCustomBg ? c.bgColor : undefined,
+    '--tg-border': c.borderColor || '#00ff7f',
+    '--tg-text': !c.fontColor || isObsDefaultText ? 'var(--text-primary)' : c.fontColor,
+    '--tg-progress': c.progressColor || 'linear-gradient(90deg, #7058a4, #c83fee)',
+  };
+});
+
+const hasCustomBg = computed(() => {
+  const c = store.tipGoal || {};
+  const normalizeHex = (v: any) => (typeof v === 'string' ? v.trim().toLowerCase() : '');
+  const isObsDefaultBg = normalizeHex(c.bgColor) === '#080c10';
+  return !!c.bgColor && !isObsDefaultBg;
+});
+
+const goalStyle = computed(() => {
+  return {
+    ...cssVars.value,
+    ...(hasCustomBg.value ? { backgroundColor: 'var(--tg-bg)' } : null),
   };
 });
 
@@ -154,7 +182,7 @@ const playGoalSound = async () => {
 };
 
 const createConfetti = () => {
-  const container = document.getElementById('goal-widget');
+  const container = document.getElementById('dashboard-goal-widget');
   if (!container) return;
 
   removeConfetti();
@@ -182,7 +210,7 @@ const createConfetti = () => {
 };
 
 const removeConfetti = () => {
-  const container = document.getElementById('goal-widget');
+  const container = document.getElementById('dashboard-goal-widget');
   if (!container) return;
   const existing = container.querySelectorAll('.confetti');
   existing.forEach((el) => el.remove());
@@ -207,11 +235,10 @@ onMounted(() => {
   }
 }
 
-#goal-widget {
-  background: var(--tg-bg, #080c10);
+#dashboard-goal-widget {
   border-radius: 4px;
   padding: 14px;
-  color: var(--tg-text, #ffffff);
+  color: var(--tg-text, var(--text-primary));
   font-family: var(--font-sans, sans-serif);
 }
 
@@ -226,7 +253,7 @@ onMounted(() => {
 .goal-title {
   font-size: 20px;
   font-weight: 800;
-  color: var(--tg-text, #fff);
+  color: var(--tg-text, var(--text-primary));
   margin-bottom: 8px;
   transition: all 0.3s ease;
 }
@@ -249,14 +276,14 @@ onMounted(() => {
 .goal-ar {
   font-size: 18px;
   font-weight: 800;
-  color: var(--tg-text, #fff);
+  color: var(--tg-text, var(--text-primary));
   transition: all 0.3s ease;
 }
 
 .usd-value {
   font-size: 15px;
   font-weight: 600;
-  color: var(--tg-text, #fff);
+  color: var(--tg-text, var(--text-primary));
   margin-left: auto;
   transition: all 0.3s ease;
 }

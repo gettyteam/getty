@@ -58,7 +58,7 @@
   height: 58px;
   display: block;
   color: #fff;
-  margin-top: 5px;
+  margin-top: 0px;
   transform-origin: 50% 50%;
   will-change: transform;
 }

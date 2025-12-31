@@ -168,13 +168,20 @@ class WanderWalletLogin {
     this.safeAttach(this.elements.loginBtn, 'click', () => void this.handleLoginClick().catch(() => {}));
     this.safeAttach(this.elements.logoutBtn, 'click', () => this.logout());
     this.safeAttach(this.elements.logoutInline, 'click', () => this.logout());
-    this.safeAttach(this.elements.openAdmin, 'click', () => {
-      try {
-        window.open('/admin/', '_self');
-      } catch {
-        window.location.href = '/admin/';
-      }
-    });
+    if (this.elements.openAdmin && this.elements.openAdmin.dataset.adminBound !== 'true') {
+      this.elements.openAdmin.dataset.adminBound = 'true';
+      this.safeAttach(this.elements.openAdmin, 'click', (e) => {
+        try {
+          e.preventDefault();
+          e.stopPropagation();
+        } catch {}
+
+        try {
+          const w = window.open('/admin/', '_blank', 'noopener,noreferrer');
+          if (w) w.opener = null;
+        } catch {}
+      });
+    }
 
     this.setupLangMenuBridge();
 

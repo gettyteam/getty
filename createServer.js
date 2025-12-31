@@ -702,6 +702,7 @@ const registerAnnouncementRoutes = require('./routes/announcement');
 const { AchievementsModule } = require('./modules/achievements');
 const registerAchievementsRoutes = require('./routes/achievements');
 const registerAdminDashboardRoutes = require('./routes/admin-dashboard');
+const registerDashboardPreferencesRoutes = require('./routes/dashboard-preferences');
 
 const { AnnouncementModule } = require('./modules/announcement');
 const RaffleModule = require('./modules/raffle');
@@ -4493,6 +4494,7 @@ registerAnnouncementRoutes(app, announcementModule, announcementLimiters);
 registerAchievementsRoutes(app, achievements, strictLimiter, { store });
 registerAdminDashboardRoutes(app, { store });
 registerEventsSettingsRoutes(app, strictLimiter, { store });
+registerDashboardPreferencesRoutes(app, strictLimiter, { store });
 registerUserRoutes(app, { store });
 registerStorageRoutes(app);
 

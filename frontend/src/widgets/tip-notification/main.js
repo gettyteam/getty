@@ -502,9 +502,10 @@ if (!window.__tip_notification_widget_started) {
         rawUsd = AR_TO_USD > 0 ? rawAr * AR_TO_USD : rawAr * 5;
       }
 
-      const arAmount = rawAr.toLocaleString('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 6
+      const arTruncated = Math.trunc(rawAr * 1000) / 1000;
+      const arAmount = arTruncated.toLocaleString('en-US', {
+        minimumFractionDigits: 3,
+        maximumFractionDigits: 3
       });
       const usdAmount = rawUsd.toLocaleString('en-US', {
         minimumFractionDigits: 2,

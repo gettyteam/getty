@@ -1,23 +1,11 @@
 <template>
-  <section class="os-card overflow-hidden flex flex-col h-[450px] md:order-5 lg:order-5">
-    <h2 class="os-panel-title">
-      <span class="icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24">
-          <rect x="2" y="5" width="20" height="14" rx="2"></rect>
-          <path d="M2 10h20"></path>
-          <path d="M8 15h.01"></path>
-          <path d="M12 15h.01"></path>
-          <path d="M16 15h.01"></path>
-        </svg>
-      </span>
-      <span data-i18n="raffleTitle">{{ getI18nText('raffleTitle', 'Giveaway') }}</span>
-    </h2>
-    <div class="flex-1 flex flex-col justify-center p-4">
+  <section class="os-card overflow-hidden flex flex-col h-[500px] md:order-5 lg:order-5">
+    <div class="flex-1 flex flex-col justify-center">
       <BlockedState v-if="isBlocked" module-name="Raffle" />
 
       <div
         v-else
-        class="raffle-embed bg-[#080c10] rounded-[6px] p-3 h-full flex flex-col"
+        class="raffle-embed bg-card dark:bg-neutral-950 border border-border rounded-[6px] p-3 h-full flex flex-col"
         aria-busy="true">
         <div v-if="winner" class="winner-display animate-fade-in">
           <div class="winner-icon">🏆</div>
@@ -93,7 +81,14 @@
             <span class="dot"></span>
             <span>{{ getI18nText('inactive', 'Inactive') }}</span>
           </div>
-          <p>{{ getI18nText('raffleNoActive', 'No active raffle') }}</p>
+          <p>
+            {{
+              getI18nText(
+                'raffleNoActive',
+                'There is no active giveaway. Create or set up a giveaway with your community in a live stream.'
+              )
+            }}
+          </p>
         </div>
       </div>
     </div>
@@ -215,7 +210,7 @@ onUnmounted(() => {
   font-size: 14px;
   font-weight: 600;
   background: rgba(255, 255, 255, 0.1);
-  color: #e2e8f0;
+  color: #bdbdbd;
   line-height: 1;
 }
 
@@ -265,11 +260,10 @@ onUnmounted(() => {
 }
 
 .prize-image {
-  width: 160px;
+  width: 50%;
   height: 100%;
   object-fit: cover;
   border-radius: 4px;
-  border: 2px solid rgba(112, 88, 164, 0.25);
   display: block;
 }
 
@@ -281,22 +275,20 @@ onUnmounted(() => {
 }
 
 .prize-label {
-  font-size: 14px;
+  font-size: 28px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.75);
 }
 
 .prize-text {
-  font-size: 18px;
-  font-weight: 600;
-  color: #facc15;
+  font-size: 32px;
+  font-weight: 500;
+  color: #6d46c3;
 }
 
 .raffle-message {
   text-align: center;
-  color: #ffffff;
   font-size: 18px;
-  margin-top: 16px;
+  font-weight: 700;
 }
 
 .raffle-message strong {
@@ -422,5 +414,38 @@ onUnmounted(() => {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
+}
+
+:global(html:not(.dark)) .raffle-embed {
+  color: var(--text-primary) !important;
+}
+
+:global(html:not(.dark)) .raffle-embed .raffle-status-badge {
+  background-color: var(--bg-background) !important;
+  color: var(--text-secondary) !important;
+}
+
+:global(html:not(.dark)) .raffle-embed .raffle-participant-count {
+  color: var(--text-secondary) !important;
+}
+
+:global(html:not(.dark)) .raffle-embed .raffle-participant-count strong {
+  color: var(--text-primary) !important;
+}
+
+:global(html:not(.dark)) .raffle-embed .prize-label {
+  color: var(--text-secondary) !important;
+}
+
+:global(html:not(.dark)) .raffle-embed .raffle-message,
+:global(html:not(.dark)) .raffle-embed .raffle-message strong,
+:global(html:not(.dark)) .raffle-embed .winner-title,
+:global(html:not(.dark)) .raffle-embed .winner-timestamp {
+  color: var(--text-primary) !important;
+}
+
+:global(html:not(.dark)) .raffle-embed .participant-pill {
+  background-color: var(--bg-background) !important;
+  color: var(--text-secondary) !important;
 }
 </style>

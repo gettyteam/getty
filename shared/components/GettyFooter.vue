@@ -1,6 +1,6 @@
 <template>
   <footer class="getty-footer mt-10 text-xs text-[var(--text-secondary)]" role="contentinfo">
-    <div class="max-w-7xl mx-auto px-6">
+    <div :class="containerClass || 'max-w-7xl mx-auto px-6'">
       <div class="border-t border-border pt-6"></div>
 
       <div class="flex flex-col md:flex-row md:items-center gap-6">
@@ -144,6 +144,8 @@
 
 <script setup lang="ts">
 import { computed, getCurrentInstance } from 'vue';
+
+defineProps<{ containerClass?: string }>();
 
 const leftLogoLightSrc =
   'https://xc43575rqmogbtegwxry2rk4hkctslkb63os6y2cdq25nfkgmguq.arweave.net/uLm-_7GDHGDMhrXjjUVcOoU5LUH23S9jQhw11pVGYak';

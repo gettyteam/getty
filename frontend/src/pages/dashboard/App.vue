@@ -1,13 +1,36 @@
 <template>
   <div class="dashboard-page min-h-screen flex flex-col">
+    <div v-if="toast" class="fixed right-4 bottom-4 z-[1000]">
+      <div
+        class="bg-card border border-border rounded-lg px-3 py-2 text-sm flex items-start gap-2"
+        role="status"
+        aria-live="polite">
+        <i
+          class="pi text-[14px] leading-none mt-0.5"
+          :class="
+            toast.kind === 'error'
+              ? 'pi-exclamation-triangle text-destructive'
+              : 'pi-check text-primary'
+          "
+          aria-hidden="true"></i>
+        <div class="min-w-0">
+          <div class="font-semibold text-foreground">{{ toast.message }}</div>
+          <div v-if="toast.detail" class="text-xs text-muted-foreground">{{ toast.detail }}</div>
+        </div>
+      </div>
+    </div>
     <a
       href="#main-content"
       class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 bg-card text-white rounded px-3 py-2"
       data-i18n="dashboardSkipToMain">
       Skip to main content
     </a>
-    <div class="max-w-7xl mx-auto p-3 w-full flex-1">
-      <header class="os-header flex justify-between items-center pb-5 mb-8 border-b border-border">
+    <div
+      class="mx-auto w-full flex-1"
+      :class="showCustomDashboard ? 'w-full p-0' : 'max-w-7xl p-3 transition-all duration-300'">
+      <header
+        class="os-header flex justify-between items-center border-b border-border"
+        :class="showCustomDashboard ? 'px-4 py-2 mb-0' : 'pb-5 mb-8'">
         <div class="flex items-center gap-4">
           <a href="/" class="logo-link" aria-label="getty home" data-i18n-aria="dashboardHome">
             <img
@@ -60,7 +83,8 @@
             id="open-admin"
             class="hidden px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors"
             data-visible="false"
-            data-i18n="dashboardAdmin"></button>
+            data-i18n="dashboardAdmin"
+            type="button"></button>
           <button
             id="logout-inline"
             class="hidden p-2 md:px-3 md:py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors"
@@ -86,6 +110,28 @@
             </span>
           </button>
           <button
+            class="p-2 rounded-lg border border-border text-sm hover:bg-card transition-colors"
+            @click="onToggleViewMode"
+            :title="showCustomDashboard ? 'Switch to Classic View' : 'Switch to Custom View'">
+            <i :class="showCustomDashboard ? 'pi pi-list' : 'pi pi-th-large'" class="text-lg"></i>
+          </button>
+          <button
+            v-if="showCustomDashboard"
+            class="px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors flex items-center gap-2"
+            @click="onEditButtonClick"
+            :class="{ 'bg-primary/20 border-primary': dashboardStore.isEditMode }"
+            :title="editButtonTitle">
+            <i class="pi text-lg" :class="editButtonIcon" aria-hidden="true"></i>
+            <span class="hidden sm:inline">{{ editButtonText }}</span>
+          </button>
+          <button
+            v-if="showCustomDashboard && dashboardStore.isEditMode"
+            class="p-2 rounded-lg border border-border text-sm hover:bg-card transition-colors"
+            @click="onResetCustomLayout"
+            title="Reset layout to default">
+            <i class="pi pi-refresh text-lg"></i>
+          </button>
+          <button
             class="theme-toggle"
             title="Toggle theme"
             :aria-pressed="isDark"
@@ -107,27 +153,43 @@
 
       <main
         id="main-content"
-        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8 user-dashboard-grid"
+        class="mt-8 user-dashboard-grid"
+        :class="{
+          'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6': !showCustomDashboard,
+          'min-h-[calc(100vh-140px)]': showCustomDashboard,
+        }"
         role="main">
-        <div
-          v-if="loadingStatus"
-          class="col-span-1 md:col-span-2 lg:col-span-3 flex justify-center py-12">
-          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        </div>
-        <div v-else-if="isGlobalBlocked" class="col-span-1 md:col-span-2 lg:col-span-3">
-          <BlockedState module-name="All Modules" />
-        </div>
+        <template v-if="showCustomDashboard">
+          <DashboardGrid />
+        </template>
         <template v-else>
-          <LastTipWidget :is-blocked="modulesStatus.lastTip?.blocked" />
-          <TipGoalWidget :is-blocked="modulesStatus.tipGoal?.blocked" />
-          <NotificationWidget :is-blocked="modulesStatus.externalNotifications?.blocked" />
-          <ChatWidget :is-blocked="modulesStatus.chat?.blocked" />
-          <RaffleWidget :is-blocked="modulesStatus.raffle?.blocked" />
-          <AchievementsWidget :is-blocked="modulesStatus.achievements?.blocked" />
+          <div
+            v-if="loadingStatus"
+            class="col-span-1 md:col-span-2 lg:col-span-3 flex justify-center py-12">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          </div>
+          <div v-else-if="isGlobalBlocked" class="col-span-1 md:col-span-2 lg:col-span-3">
+            <BlockedState module-name="All Modules" />
+          </div>
+          <template v-else>
+            <LastTipWidget :is-blocked="modulesStatus.lastTip?.blocked" />
+            <TipGoalWidget
+              :is-blocked="modulesStatus.tipGoal?.blocked"
+              :notification-blocked="modulesStatus.externalNotifications?.blocked"
+              show-notifications-below />
+            <RecentEventsWidget
+              :is-blocked="modulesStatus.externalNotifications?.blocked"
+              class="md:order-3 lg:order-3" />
+            <ChatWidget :is-blocked="modulesStatus.chat?.blocked" />
+            <RaffleWidget :is-blocked="modulesStatus.raffle?.blocked" />
+            <AchievementsWidget :is-blocked="modulesStatus.achievements?.blocked" />
+          </template>
         </template>
       </main>
     </div>
-    <GettyFooter />
+    <GettyFooter
+      v-if="!dashboardStore.isEditMode"
+      :container-class="showCustomDashboard ? 'w-full px-4' : undefined" />
     <noscript>
       <div class="max-w-7xl mx-auto p-3 text-center text-sm text-gray-300">
         JavaScript is required for widgets to load.
@@ -137,21 +199,292 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, nextTick, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, nextTick, ref, watch } from 'vue';
+import DashboardGrid from '../../components/dashboard/DashboardGrid.vue';
+import { useDashboardStore } from '../../stores/dashboardStore';
 import AchievementsWidget from './components/AchievementsWidget.vue';
 import BlockedState from './components/BlockedState.vue';
 import ChatWidget from './components/ChatWidget.vue';
 import LastTipWidget from './components/LastTipWidget.vue';
-import NotificationWidget from './components/NotificationWidget.vue';
+import RecentEventsWidget from './components/RecentEventsWidget.vue';
 import RaffleWidget from './components/RaffleWidget.vue';
 import TipGoalWidget from './components/TipGoalWidget.vue';
 import { useWidgetStore } from '../../stores/widgetStore';
 import { useTheme } from '../../composables/useTheme';
 import languageManager, { i18nTrigger } from './languageManager';
 import GettyFooter from 'shared/components/GettyFooter.vue';
+import { useStorage, watchDebounced } from '@vueuse/core';
 
 const store = useWidgetStore();
+const dashboardStore = useDashboardStore();
+
+const dashboardViewModeStorageKey = computed(() => {
+  let token = '';
+  try {
+    const match = window.location.pathname.match(/^\/user\/([A-Za-z0-9_-]+)/);
+    if (match) token = match[1];
+  } catch {}
+
+  const scope = token ? `token:${token}` : `host:${window.location.host}`;
+  return `getty:dashboard:viewMode:${scope}`;
+});
+
+const showCustomDashboard = useStorage(dashboardViewModeStorageKey, false);
 const { isDark, toggleTheme } = useTheme();
+
+const isApplyingRemotePrefs = ref(false);
+
+const toast = ref(null);
+let toastTimer = null;
+
+const forceNextSaveToast = ref(false);
+const lastSaveToastAt = ref(0);
+const lastLoadErrorToastAt = ref(0);
+const lastSaveErrorToastAt = ref(0);
+
+const lastSavedPrefsSnapshot = ref('');
+
+function normalizeLayoutForSnapshot(items) {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((w) => ({
+      i: w?.i,
+      type: w?.type,
+      x: w?.x,
+      y: w?.y,
+      w: w?.w,
+      h: w?.h,
+    }))
+    .filter((w) => typeof w.i === 'string')
+    .sort((a, b) => a.i.localeCompare(b.i));
+}
+
+function getCurrentPrefsSnapshot() {
+  const viewMode = showCustomDashboard.value ? 'custom' : 'classic';
+  const normalized = normalizeLayoutForSnapshot(dashboardStore.layout);
+  return JSON.stringify({ viewMode, layout: normalized });
+}
+
+const hasUnsavedChanges = computed(() => {
+  if (isApplyingRemotePrefs.value) return false;
+  if (!lastSavedPrefsSnapshot.value) return false;
+  return lastSavedPrefsSnapshot.value !== getCurrentPrefsSnapshot();
+});
+
+const editButtonText = computed(() => {
+  return hasUnsavedChanges.value
+    ? getI18nText('commonSave', 'Save')
+    : getI18nText('commonEdit', 'Edit');
+});
+
+const editButtonIcon = computed(() => {
+  return hasUnsavedChanges.value ? 'pi-save' : 'pi-pencil';
+});
+
+const editButtonTitle = computed(() => {
+  return hasUnsavedChanges.value ? 'Save changes' : 'Toggle Edit Mode';
+});
+
+function getI18nText(key, fallback) {
+  i18nTrigger.value;
+  try {
+    const v = languageManager.getText(key);
+    if (typeof v !== 'string') return fallback;
+    const trimmed = v.trim();
+    if (!trimmed) return fallback;
+    if (trimmed.toLowerCase() === key.toLowerCase()) return fallback;
+    return trimmed;
+  } catch {
+    return fallback;
+  }
+}
+
+function showToast(message, { kind = 'success', detail = '', ttlMs = 2500 } = {}) {
+  toast.value = { message, detail, kind };
+  if (toastTimer) window.clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => {
+    toast.value = null;
+    toastTimer = null;
+  }, ttlMs);
+}
+
+function getDashboardTokenForApi() {
+  try {
+    const match = window.location.pathname.match(/^\/user\/([A-Za-z0-9_-]+)/);
+    if (match) return match[1];
+  } catch {}
+  return '';
+}
+
+async function loadDashboardPreferences() {
+  try {
+    if (!lastSavedPrefsSnapshot.value) lastSavedPrefsSnapshot.value = getCurrentPrefsSnapshot();
+
+    const token = getDashboardTokenForApi();
+    const url = token
+      ? `/api/dashboard/preferences?token=${encodeURIComponent(token)}`
+      : '/api/dashboard/preferences';
+
+    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!res.ok) {
+      const now = Date.now();
+      if (now - lastLoadErrorToastAt.value > 45000) {
+        lastLoadErrorToastAt.value = now;
+        const msg = getI18nText('dashboardPrefsLoadFailed', 'Could not load preferences');
+        const detail = res.status ? `${res.status} ${res.statusText || ''}`.trim() : '';
+        showToast(msg, { kind: 'error', detail, ttlMs: 4500 });
+      }
+      return;
+    }
+
+    const prefs = await res.json();
+    if (!prefs || typeof prefs !== 'object') return;
+
+    isApplyingRemotePrefs.value = true;
+
+    if (prefs.viewMode === 'custom') showCustomDashboard.value = true;
+    if (prefs.viewMode === 'classic') showCustomDashboard.value = false;
+
+    if (Array.isArray(prefs.customLayout) && prefs.customLayout.length) {
+      dashboardStore.updateLayout(prefs.customLayout);
+
+      lastSavedPrefsSnapshot.value = getCurrentPrefsSnapshot();
+
+      const synced = getI18nText('dashboardPrefsSynced', 'Preferences synced');
+      const detail =
+        typeof prefs.updatedAt === 'number' ? new Date(prefs.updatedAt).toLocaleString() : '';
+      showToast(synced, { detail, ttlMs: 3000 });
+    } else {
+      void saveDashboardPreferences({ seedOnly: true });
+    }
+  } catch (e) {
+    console.warn('[dashboard] failed to load dashboard preferences', e);
+
+    const now = Date.now();
+    if (now - lastLoadErrorToastAt.value > 45000) {
+      lastLoadErrorToastAt.value = now;
+      const msg = getI18nText('dashboardPrefsLoadFailed', 'Could not load preferences');
+      const detail = e && e.message ? String(e.message) : '';
+      showToast(msg, { kind: 'error', detail, ttlMs: 4500 });
+    }
+  } finally {
+    isApplyingRemotePrefs.value = false;
+  }
+}
+
+async function saveDashboardPreferences(options = {}) {
+  const { seedOnly } = options;
+  try {
+    if (isApplyingRemotePrefs.value) return;
+
+    if (!lastSavedPrefsSnapshot.value) lastSavedPrefsSnapshot.value = getCurrentPrefsSnapshot();
+
+    const token = getDashboardTokenForApi();
+    const url = token
+      ? `/api/dashboard/preferences?token=${encodeURIComponent(token)}`
+      : '/api/dashboard/preferences';
+
+    const payload = {
+      viewMode: showCustomDashboard.value ? 'custom' : 'classic',
+      customLayout: dashboardStore.layout,
+    };
+
+    if (seedOnly && (!Array.isArray(payload.customLayout) || payload.customLayout.length === 0))
+      return;
+
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const now = Date.now();
+      const shouldShow = forceNextSaveToast.value || now - lastSaveErrorToastAt.value > 45000;
+      if (shouldShow) {
+        lastSaveErrorToastAt.value = now;
+        const msg = getI18nText('dashboardPrefsSaveFailed', 'Could not save preferences');
+        const detail = res.status ? `${res.status} ${res.statusText || ''}`.trim() : '';
+        showToast(msg, { kind: 'error', detail, ttlMs: 4500 });
+      }
+      return;
+    }
+
+    lastSavedPrefsSnapshot.value = getCurrentPrefsSnapshot();
+
+    let savedToastAllowed = forceNextSaveToast.value;
+    forceNextSaveToast.value = false;
+
+    const now = Date.now();
+    if (!savedToastAllowed && now - lastSaveToastAt.value > 45000) savedToastAllowed = true;
+
+    if (savedToastAllowed) {
+      lastSaveToastAt.value = now;
+      let detail = '';
+      try {
+        const out = await res.json();
+        if (out && typeof out.updatedAt === 'number') {
+          detail = new Date(out.updatedAt).toLocaleString();
+        }
+      } catch {}
+      const saved = getI18nText('dashboardPrefsSaved', 'Preferences saved');
+      showToast(saved, { detail });
+    }
+  } catch (e) {
+    console.warn('[dashboard] failed to save dashboard preferences', e);
+
+    const now = Date.now();
+    const shouldShow = forceNextSaveToast.value || now - lastSaveErrorToastAt.value > 45000;
+    if (shouldShow) {
+      lastSaveErrorToastAt.value = now;
+      const msg = getI18nText('dashboardPrefsSaveFailed', 'Could not save preferences');
+      const detail = e && e.message ? String(e.message) : '';
+      showToast(msg, { kind: 'error', detail, ttlMs: 4500 });
+    }
+  }
+}
+
+function onEditButtonClick() {
+  if (hasUnsavedChanges.value) {
+    forceNextSaveToast.value = true;
+    void saveDashboardPreferences();
+    return;
+  }
+
+  dashboardStore.toggleEditMode();
+}
+
+watchDebounced(
+  [showCustomDashboard, () => dashboardStore.layout],
+  () => {
+    void saveDashboardPreferences();
+  },
+  { debounce: 1000, deep: true }
+);
+
+watch(
+  showCustomDashboard,
+  (isCustom) => {
+    if (!isCustom) {
+      if (dashboardStore.isEditMode) dashboardStore.toggleEditMode();
+      if (dashboardStore.isResizing) dashboardStore.isResizing = false;
+    }
+  },
+  { immediate: true }
+);
+
+function onResetCustomLayout() {
+  forceNextSaveToast.value = true;
+  dashboardStore.resetLayout();
+  if (dashboardStore.isEditMode) {
+    dashboardStore.toggleEditMode();
+  }
+}
+
+function onToggleViewMode() {
+  forceNextSaveToast.value = true;
+  showCustomDashboard.value = !showCustomDashboard.value;
+}
 
 const bodyClasses = [
   'bg-background',
@@ -244,6 +577,8 @@ onMounted(() => {
   });
   fetchModulesStatus();
 
+  void loadDashboardPreferences();
+
   languageManager.updatePageLanguage();
 
   watch(i18nTrigger, () => {
@@ -254,6 +589,9 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  try {
+    if (toastTimer) window.clearTimeout(toastTimer);
+  } catch {}
   bodyClasses.forEach((className) => {
     document.body.classList.remove(className);
   });

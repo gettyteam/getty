@@ -3,7 +3,7 @@
   "version": "1.1.5",
   "type": "commonjs",
   "license": "AGPL-3.0-or-later",
-  "packageManager": "pnpm@10.26.2+sha512.0e308ff2005fc7410366f154f625f6631ab2b16b1d2e70238444dd6ae9d630a8482d92a451144debc492416896ed16f7b114a86ec68b8404b2443869e68ffda6",
+  "packageManager": "pnpm@10.27.0+sha512.72d699da16b1179c14ba9e64dc71c9a40988cbdc65c264cb0e489db7de917f20dcf4d64d8723625f2969ba52d4b7e2a1170682d9ac2a5dcaeaab732b7e16f04a",
   "description": "The platform tools for live streaming on Odysee. This includes overlays, tip alerts, chat, giveaway system, creator analytics and much more.",
   "main": "server.js",
   "scripts": {
@@ -24,6 +24,7 @@
     "minify-js": "esbuild public/js/*.js --minify --outdir=public/js/min",
     "minify-css": "postcss public/css/output.css -o public/css/output.css --config postcss.config.cjs",
     "build:i18n": "node scripts/build-i18n.js",
+    "i18n:audit:dashboard": "node scripts/audit-i18n-dashboard.js",
     "build-dashboard": "esbuild src/index.js --bundle --format=cjs --outfile=public/js/dashboard.js",
     "build": "npm-run-all --sequential copy:primeicons copy:landing build-css minify-css build:i18n build-dashboard admin:build frontend:build sync:frontend minify-js add-sri",
     "build:secure": "infisical run --env=prod -- npm run build",
@@ -50,6 +51,7 @@
     "@primevue/themes": "^4.4.1",
     "@supabase/supabase-js": "^2.89.0",
     "@untitledui/icons": "^0.0.19",
+    "@vueuse/core": "^14.1.0",
     "@wanderapp/connect": "^0.1.12",
     "arweave": "^1.15.7",
     "axios": "^1.13.2",
@@ -64,12 +66,14 @@
     "express-rate-limit": "^8.2.1",
     "form-data": "^4.0.5",
     "fuse.js": "^7.1.0",
+    "grid-layout-plus": "^1.1.1",
     "helmet": "^8.1.0",
     "image-size": "^2.0.2",
     "ioredis": "^5.8.2",
     "lucide-vue-next": "^0.553.0",
     "morgan": "^1.10.0",
     "multer": "^2.0.2",
+    "nanoid": "^5.1.6",
     "obs-websocket-js": "^5.0.7",
     "otplib": "^12.0.1",
     "pg": "^8.12.0",
@@ -135,6 +139,7 @@
   },
   "overrides": {
     "body-parser": ">=2.2.1",
+    "qs": "6.14.1",
     "purgecss": {
       "glob": "11.1.0"
     },
@@ -148,6 +153,7 @@
   "pnpm": {
     "overrides": {
       "body-parser": ">=2.2.1",
+      "qs": "6.14.1",
       "esbuild": "^0.25.9",
       "elliptic": "^6.6.1",
       "glob": "^11.1.0",

@@ -1,53 +1,43 @@
 <template>
-  <section class="os-card overflow-hidden flex flex-col h-[450px] md:order-6 lg:order-6">
-    <h2 class="os-panel-title">
-      <span class="icon" aria-hidden="true">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round">
-          <path d="M8 21h8"></path>
-          <path d="M12 17v4"></path>
-          <path d="M7 4h10v5a5 5 0 0 1-10 0V4Z"></path>
-          <path d="M17 9a5 5 0 0 0 5-5h-5"></path>
-          <path d="M7 9a5 5 0 0 1-5-5h5"></path>
-        </svg>
-      </span>
-      <span data-i18n="achievementsTitle">{{
-        getI18nText('achievementsTitle', 'Achievements')
-      }}</span>
-    </h2>
-    <div class="ach-root ach-embed flex-1 relative p-4">
+  <section class="os-card overflow-hidden flex flex-col">
+    <div class="flex-1 relative overflow-hidden">
       <BlockedState v-if="isBlocked" module-name="Achievements" />
       <div
         v-else
-        class="h-full overflow-y-auto space-y-2 pr-1 custom-scrollbar"
+        class="h-full overflow-y-auto custom-scrollbar"
+        :class="inCustomGrid ? 'p-3' : ''"
         ref="listContainer">
-        <transition-group name="list">
-          <div v-for="ach in reversedAchievements" :key="ach.id || ach.timestamp" class="ach-card">
-            <div class="ach-icon">🎉</div>
-            <div class="ach-content">
-              <div class="ach-app">
-                {{ unlockedText }}
+        <div class="space-y-2">
+          <div
+            v-for="ach in reversedAchievements"
+            :key="ach.id || ach.timestamp"
+            class="group flex items-start gap-3 rounded-lg px-2 py-2 bg-secondary/30 hover:bg-secondary/50 active:bg-secondary/60 transition-colors border border-border">
+            <div
+              class="feed-badge mt-0.5 h-7 w-7 rounded-full bg-[#6d46c3] text-white flex items-center justify-center text-xs font-semibold shrink-0"
+              style="color: #fff">
+              ✔
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="text-[14px] font-semibold text-foreground capitalize">
+                {{ getI18nText('recentEventsKindAchievement', 'Achievement') }}
               </div>
-              <div class="ach-title">
+              <div class="text-[14px] font-semibold text-foreground truncate">
                 {{ getI18nText(ach.titleKey, ach.title) || defaultTitleText }}
               </div>
-              <div class="ach-desc">{{ getI18nText(ach.descKey, ach.desc) }}</div>
+              <div class="text-xs text-muted-foreground leading-snug truncate">
+                {{ getI18nText(ach.descKey, ach.desc) }}
+              </div>
             </div>
-            <div class="ach-time">
-              {{ timeNowText }}
+            <div class="text-xs text-muted-foreground whitespace-nowrap pt-0.5">
+              {{ formatAgo(ach.timestamp) }}
             </div>
           </div>
-        </transition-group>
 
-        <div
-          v-if="achievements.length === 0"
-          class="h-full flex items-center justify-center text-gray-500 italic text-sm">
-          {{ noRecentText }}
+          <div
+            v-if="achievements.length === 0"
+            class="h-full flex items-center justify-center text-muted-foreground italic text-sm py-6">
+            {{ noRecentText }}
+          </div>
         </div>
       </div>
     </div>
@@ -63,6 +53,10 @@ import { i18nTrigger } from '../languageManager';
 
 defineProps({
   isBlocked: {
+    type: Boolean,
+    default: false,
+  },
+  inCustomGrid: {
     type: Boolean,
     default: false,
   },
@@ -83,10 +77,24 @@ const getI18nText = (key: string, fallback: string) => {
   return fallback;
 };
 
-const unlockedText = computed(() => getI18nText('achievementUnlocked', 'Achievement Unlocked'));
 const defaultTitleText = computed(() => getI18nText('achievementDefaultTitle', 'Achievement'));
-const timeNowText = computed(() => getI18nText('achievementTimeNow', 'Now'));
 const noRecentText = computed(() => getI18nText('achievementNoRecent', 'No recent achievements'));
+
+function formatAgo(ts: any): string {
+  const n = typeof ts === 'number' ? ts : Number(ts);
+  if (!Number.isFinite(n)) return getI18nText('achievementTimeNow', 'Now');
+
+  const diffMs = Math.max(0, Date.now() - n);
+  const diffSec = Math.floor(diffMs / 1000);
+  if (diffSec < 10) return getI18nText('achievementTimeNow', 'Now');
+  if (diffSec < 60) return `${diffSec}s`;
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h`;
+  const diffDay = Math.floor(diffHr / 24);
+  return `${diffDay}d`;
+}
 
 const achievements = computed(() => store.achievements);
 const reversedAchievements = computed(() => [...achievements.value].reverse());
@@ -131,127 +139,10 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.ach-root {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.ach-root.ach-embed {
-  width: 100%;
-  padding: 4px 10px;
-  overflow: hidden;
-  gap: 8px;
-}
-
-.ach-card {
-  display: flex;
-  align-items: center;
-  background: rgb(245, 245, 245);
-  backdrop-filter: blur(10px);
-  border-radius: 8px;
-  padding: 10px;
-  margin: 0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  color: #0b1220;
-  animation: ach-in 300ms ease forwards;
-}
-
-:global(html.dark) .ach-card {
-  background: rgb(18, 18, 18);
-  color: #f5f5f5;
-}
-
-.ach-root.ach-embed .ach-card {
-  padding: 8px;
-  border-radius: 8px;
-}
-
-.ach-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: #e5e7eb;
-  color: #374151;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 10px;
-  font-weight: 600;
-  font-size: 14px;
-}
-
-:global(html.dark) .ach-icon {
-  background: #09090b;
-  color: #f3f4f6;
-}
-
-.ach-root.ach-embed .ach-icon {
-  width: 28px;
-  height: 28px;
-  margin-right: 8px;
-}
-
-.ach-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.ach-app {
-  font-size: 12px;
-  margin-bottom: 2px;
-  font-weight: bold;
-  color: #080c10;
-}
-
-:global(html.dark) .ach-app {
-  color: #00ff7f;
-}
-
-.ach-title {
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.ach-root.ach-embed .ach-title {
-  font-size: 15px;
-}
-
-.ach-desc {
-  font-size: 13px;
-  opacity: 0.8;
-}
-
-.ach-root.ach-embed .ach-desc {
-  font-size: 12px;
-}
-
-.ach-time {
-  font-size: 12px;
-  opacity: 0.6;
-  align-self: flex-start;
-  margin-left: 8px;
-}
-
-.ach-root.ach-embed .ach-time {
-  font-size: 11px;
-  margin-left: 6px;
-}
-
-@keyframes ach-in {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.feed-badge {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff;
+  font-variant-emoji: text;
 }
 
 .custom-scrollbar {
@@ -261,18 +152,5 @@ onMounted(() => {
 
 .custom-scrollbar::-webkit-scrollbar {
   display: none;
-}
-
-.list-enter-active,
-.list-leave-active {
-  transition: all 0.5s ease;
-}
-.list-enter-from {
-  opacity: 0;
-  transform: translateX(-30px);
-}
-.list-leave-to {
-  opacity: 0;
-  transform: translateX(30px);
 }
 </style>

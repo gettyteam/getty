@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 
 export const useWidgetStore = defineStore('widgets', () => {
   const lastTip = ref<any>(null);
+  const lastTips = ref<any[]>([]);
   const lastTipConfig = ref<any>({});
   const tipGoal = ref<any>(null);
   const activeNotification = ref<any>(null);
@@ -15,7 +16,76 @@ export const useWidgetStore = defineStore('widgets', () => {
   const arPrice = ref<number>(0);
   const isConnected = ref(false);
   const emojiMapping = ref<Record<string, string>>({});
+
+  const liveviewsStatus = ref<{ live: boolean; viewerCount: number }>({ live: false, viewerCount: 0 });
+  const liveviewsLastFetchedAt = ref<number>(0);
+
+  const streamHistoryStatus = ref<{ connected: boolean; live: boolean; reason?: string; lastSampleTs?: number | null }>(
+    { connected: false, live: false, reason: 'no_claimid', lastSampleTs: null }
+  );
+  const streamHistoryStatusLastFetchedAt = ref<number>(0);
+
+  const streamHistoryPerf = ref<any>(null);
+  const streamHistoryPerfLastFetchedAt = ref<number>(0);
+
+  const streamHistorySummary = ref<any>(null);
+  const streamHistorySummaryLastFetchedAt = ref<number>(0);
+
+  const activitiesTodayCount = ref<number>(0);
+  const activitiesTodayDayKey = ref<string>('');
   let ws: WebSocket | null = null;
+
+  function normalizeTip(input: any): any | null {
+    if (!input || typeof input !== 'object') return null;
+    const from = typeof input.from === 'string' && input.from.trim() ? input.from.trim() : 'Anonymous';
+    const amountRaw = (input as any).amount;
+    const amountNum =
+      typeof amountRaw === 'number'
+        ? amountRaw
+        : typeof amountRaw === 'string'
+          ? parseFloat(amountRaw)
+          : NaN;
+    if (!Number.isFinite(amountNum) || amountNum <= 0) return null;
+    const amount = amountNum.toFixed(6);
+
+    const usdRaw = (input as any).usd;
+    const usd = typeof usdRaw === 'number' || typeof usdRaw === 'string' ? usdRaw : undefined;
+
+    const message = typeof input.message === 'string' ? input.message : '';
+    const timestamp = (input as any).timestamp || (input as any).ts || undefined;
+    const source = typeof input.source === 'string' ? input.source : undefined;
+
+    return { from, amount, usd, message, timestamp, source };
+  }
+
+  function tipIdentity(tip: any): string {
+    const from = typeof tip?.from === 'string' ? tip.from : '';
+    const amount = typeof tip?.amount === 'string' ? tip.amount : String(tip?.amount ?? '');
+    const timestamp = tip?.timestamp ? String(tip.timestamp) : '';
+    const message = typeof tip?.message === 'string' ? tip.message : '';
+    return `${timestamp}|${from}|${amount}|${message}`;
+  }
+
+  function upsertLastTipHistory(tipLike: any, maxItems = 6): void {
+    const tip = normalizeTip(tipLike);
+    if (!tip) return;
+
+    const next: any[] = [tip];
+    const seen = new Set<string>();
+    seen.add(tipIdentity(tip));
+
+    for (const existing of lastTips.value || []) {
+      const normalized = normalizeTip(existing);
+      if (!normalized) continue;
+      const id = tipIdentity(normalized);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      next.push(normalized);
+      if (next.length >= maxItems) break;
+    }
+
+    lastTips.value = next;
+  }
 
   const RAFFLE_WINNER_KEY = 'raffle-winner-data';
   const RAFFLE_STATE_KEY = 'raffle-active-state';
@@ -50,6 +120,156 @@ export const useWidgetStore = defineStore('widgets', () => {
     } catch {
       return url;
     }
+  }
+
+  function getLocalDayKey(ts = Date.now()): string {
+    const d = new Date(ts);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  function activitiesStorageKey(dayKey: string): string {
+    const token = getWidgetTokenHint();
+    const scope = token ? `token:${token}` : `host:${window.location.host}`;
+    return `getty:recent-events:${scope}:activities:${dayKey}`;
+  }
+
+  function ensureActivitiesToday(): void {
+    const today = getLocalDayKey();
+    if (activitiesTodayDayKey.value && activitiesTodayDayKey.value === today) return;
+    activitiesTodayDayKey.value = today;
+    activitiesTodayCount.value = 0;
+    try {
+      const raw = localStorage.getItem(activitiesStorageKey(today));
+      const n = raw == null ? 0 : Number(raw);
+      activitiesTodayCount.value = Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+    } catch {}
+  }
+
+  function bumpActivitiesToday(by = 1): void {
+    ensureActivitiesToday();
+    const inc = Number.isFinite(by) ? Math.floor(by) : 0;
+    if (inc <= 0) return;
+    activitiesTodayCount.value += inc;
+    try {
+      localStorage.setItem(activitiesStorageKey(activitiesTodayDayKey.value), String(activitiesTodayCount.value));
+    } catch {}
+  }
+
+  async function fetchLiveviewsStatus(options: { force?: boolean } = {}) {
+    try {
+      const now = Date.now();
+      const force = !!options.force;
+      if (!force && liveviewsLastFetchedAt.value && now - liveviewsLastFetchedAt.value < 5000) return;
+
+      const url = withWidgetToken(`/api/liveviews/status${force ? '?force=1' : ''}`);
+      const res = await fetch(url, {
+        credentials: 'include',
+        cache: 'no-store',
+      }).catch(() => null);
+      if (!res || !res.ok) return;
+      const json: any = await res.json().catch(() => null);
+      const live = !!json?.data?.Live;
+      const viewerCountRaw = Number(json?.data?.ViewerCount);
+      const viewerCount = Number.isFinite(viewerCountRaw) ? viewerCountRaw : 0;
+      liveviewsStatus.value = { live, viewerCount };
+      liveviewsLastFetchedAt.value = now;
+    } catch {}
+  }
+
+  function getTzOffsetMinutes(): number {
+    try {
+      return -new Date().getTimezoneOffset();
+    } catch {
+      return 0;
+    }
+  }
+
+  async function fetchStreamHistoryStatus(options: { force?: boolean } = {}) {
+    try {
+      const now = Date.now();
+      const force = !!options.force;
+      if (!force && streamHistoryStatusLastFetchedAt.value && now - streamHistoryStatusLastFetchedAt.value < 5000) {
+        return;
+      }
+
+      const url = withWidgetToken(`/api/stream-history/status${force ? '?force=1' : ''}`);
+      const res = await fetch(url, {
+        credentials: 'include',
+        cache: 'no-store',
+      }).catch(() => null);
+      if (!res || !res.ok) return;
+      const json: any = await res.json().catch(() => null);
+      if (!json || typeof json !== 'object') return;
+
+      streamHistoryStatus.value = {
+        connected: !!json.connected,
+        live: !!json.live,
+        reason: typeof json.reason === 'string' ? json.reason : undefined,
+        lastSampleTs: typeof json.lastSampleTs === 'number' ? json.lastSampleTs : null,
+      };
+      streamHistoryStatusLastFetchedAt.value = now;
+    } catch {}
+  }
+
+  async function fetchStreamHistoryPerformance(options: { force?: boolean } = {}) {
+    try {
+      const now = Date.now();
+      const force = !!options.force;
+      if (!force && streamHistoryPerfLastFetchedAt.value && now - streamHistoryPerfLastFetchedAt.value < 15000) return;
+
+      const tz = getTzOffsetMinutes();
+      const params = new URLSearchParams({
+        period: 'day',
+        span: '1',
+        tz: String(tz),
+      });
+      const url = withWidgetToken(`/api/stream-history/performance?${params.toString()}`);
+      const res = await fetch(url, {
+        credentials: 'include',
+        cache: 'no-store',
+      }).catch(() => null);
+      if (!res || !res.ok) return;
+      const json: any = await res.json().catch(() => null);
+      if (!json || typeof json !== 'object') return;
+      streamHistoryPerf.value = json;
+      streamHistoryPerfLastFetchedAt.value = now;
+    } catch {}
+  }
+
+  async function fetchStreamHistorySummary(
+    options: { force?: boolean; period?: string; span?: number } = {}
+  ) {
+    try {
+      const now = Date.now();
+      const force = !!options.force;
+      if (!force && streamHistorySummaryLastFetchedAt.value && now - streamHistorySummaryLastFetchedAt.value < 15000) {
+        return;
+      }
+
+      const period = typeof options.period === 'string' && options.period.trim() ? options.period.trim() : 'day';
+      const spanNum = Number(options.span ?? 2);
+      const span = Number.isFinite(spanNum) ? Math.max(1, Math.min(365, Math.floor(spanNum))) : 2;
+      const tz = getTzOffsetMinutes();
+
+      const params = new URLSearchParams({
+        period,
+        span: String(span),
+        tz: String(tz),
+      });
+      const url = withWidgetToken(`/api/stream-history/summary?${params.toString()}`);
+      const res = await fetch(url, {
+        credentials: 'include',
+        cache: 'no-store',
+      }).catch(() => null);
+      if (!res || !res.ok) return;
+      const json: any = await res.json().catch(() => null);
+      if (!json || typeof json !== 'object') return;
+      streamHistorySummary.value = json;
+      streamHistorySummaryLastFetchedAt.value = now;
+    } catch {}
   }
 
   function loadRaffleData() {
@@ -101,6 +321,8 @@ export const useWidgetStore = defineStore('widgets', () => {
 
   async function fetchInitialData() {
     try {
+      ensureActivitiesToday();
+
       const res = await fetch(withWidgetToken('/api/modules'), {
         credentials: 'include',
         cache: 'no-store',
@@ -112,6 +334,7 @@ export const useWidgetStore = defineStore('widgets', () => {
         if (data.lastTip) {
           lastTipConfig.value = {
             title: data.lastTip.title,
+            walletAddress: data.lastTip.walletAddress,
             bgColor: data.lastTip.bgColor,
             fontColor: data.lastTip.fontColor,
             borderColor: data.lastTip.borderColor,
@@ -122,6 +345,16 @@ export const useWidgetStore = defineStore('widgets', () => {
           if (data.lastTip.lastDonation) {
             lastTip.value = data.lastTip.lastDonation;
           }
+        }
+
+        if (data.externalNotifications && Array.isArray(data.externalNotifications.lastTips)) {
+          lastTips.value = data.externalNotifications.lastTips.slice(0, 6);
+        } else if (data.persistentTips && Array.isArray(data.persistentTips)) {
+          lastTips.value = data.persistentTips.slice(0, 6);
+        }
+
+        if ((!lastTips.value || lastTips.value.length === 0) && data.lastTip?.lastDonation) {
+          upsertLastTipHistory(data.lastTip.lastDonation);
         }
         if (data.tipGoal) {
           tipGoal.value = data.tipGoal;
@@ -182,6 +415,8 @@ export const useWidgetStore = defineStore('widgets', () => {
         emojiMapping.value = await emojiRes.json();
       }
 
+      fetchLiveviewsStatus().catch(() => {});
+
     } catch (e) {
       console.error('Failed to fetch initial widget data', e);
     }
@@ -218,6 +453,12 @@ export const useWidgetStore = defineStore('widgets', () => {
              const payload = msg.data.lastTip.lastDonation || msg.data.lastTip;
              if (payload) lastTip.value = payload;
           }
+          if (Array.isArray(msg.data.persistentTips)) {
+            lastTips.value = msg.data.persistentTips.slice(0, 6);
+            if (!lastTip.value && lastTips.value.length) {
+              lastTip.value = lastTips.value[0];
+            }
+          }
           if (msg.data.tipGoal) {
             tipGoal.value = msg.data.tipGoal;
           }
@@ -225,11 +466,14 @@ export const useWidgetStore = defineStore('widgets', () => {
           lastTipConfig.value = { ...lastTipConfig.value, ...msg.data };
         } else if (msg.type === 'tip' || msg.type === 'lastTip') {
           lastTip.value = msg.data;
+          upsertLastTipHistory(msg.data);
           fetchArPrice();
         } else if (msg.type === 'tipGoal' || msg.type === 'tipGoalUpdate' || msg.type === 'goalUpdate') {
           tipGoal.value = msg.data;
         } else if (msg.type === 'tipNotification') {
           activeNotification.value = { ...msg.data, isDirectTip: true, timestamp: Date.now() };
+          upsertLastTipHistory(msg.data);
+          bumpActivitiesToday(1);
         } else if (msg.type === 'chatMessage') {
           chatMessages.value.push({ ...msg.data, timestamp: Date.now() });
           if (chatMessages.value.length > 100) {
@@ -237,8 +481,26 @@ export const useWidgetStore = defineStore('widgets', () => {
           }
           if (msg.data?.credits > 0) {
             activeNotification.value = { ...msg.data, isChatTip: true, timestamp: Date.now() };
+            try {
+              const usd = Number(msg.data.credits);
+              const rate = arPrice.value > 0 ? arPrice.value : 5;
+              const ar = Number.isFinite(usd) && usd > 0 && rate > 0 ? +(usd / rate).toFixed(6) : 0;
+              upsertLastTipHistory({
+                from: msg.data.channelTitle || msg.data.from || 'Anonymous',
+                amount: ar > 0 ? ar : usd,
+                usd: Number.isFinite(usd) ? usd : undefined,
+                message: msg.data.message || '',
+                timestamp: msg.data.timestamp || new Date().toISOString(),
+                source: 'chat',
+                creditsIsUsd: true,
+                isChatTip: true,
+              });
+              if (arPrice.value === 0) fetchArPrice();
+            } catch {}
+            bumpActivitiesToday(1);
           }
         } else if (msg.type === 'raffle_state') {
+          bumpActivitiesToday(1);
           if (msg.reset) {
             raffleWinner.value = null;
             raffleState.value = { ...msg, participants: [] };
@@ -254,6 +516,7 @@ export const useWidgetStore = defineStore('widgets', () => {
             }
           }
         } else if (msg.type === 'raffle_winner') {
+          bumpActivitiesToday(1);
           const winnerData = {
             winner: msg.winner,
             prize: msg.prize || msg.winner?.prize,
@@ -272,6 +535,7 @@ export const useWidgetStore = defineStore('widgets', () => {
         } else if (msg.type === 'achievement' && msg.data) {
           achievements.value.push(msg.data);
           if (achievements.value.length > 20) achievements.value.shift();
+          bumpActivitiesToday(1);
         } else if (msg.type === 'achievement-clear' && msg.data?.id) {
           achievements.value = achievements.value.filter(a => String(a.id) !== String(msg.data.id));
         } else if (msg.type === 'goalAudioSettingsUpdate' && msg.data) {
@@ -285,6 +549,7 @@ export const useWidgetStore = defineStore('widgets', () => {
 
   return {
     lastTip,
+    lastTips,
     lastTipConfig,
     tipGoal,
     activeNotification,
@@ -297,8 +562,17 @@ export const useWidgetStore = defineStore('widgets', () => {
     arPrice,
     isConnected,
     emojiMapping,
+    liveviewsStatus,
+    streamHistoryStatus,
+    streamHistoryPerf,
+    streamHistorySummary,
+    activitiesTodayCount,
     fetchArPrice,
     fetchInitialData,
+    fetchLiveviewsStatus,
+    fetchStreamHistoryStatus,
+    fetchStreamHistoryPerformance,
+    fetchStreamHistorySummary,
     initWebSocket
   };
 });

@@ -262,7 +262,7 @@
   }
 
   .dashboard-container {
-    @apply max-w-7xl mx-auto p-3 bg-gray-900;
+    @apply mx-auto;
   }
 
   .dashboard-header {
@@ -319,13 +319,6 @@
   }
   .notification-from-lasttip {
     @apply text-xs font-semibold flex items-center;
-  }
-
-  html:not(.dark) .last-donation .notification-from-lasttip {
-    @apply text-white;
-  }
-  html:not(.dark) .last-donation .notification-amount .ar-symbol {
-    @apply text-white;
   }
 
   .notification-text {
