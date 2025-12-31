@@ -34,6 +34,10 @@ export const useWidgetStore = defineStore('widgets', () => {
   const activitiesTodayCount = ref<number>(0);
   const activitiesTodayDayKey = ref<string>('');
   let ws: WebSocket | null = null;
+  let wsNamespace: string = '';
+  let wsNamespaceOverride: string = '';
+  let __nsOverrideFetchPromise: Promise<string> | null = null;
+  let __nsOverrideLastFetchAt = 0;
 
   function normalizeTip(input: any): any | null {
     if (!input || typeof input !== 'object') return null;
@@ -99,6 +103,12 @@ export const useWidgetStore = defineStore('widgets', () => {
     } catch {}
 
     try {
+      const match = window.location.pathname.match(/^\/user\/([A-Za-z0-9_-]+)/);
+      const fromPath = match ? String(match[1] || '').trim() : '';
+      if (fromPath) return fromPath;
+    } catch {}
+
+    try {
       const el = document.getElementById('dashboard-bootstrap');
       const raw = (el && 'textContent' in el ? (el as any).textContent : '') || '';
       if (!raw) return '';
@@ -108,6 +118,56 @@ export const useWidgetStore = defineStore('widgets', () => {
     } catch {}
 
     return '';
+  }
+
+  function getWebSocketNamespace(): string {
+    return wsNamespaceOverride || getWidgetTokenHint();
+  }
+
+  async function fetchWebSocketNamespaceOverride(): Promise<string> {
+    try {
+      const now = Date.now();
+      if (__nsOverrideFetchPromise && now - __nsOverrideLastFetchAt < 10000) return __nsOverrideFetchPromise;
+      if (now - __nsOverrideLastFetchAt < 10000) return wsNamespaceOverride || '';
+      __nsOverrideLastFetchAt = now;
+
+      __nsOverrideFetchPromise = fetch('/api/publicToken', {
+        method: 'GET',
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { Accept: 'application/json' },
+      })
+        .then(async (r) => {
+          if (!r.ok) return '';
+          const j: any = await r.json().catch(() => null);
+          const tok = typeof j?.publicToken === 'string' ? j.publicToken.trim() : '';
+          return tok;
+        })
+        .catch(() => '')
+        .finally(() => {
+          __nsOverrideFetchPromise = null;
+        });
+
+      const tok = await __nsOverrideFetchPromise;
+      if (tok) wsNamespaceOverride = tok;
+      return tok;
+    } catch {
+      return '';
+    }
+  }
+
+  function resolveWebSocketHost(): string {
+    try {
+      const isDev = !!(import.meta as any)?.env?.DEV;
+      const backendPort = String((import.meta as any)?.env?.VITE_BACKEND_PORT || '3000');
+      const currentPort = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
+
+      if (isDev && backendPort && currentPort && backendPort !== currentPort) {
+        return `${window.location.hostname}:${backendPort}`;
+      }
+    } catch {}
+
+    return window.location.host;
   }
 
   function withWidgetToken(url: string): string {
@@ -423,27 +483,73 @@ export const useWidgetStore = defineStore('widgets', () => {
   }
 
   function initWebSocket() {
-    if (ws) return;
+    void (async () => {
+      let desiredNamespace = getWebSocketNamespace();
 
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    ws = new WebSocket(`${protocol}://${window.location.host}`);
+      if (!desiredNamespace) {
+        try {
+          const tok = await fetchWebSocketNamespaceOverride();
+          if (tok) desiredNamespace = tok;
+        } catch {}
+      }
 
-    ws.onopen = () => {
-      isConnected.value = true;
-      fetchArPrice();
-      fetchInitialData();
-      loadRaffleData();
-      ws?.send(JSON.stringify({ type: 'get_raffle_state' }));
-    };
+      const isAlive =
+        ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING);
+      if (isAlive && wsNamespace === desiredNamespace) return;
 
-    ws.onclose = () => {
-      isConnected.value = false;
-      ws = null;
+      if (ws && wsNamespace !== desiredNamespace) {
+        try {
+          const oldWs = ws;
+          oldWs.onclose = null;
+          oldWs.onerror = null;
+          oldWs.onmessage = null;
 
-      setTimeout(initWebSocket, 5000);
-    };
+          if (oldWs.readyState === WebSocket.CONNECTING) {
+            oldWs.onopen = () => {
+              try {
+                oldWs.close();
+              } catch {}
+            };
+          } else {
+            oldWs.onopen = null;
+            oldWs.close();
+          }
+        } catch {}
+        ws = null;
+        isConnected.value = false;
+      }
 
-    ws.onmessage = (event) => {
+      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      const host = resolveWebSocketHost();
+      const qs = desiredNamespace ? `?ns=${encodeURIComponent(desiredNamespace)}` : '';
+      wsNamespace = desiredNamespace;
+      ws = new WebSocket(`${protocol}://${host}${qs}`);
+
+      void fetchWebSocketNamespaceOverride().then((tok) => {
+        if (!tok) return;
+        if (wsNamespace !== tok) {
+          try {
+            initWebSocket();
+          } catch {}
+        }
+      });
+
+      ws.onopen = () => {
+        isConnected.value = true;
+        fetchArPrice();
+        fetchInitialData();
+        loadRaffleData();
+        ws?.send(JSON.stringify({ type: 'get_raffle_state' }));
+      };
+
+      ws.onclose = () => {
+        isConnected.value = false;
+        ws = null;
+
+        setTimeout(initWebSocket, 5000);
+      };
+
+      ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
         
@@ -544,7 +650,8 @@ export const useWidgetStore = defineStore('widgets', () => {
       } catch (e) {
         console.error('WebSocket message error', e);
       }
-    };
+      };
+    })();
   }
 
   return {

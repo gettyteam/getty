@@ -4580,20 +4580,44 @@ app.post('/api/chat/test-message', limiter, async (req, res) => {
 
     if (typeof wss.broadcast === 'function' && ns) {
       const adminNs = (await resolveAdminNsFromReq(req)) || ns;
-      wss.broadcast(adminNs, { type: 'chatMessage', data: chatMsg });
 
-      if (isTip) {
-        const chatTipData = {
-          amount: arAmount,
-          from: username,
-          message: username,
-          timestamp: new Date().toISOString(),
-        };
-        wss.broadcast(adminNs, { type: 'chat-tip', data: chatTipData });
-      }
+      let publicNs = null;
       try {
-        achievements.onChatMessage(adminNs, chatMsg);
+        if (store && adminNs) {
+          const mapped = await store.get(adminNs, 'publicToken', null);
+          publicNs = typeof mapped === 'string' && mapped.trim() ? mapped.trim() : null;
+        }
       } catch {}
+      if (!publicNs) {
+        try {
+          publicNs = req?.ns?.pub || null;
+        } catch {}
+      }
+      if (!publicNs) {
+        try {
+          const raw = (req?.body?.token || req?.query?.token || '').toString().trim();
+          publicNs = raw || null;
+        } catch {}
+      }
+
+      const targets = new Set([adminNs, publicNs].filter(Boolean));
+      for (const targetNs of targets) {
+        wss.broadcast(targetNs, { type: 'chatMessage', data: chatMsg });
+
+        if (isTip) {
+          const chatTipData = {
+            amount: arAmount,
+            from: username,
+            message: username,
+            timestamp: new Date().toISOString(),
+          };
+          wss.broadcast(targetNs, { type: 'chat-tip', data: chatTipData });
+        }
+
+        try {
+          achievements.onChatMessage(targetNs, chatMsg);
+        } catch {}
+      }
     } else {
       wss.clients.forEach((client) => {
         if (client.readyState === 1) {
@@ -8015,6 +8039,7 @@ function attachUpgradeHandling(server) {
     try {
       const origin = req.headers.origin || '';
       if (
+        process.env.NODE_ENV === 'production' &&
         allowedOrigins.size > 0 &&
         origin &&
         !allowedOrigins.has(origin) &&

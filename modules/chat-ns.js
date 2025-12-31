@@ -37,7 +37,41 @@ class ChatNsManager {
 
   async _broadcastBoth(ns, payload) {
     try {
-      this._broadcast(ns, payload);
+      if (!ns) {
+        this._broadcast(null, payload);
+        return;
+      }
+
+      const targets = new Set([ns].filter(Boolean));
+      const store = this.store;
+      if (store) {
+        try {
+          const adminFromNs = await store.get(ns, 'adminToken', null);
+          if (typeof adminFromNs === 'string' && adminFromNs.trim()) targets.add(adminFromNs.trim());
+        } catch {}
+
+        try {
+          const publicFromNs = await store.get(ns, 'publicToken', null);
+          if (typeof publicFromNs === 'string' && publicFromNs.trim()) targets.add(publicFromNs.trim());
+        } catch {}
+
+        for (const t of Array.from(targets)) {
+          try {
+            const pub = await store.get(t, 'publicToken', null);
+            if (typeof pub === 'string' && pub.trim()) targets.add(pub.trim());
+          } catch {}
+          try {
+            const adm = await store.get(t, 'adminToken', null);
+            if (typeof adm === 'string' && adm.trim()) targets.add(adm.trim());
+          } catch {}
+        }
+      }
+
+      for (const target of targets) {
+        try {
+          this._broadcast(target, payload);
+        } catch {}
+      }
     } catch {}
   }
 
