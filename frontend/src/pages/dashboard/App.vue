@@ -199,6 +199,7 @@
 </template>
 
 <script setup>
+/* global __GETTY_CSRF_HEADER__, __GETTY_VERBOSE_CSRF__ */
 import { computed, onBeforeUnmount, onMounted, nextTick, ref, watch } from 'vue';
 import DashboardGrid from '../../components/dashboard/DashboardGrid.vue';
 import { useDashboardStore } from '../../stores/dashboardStore';
@@ -241,6 +242,105 @@ const forceNextSaveToast = ref(false);
 const lastSaveToastAt = ref(0);
 const lastLoadErrorToastAt = ref(0);
 const lastSaveErrorToastAt = ref(0);
+
+let __csrfToken = null;
+let __csrfPromise = null;
+let __lastCsrfFetchTs = 0;
+let __csrfDisabled = false;
+
+const __definedCsrfHeader =
+  (typeof __GETTY_CSRF_HEADER__ !== 'undefined' && __GETTY_CSRF_HEADER__) || '';
+const CSRF_HEADER = (
+  __definedCsrfHeader ||
+  (globalThis.process && globalThis.process.env && globalThis.process.env.VITE_GETTY_CSRF_HEADER) ||
+  'x-csrf-token'
+).toLowerCase();
+const CSRF_MAX_AGE_MS = 1000 * 60 * 30;
+
+function shouldSuppressCsrfLogs() {
+  try {
+    const verboseDefined = typeof __GETTY_VERBOSE_CSRF__ !== 'undefined' && __GETTY_VERBOSE_CSRF__;
+    const flag =
+      verboseDefined ||
+      (globalThis.process &&
+        globalThis.process.env &&
+        globalThis.process.env.VITE_GETTY_VERBOSE_CSRF);
+    if (flag === '1' || flag === 'true') return false;
+    return (
+      (globalThis.process && globalThis.process.env && globalThis.process.env.NODE_ENV) === 'test'
+    );
+  } catch {
+    return false;
+  }
+}
+
+function getDashboardApiAuthQuery() {
+  try {
+    const urlObj = new URL(window.location.href);
+    const match = urlObj.pathname.match(/^\/user\/([A-Za-z0-9_-]+)/);
+    const token = match ? match[1] : '';
+
+    const params = new URLSearchParams();
+    if (token) params.set('token', token);
+
+    const widgetToken = urlObj.searchParams.get('widgetToken') || '';
+    if (widgetToken) params.set('widgetToken', widgetToken);
+
+    const qs = params.toString();
+    return qs ? `?${qs}` : '';
+  } catch {
+    return '';
+  }
+}
+
+async function fetchDashboardCsrfToken(force = false) {
+  if (__csrfDisabled) return null;
+  if (!force && __csrfToken && Date.now() - __lastCsrfFetchTs < CSRF_MAX_AGE_MS) return __csrfToken;
+  if (__csrfPromise && !force) return __csrfPromise;
+
+  const qs = getDashboardApiAuthQuery();
+  __csrfPromise = fetch(`/api/admin/csrf${qs}`, {
+    credentials: 'include',
+    cache: 'no-store',
+    headers: { Accept: 'application/json' },
+  })
+    .then((r) => {
+      if (r.ok) return r.json();
+      if ([401, 403, 404].includes(r.status)) {
+        __csrfDisabled = true;
+        return Promise.reject(new Error('csrf_disabled'));
+      }
+      return Promise.reject(new Error('csrf_fetch_failed'));
+    })
+    .then((j) => {
+      if (j && typeof j.csrfToken === 'string' && j.csrfToken.trim()) {
+        __csrfToken = j.csrfToken;
+        __lastCsrfFetchTs = Date.now();
+        return __csrfToken;
+      }
+      throw new Error('csrf_missing_token');
+    })
+    .catch((e) => {
+      if (e && e.message === 'csrf_disabled') {
+        if (!shouldSuppressCsrfLogs()) {
+          try {
+            console.warn('[csrf] disabled (no route or no session) – suppressing further attempts');
+          } catch {}
+        }
+      } else if (!shouldSuppressCsrfLogs()) {
+        try {
+          console.warn('[csrf] failed to fetch token', e?.message || e);
+        } catch {}
+      }
+      __csrfToken = null;
+      return null;
+    })
+    .finally(() => {
+      __csrfPromise = null;
+    });
+
+  return __csrfPromise;
+}
 
 const lastSavedPrefsSnapshot = ref('');
 
@@ -392,9 +492,15 @@ async function saveDashboardPreferences(options = {}) {
     if (seedOnly && (!Array.isArray(payload.customLayout) || payload.customLayout.length === 0))
       return;
 
+    const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
+    try {
+      const tok = await fetchDashboardCsrfToken();
+      if (tok) headers[CSRF_HEADER] = tok;
+    } catch {}
+
     const res = await fetch(url, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      headers,
       body: JSON.stringify(payload),
     });
 
