@@ -40,7 +40,8 @@ export const useDashboardStore = defineStore('dashboard', () => {
       case 'achievements':
         return 16;
       case 'raffle':
-        return 10;
+        // 17 rows * 30px rowHeight ≈ 510px (matches the 500px target closely)
+        return 17;
       case 'stats':
         return 11;
       case 'goal':

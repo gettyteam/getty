@@ -5,7 +5,8 @@
     <BlockedState v-if="isBlocked" module-name="Recent Events" />
     <template v-else>
       <div
-        class="px-2 py-3 mb-2 bg-secondary/30 border-b border-border flex items-center justify-between">
+        class="px-2 py-3 bg-secondary/30 border-b border-border flex items-center justify-between"
+        :class="props.inCustomGrid ? 'mb-1' : 'mb-2'">
         <div class="flex items-center gap-2 text-[11px] text-muted-foreground">
           <span
             class="h-1.5 w-1.5 rounded-full"
@@ -26,7 +27,7 @@
           {{ getI18nText('recentEventsWaiting', 'Waiting for events...') }}
         </div>
 
-        <div v-else class="h-full min-h-0 flex flex-col" :class="{ 'p-2': props.inCustomGrid }">
+        <div v-else class="h-full min-h-0 flex flex-col" :class="{ 'p-3': props.inCustomGrid }">
           <div
             class="re-list"
             :class="{
@@ -108,7 +109,9 @@ const tipEvents = ref<FeedEvent[]>([]);
 let livePollTimer: number | null = null;
 
 function iconForKind(_kind: FeedKind): string {
-  return '✦';
+  if (_kind === 'tip') return '★';
+  if (_kind === 'achievement') return '✦';
+  return '✱';
 }
 
 function labelForKind(kind: FeedKind): string {
@@ -309,7 +312,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 0.5rem;
   overflow-x: hidden;
-  padding-right: 6px;
+  padding-right: 0px;
   overflow-y: hidden;
   flex: 1;
   min-height: 0;

@@ -1503,7 +1503,34 @@ wss.broadcast = function (nsToken, payload) {
   }
 };
 
-// Old subscription block removed (moved to secretsLoaded)
+try {
+  if (!wss.__gettyHeartbeatStarted) {
+    const msRaw = parseInt(process.env.GETTY_WS_HEARTBEAT_MS || '25000', 10);
+    const HEARTBEAT_MS = Number.isFinite(msRaw) && msRaw > 5000 ? msRaw : 25000;
+    const iv = setInterval(() => {
+      try {
+        wss.clients.forEach((client) => {
+          try {
+            if (!client || client.readyState !== 1) return;
+            if (client.isAlive === false) {
+              if (typeof client.terminate === 'function') client.terminate();
+              return;
+            }
+            client.isAlive = false;
+            if (typeof client.ping === 'function') client.ping();
+          } catch {}
+        });
+      } catch {}
+    }, HEARTBEAT_MS);
+    if (iv && typeof iv.unref === 'function') {
+      try {
+        iv.unref();
+      } catch {}
+    }
+    wss.__gettyHeartbeatStarted = true;
+    wss.__gettyHeartbeatInterval = iv;
+  }
+} catch {}
 
 let __arPriceCache = { usd: 0, ts: 0, source: 'none', providersTried: [] };
 let __arPriceFetchPromise = null;
@@ -7201,6 +7228,17 @@ try {
 wss.on('connection', async (ws) => {
   try {
     websocketConnectionsTotal.inc();
+
+    try {
+      ws.isAlive = true;
+      if (typeof ws.on === 'function') {
+        ws.on('pong', () => {
+          try {
+            ws.isAlive = true;
+          } catch {}
+        });
+      }
+    } catch {}
 
     let ns = null;
     try {
