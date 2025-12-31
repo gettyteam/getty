@@ -54,7 +54,6 @@ function setupWidgetTokenAdapters(widgetToken) {
     };
     window.__GETTY_FETCH_PATCHED__ = true;
   }
-  if (!normalizedToken) return;
   if (!window.__GETTY_WS_PATCHED__ && typeof window.WebSocket === "function") {
     const OriginalWebSocket = window.WebSocket;
     const patchedWebSocket = function(resource, protocols) {
@@ -69,8 +68,16 @@ function setupWidgetTokenAdapters(widgetToken) {
           const url = new URL(originalString, window.location.href.replace(/\/$/, "/"));
           const isWs = url.protocol === "ws:" || url.protocol === "wss:";
           const sameOrigin = url.host === window.location.host;
-          if (sameOrigin && !url.searchParams.has("widgetToken")) {
-            url.searchParams.set("widgetToken", normalizedToken);
+          if (sameOrigin) {
+            if (url.searchParams.get("ns") === "") url.searchParams.delete("ns");
+            if (url.searchParams.get("widgetToken") === "") url.searchParams.delete("widgetToken");
+            const isNamespacedWs = isWs && url.searchParams.has("ns");
+            if (isNamespacedWs) {
+              url.searchParams.delete("widgetToken");
+            }
+            if (!isNamespacedWs && normalizedToken && !url.searchParams.has("widgetToken")) {
+              url.searchParams.set("widgetToken", normalizedToken);
+            }
             if (typeof resource === "string") {
               resource = isWs ? url.toString() : `${url.pathname}${url.search}`;
             } else if (resource && typeof resource.url === "string") {

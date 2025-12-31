@@ -284,19 +284,16 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
       try {
         const wss = req.app?.get('wss');
         if (wss && typeof wss.broadcast === 'function') {
-          if (ns) {
+          const broadcastNs = req?.ns?.admin || req?.ns?.pub || null;
+          if (broadcastNs) {
             try {
-              wss.broadcast(ns, { type: 'chatConfigUpdate', data: newConfig, meta });
+              wss.broadcast(broadcastNs, { type: 'chatConfigUpdate', data: newConfig, meta });
             } catch {}
             try {
-              const publicToken = await store.get(ns, 'publicToken', null);
+              const publicToken = await store.get(broadcastNs, 'publicToken', null);
               if (typeof publicToken === 'string' && publicToken) {
                 wss.broadcast(publicToken, { type: 'chatConfigUpdate', data: newConfig, meta });
               }
-            } catch {}
-          } else {
-            try {
-              wss.broadcast(null, { type: 'chatConfigUpdate', data: newConfig, meta });
             } catch {}
           }
         }
