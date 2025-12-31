@@ -5,6 +5,7 @@ let __csrfToken = null;
 let __csrfPromise = null;
 let __lastFetchTs = 0;
 let __csrfDisabled = false;
+let __handledAuthLoss = false;
 
 const __definedCsrfHeader =
   (typeof __GETTY_CSRF_HEADER__ !== 'undefined' && __GETTY_CSRF_HEADER__) || '';
@@ -98,6 +99,26 @@ api.interceptors.response.use(
   (r) => r,
   async (err) => {
     try {
+      const status = err?.response?.status;
+      const requestUrl = String(err?.config?.url || '');
+
+      if (
+        status === 401 &&
+        !__handledAuthLoss &&
+        (requestUrl.includes('/api/admin/') || requestUrl.includes('/api/auth/'))
+      ) {
+        __handledAuthLoss = true;
+        try {
+          localStorage.setItem('getty_logout', String(Date.now()));
+        } catch {}
+        try {
+          window.dispatchEvent(new CustomEvent('getty:session-expired'));
+        } catch {}
+        try {
+          window.location.href = '/';
+        } catch {}
+      }
+
       const code = err?.response?.data?.error || err?.response?.data?.code;
       
       const data = err?.response?.data;
@@ -207,11 +228,12 @@ export async function fetchJson(url, opts = {}) {
 
     if (res.status === 401 && url.includes('/api/auth/wander/me')) {
       if (raw) return res;
+
       try {
-        return await res.json();
-      } catch {
-        return {};
-      }
+        const j = await res.json().catch(() => null);
+        if (j && typeof j === 'object') return j;
+      } catch {}
+      return { error: 'unauthorized' };
     }
 
     if (errCode === 'legacy_removed' && parsed && parsed.mode === 'wallet_only') {

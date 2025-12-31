@@ -19,10 +19,14 @@ try {
   window.addEventListener('storage', (e) => {
     if (e && e.key === 'getty_logout') {
       try {
-        console.warn('[admin] detected global logout event, forcing reload');
+        console.warn('[admin] detected global logout event, leaving admin');
       } catch {}
       setTimeout(() => {
-        window.location.reload();
+        try {
+          window.location.replace('/?logout=true');
+        } catch {
+          window.location.href = '/?logout=true';
+        }
       }, 100);
     }
   });

@@ -59,7 +59,15 @@ async function heartbeat(force = false): Promise<void> {
   if (!force && now - state.lastHeartbeat < 5_000) return;
   state.lastHeartbeat = now;
   try {
-    const res = (await fetchJson('/api/auth/wander/me', { method: 'GET' })) as SessionResponse;
+    let res = (await fetchJson('/api/auth/wander/me', { method: 'GET' })) as SessionResponse;
+    if (!res || !res.address) {
+      try {
+        res = (await fetchJson('/api/auth/wallet/me', { method: 'GET' })) as SessionResponse;
+      } catch {
+        // ignore wallet fallback errors
+      }
+    }
+
     if (res && res.address) {
       state.address = res.address ?? null;
       state.walletHash = res.walletHash ?? null;
