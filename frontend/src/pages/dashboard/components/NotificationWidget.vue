@@ -3,8 +3,8 @@
     :is="embedded ? 'div' : 'section'"
     :class="
       embedded
-        ? 'flex-1 flex flex-col justify-center relative min-h-0'
-        : 'os-card overflow-hidden flex flex-col md:order-3 lg:order-3'
+        ? 'flex-1 flex flex-col justify-center relative min-h-0 mt-2.5'
+        : 'os-card overflow-hidden flex flex-col md:order-3 lg:order-3 mt-2.5'
     ">
     <BlockedState v-if="isBlocked" module-name="Notifications" />
     <template v-else>
@@ -87,17 +87,61 @@ const config = ref({
   bgColor: '#080c10',
   fontColor: '#ffffff',
   borderColor: '#00ff7f',
-  amountColor: '#00ff7f',
+  amountColor: '',
   fromColor: '#ffffff',
 });
 
-const cssVars = computed(() => ({
-  '--tn-bg': config.value.bgColor,
-  '--tn-text': config.value.fontColor,
-  '--tn-border': config.value.borderColor,
-  '--tn-amount': config.value.amountColor,
-  '--tn-from': config.value.fromColor,
-}));
+const cssVars = computed(() => {
+  const c = config.value;
+
+  const normalizeHex = (v: any) => (typeof v === 'string' ? v.trim().toLowerCase() : '');
+
+  const parseHex = (hex: string): { r: number; g: number; b: number } | null => {
+    const h = normalizeHex(hex);
+    if (!h || !h.startsWith('#')) return null;
+    const raw = h.slice(1);
+    if (raw.length === 3) {
+      const r = parseInt(raw[0] + raw[0], 16);
+      const g = parseInt(raw[1] + raw[1], 16);
+      const b = parseInt(raw[2] + raw[2], 16);
+      if ([r, g, b].some((n) => Number.isNaN(n))) return null;
+      return { r, g, b };
+    }
+    if (raw.length === 6) {
+      const r = parseInt(raw.slice(0, 2), 16);
+      const g = parseInt(raw.slice(2, 4), 16);
+      const b = parseInt(raw.slice(4, 6), 16);
+      if ([r, g, b].some((n) => Number.isNaN(n))) return null;
+      return { r, g, b };
+    }
+    return null;
+  };
+
+  const isDarkBg = (() => {
+    const rgb = parseHex(c.bgColor);
+    if (!rgb) {
+      return true;
+    }
+    const yiq = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
+    return yiq < 140;
+  })();
+
+  const bgHex = normalizeHex(c.bgColor);
+  const hasCustomBg = !!bgHex && bgHex !== '#080c10';
+  const isObsDefaultText = ['#ffffff', '#fff'].includes(normalizeHex(c.fontColor));
+  const isObsDefaultAmount = normalizeHex(c.amountColor) === '#00ff7f';
+  const isObsDefaultFrom = ['#ffffff', '#fff'].includes(normalizeHex(c.fromColor));
+
+  const defaultReadableText = isDarkBg ? '#ffffff' : 'var(--text-primary)';
+
+  return {
+    '--tn-bg': hasCustomBg ? c.bgColor : undefined,
+    '--tn-text': !c.fontColor || isObsDefaultText ? defaultReadableText : c.fontColor,
+    '--tn-border': c.borderColor,
+    '--tn-amount': !c.amountColor || isObsDefaultAmount ? defaultReadableText : c.amountColor,
+    '--tn-from': !c.fromColor || isObsDefaultFrom ? defaultReadableText : c.fromColor,
+  };
+});
 
 const arAmount = computed(() => {
   if (!currentNotification.value) return '0.00';

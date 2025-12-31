@@ -589,7 +589,16 @@ function onResetCustomLayout() {
 
 function onToggleViewMode() {
   forceNextSaveToast.value = true;
-  showCustomDashboard.value = !showCustomDashboard.value;
+
+  const nextIsCustom = !showCustomDashboard.value;
+  if (
+    nextIsCustom &&
+    (!Array.isArray(dashboardStore.layout) || dashboardStore.layout.length === 0)
+  ) {
+    dashboardStore.resetLayout();
+  }
+
+  showCustomDashboard.value = nextIsCustom;
 }
 
 const bodyClasses = [

@@ -230,6 +230,7 @@ const cssVars = computed(() => {
   const normalizeHex = (v: any) => (typeof v === 'string' ? v.trim().toLowerCase() : '');
   const isObsDefaultBg = normalizeHex((c as any).bgColor) === '#080c10';
   const isObsDefaultText = ['#ffffff', '#fff'].includes(normalizeHex((c as any).fontColor));
+  const isObsDefaultAmount = normalizeHex((c as any).amountColor) === '#00ff7f';
 
   const shouldUseCustomBg = !!c.bgColor && !isObsDefaultBg;
 
@@ -237,7 +238,7 @@ const cssVars = computed(() => {
     '--lt-bg': shouldUseCustomBg ? c.bgColor : undefined,
     '--lt-border': c.borderColor || '#00ff7f',
     '--lt-text': !c.fontColor || isObsDefaultText ? 'var(--text-primary)' : c.fontColor,
-    '--lt-amount': c.amountColor || 'var(--text-primary)',
+    '--lt-amount': !c.amountColor || isObsDefaultAmount ? 'var(--text-primary)' : c.amountColor,
     '--lt-icon-bg': c.iconBgColor || '#eaeaea',
     '--lt-from': c.fromColor || 'var(--text-secondary)',
   };
@@ -331,18 +332,18 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 68px;
-  height: 68px;
-  min-width: 68px;
-  min-height: 68px;
-  border-radius: 0.25rem;
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  min-height: 56px;
+  border-radius: 9999px;
   background-color: var(--lt-icon-bg, #eaeaea);
   align-self: flex-start;
 }
 
 .notification-icon-lasttip svg {
-  width: 50px;
-  height: 50px;
+  width: 48px;
+  height: 48px;
   display: block;
   color: #fdfcfc;
 }
@@ -438,7 +439,7 @@ onMounted(() => {
 .lt-amount {
   font-size: 1.1rem;
   font-weight: 800;
-  color: var(--lt-amount, #fff);
+  color: var(--lt-amount, var(--text-primary));
   display: flex;
   align-items: baseline;
   gap: 4px;
@@ -446,7 +447,7 @@ onMounted(() => {
 }
 
 .lt-ar-amount {
-  color: var(--lt-amount, #fff);
+  color: var(--lt-amount, var(--text-primary));
   font-size: 22px;
 }
 

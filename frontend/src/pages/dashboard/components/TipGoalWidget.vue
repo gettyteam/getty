@@ -22,7 +22,7 @@
               </div>
             </div>
             <div class="progress-container" :class="{ 'reached-goal': reachedGoal }">
-              <div class="progress-bar" :style="{ width: progressPercentage + '%' }"></div>
+              <div class="progress-bar" :style="progressBarStyle"></div>
               <div class="progress-text">{{ progressPercentage.toFixed(1) }}%</div>
             </div>
           </div>
@@ -37,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useWidgetStore } from '../../../stores/widgetStore';
 import BlockedState from './BlockedState.vue';
 import NotificationWidget from './NotificationWidget.vue';
@@ -62,6 +62,7 @@ defineProps({
 const store = useWidgetStore();
 const isCelebrating = ref(false);
 const hasPlayedSound = ref(false);
+const animateProgress = ref(false);
 
 const getI18nText = (key: string, fallback: string) => {
   i18nTrigger.value;
@@ -96,6 +97,13 @@ const progressPercentage = computed(() => {
   const goal = parseFloat(goalAR.value);
   if (goal === 0) return 0;
   return Math.min((current / goal) * 100, 100);
+});
+
+const progressBarStyle = computed(() => {
+  return {
+    width: progressPercentage.value + '%',
+    transition: animateProgress.value ? undefined : 'none',
+  };
 });
 
 const usdValue = computed(() => {
@@ -219,7 +227,28 @@ const removeConfetti = () => {
 onMounted(() => {
   store.initWebSocket();
   store.fetchInitialData();
+
+  void nextTick().then(() => {
+    requestAnimationFrame(() => {
+      animateProgress.value = true;
+    });
+  });
 });
+
+watch(
+  () => store.isConnected,
+  (connected) => {
+    if (!connected) {
+      animateProgress.value = false;
+      return;
+    }
+    void nextTick().then(() => {
+      requestAnimationFrame(() => {
+        animateProgress.value = true;
+      });
+    });
+  }
+);
 </script>
 
 <style scoped>
@@ -269,7 +298,7 @@ onMounted(() => {
 .current-ar {
   font-size: 24px;
   font-weight: 800;
-  color: var(--tg-progress, #00ff7f);
+  color: var(--tg-text, var(--text-primary));
   transition: all 0.3s ease;
 }
 

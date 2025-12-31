@@ -260,7 +260,7 @@ onUnmounted(() => {
 }
 
 .prize-image {
-  width: 50%;
+  width: 40%;
   height: 100%;
   object-fit: cover;
   border-radius: 4px;
@@ -280,9 +280,12 @@ onUnmounted(() => {
 }
 
 .prize-text {
+  background-color: var(--border-color);
+  padding: 4px 12px;
+  border-radius: 4px;
+  color: #13c5ed;
   font-size: 32px;
-  font-weight: 500;
-  color: #6d46c3;
+  font-weight: 600;
 }
 
 .raffle-message {
@@ -369,10 +372,10 @@ onUnmounted(() => {
 }
 
 .participant-pill {
-  background: rgba(255, 255, 255, 0.1);
+  background-color: var(--border-color);
   padding: 4px 8px;
   border-radius: 4px;
-  color: #cbd5f5;
+  color: var(--text-primary);
 }
 </style>
 
