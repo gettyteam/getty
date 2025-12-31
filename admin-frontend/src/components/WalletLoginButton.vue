@@ -210,6 +210,10 @@ const needsWalletVerification = computed(() => {
   if (session.state.loading) return false;
   if (session.state.sessionStale) return false;
 
+  const addr = session.state.address;
+  const isOdysee = typeof addr === 'string' && addr.startsWith('odysee:');
+  if (isOdysee) return false;
+
   const caps = Array.isArray(session.state.capabilities) ? session.state.capabilities : null;
   if (!caps) return false;
   return !caps.includes('config.write');
@@ -490,14 +494,3 @@ const balanceLabel = computed(() => {
   return '';
 });
 </script>
-<style scoped>
-button {
-  background: var(--bg-card);
-}
-button:hover {
-  background: var(--bg-chat);
-}
-.balance-label {
-  display: inline-block;
-}
-</style>

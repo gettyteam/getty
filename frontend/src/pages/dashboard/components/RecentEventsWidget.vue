@@ -109,8 +109,8 @@ const tipEvents = ref<FeedEvent[]>([]);
 let livePollTimer: number | null = null;
 
 function iconForKind(_kind: FeedKind): string {
-  if (_kind === 'tip') return '★';
-  if (_kind === 'achievement') return '✦';
+  if (_kind === 'tip') return '$';
+  if (_kind === 'achievement') return '✔';
   return '✱';
 }
 

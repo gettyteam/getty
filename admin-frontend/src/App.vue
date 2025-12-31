@@ -712,13 +712,12 @@ function loadTenantIndicators() {
     lastWanderWalletHash.value = '';
   }
 
-  if (!lastOdyseeWalletHash.value && channelAnalyticsHasAuthToken.value) {
+  // If there is an active wallet session (Odysee/wallet auth), show the current walletHash
+  // even if we haven't stored it yet.
+  if (!lastOdyseeWalletHash.value) {
     const candidate = String(wanderSession.state.walletHash || '').trim();
     if (candidate) {
       lastOdyseeWalletHash.value = candidate;
-      try {
-        localStorage.setItem('getty_last_odysee_walletHash', candidate);
-      } catch {}
     }
   }
 }
@@ -770,7 +769,11 @@ watch(
   ([address, loading, path]) => {
     if (loading) return;
     if (!address && path.startsWith('/admin')) {
-      router.push('/');
+      try {
+        window.location.replace('/');
+      } catch {
+        window.location.href = '/';
+      }
     }
   },
   { immediate: true }

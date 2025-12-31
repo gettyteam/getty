@@ -1351,6 +1351,10 @@ class WanderWalletLogin {
       this.isConnected = true;
       this.lastReconnectReason = '';
       try {
+        const hash = resp && typeof resp.walletHash === 'string' ? resp.walletHash.trim() : '';
+        if (hash) localStorage.setItem('getty_last_odysee_walletHash', hash);
+      } catch {}
+      try {
         if (isArweave) {
           localStorage.setItem('wanderWalletConnected', 'true');
           localStorage.setItem('arweaveAddress', walletAddrRaw);
@@ -1478,6 +1482,10 @@ class WanderWalletLogin {
             this.arweaveAddress = isArweave ? walletAddrRaw : null;
             this.isConnected = true;
             this.lastReconnectReason = '';
+            try {
+              const hash = resp && typeof resp.walletHash === 'string' ? resp.walletHash.trim() : '';
+              if (hash) localStorage.setItem('getty_last_odysee_walletHash', hash);
+            } catch {}
             try {
               if (isArweave) {
                 localStorage.setItem('wanderWalletConnected', 'true');
@@ -2221,6 +2229,10 @@ class WanderWalletLogin {
   async logout() {
     try {
       await this.postJson('/api/auth/wander/logout', {});
+    } catch {}
+
+    try {
+      await this.postJson('/api/auth/wallet/logout', {});
     } catch {}
 
     try {
