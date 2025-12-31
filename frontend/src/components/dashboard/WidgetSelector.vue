@@ -8,7 +8,7 @@
         {{ getI18nText('dashboardAddWidgetHint', 'Click to add to dashboard') }}
       </p>
     </div>
-    <div class="flex-1 overflow-y-auto p-4 space-y-3">
+    <div class="flex-1 overflow-y-auto p-4 pb-6 space-y-3">
       <button
         v-for="type in availableWidgets"
         :key="type"
@@ -81,7 +81,9 @@ const getTitle = (type: string) => {
   return key ? getI18nText(key, fallback) : fallback;
 };
 
-const existingTypes = computed(() => new Set(layout.value.map((w) => w.type)));
+const existingTypes = computed(
+  () => new Set(layout.value.filter((w) => !w.isMinimized).map((w) => w.type))
+);
 const isAlreadyAdded = (type: string) => existingTypes.value.has(type as any);
 
 const getIcon = (type: string) => {

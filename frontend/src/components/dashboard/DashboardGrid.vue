@@ -1,7 +1,7 @@
 <template>
   <div class="dashboard-container relative h-full w-full overflow-hidden flex bg-background">
     <div
-      class="flex-1 h-full overflow-auto no-scrollbar transition-[padding] duration-300 relative bg-background"
+      class="flex-1 h-full overflow-auto no-scrollbar transition-[padding] duration-300 relative bg-background z-0"
       :class="{
         'pr-8': isEditMode,
         'is-resizing-mode': store.isResizing,
@@ -20,7 +20,7 @@
       </div>
 
       <GridLayout
-        v-model:layout="layout"
+        v-model:layout="activeLayout"
         :col-num="12"
         :row-height="30"
         :margin="[0, 0]"
@@ -29,7 +29,7 @@
         :vertical-compact="true"
         :use-css-transforms="true">
         <GridItem
-          v-for="item in layout"
+          v-for="item in activeLayout"
           :key="item.i"
           :x="item.x"
           :y="item.y"
@@ -64,17 +64,23 @@
       </GridLayout>
     </div>
 
-    <div
-      v-if="isEditMode"
-      class="absolute right-0 top-0 h-full z-50 flex transition-transform duration-300 ease-in-out translate-x-[calc(100%-24px)] hover:translate-x-0">
+    <Teleport to="body">
       <div
-        class="w-6 h-full bg-card border-l border-border flex items-center justify-center cursor-pointer hover:bg-secondary/50 transition-colors shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)]">
-        <i class="pi pi-angle-left text-muted-foreground"></i>
+        v-if="isEditMode"
+        class="fixed right-0 z-[80] flex transition-transform duration-300 ease-in-out translate-x-[calc(100%-24px)] hover:translate-x-0"
+        :style="{
+          top: sidebarTopPx + 'px',
+          height: 'calc(100vh - ' + sidebarTopPx + 'px)',
+        }">
+        <div
+          class="w-6 h-full bg-card border-l border-border flex items-center justify-center cursor-pointer hover:bg-secondary/50 transition-colors shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)]">
+          <i class="pi pi-angle-left text-muted-foreground"></i>
+        </div>
+        <div class="w-72 h-full bg-card border-l border-border shadow-2xl">
+          <WidgetSelector @add="store.addWidget" />
+        </div>
       </div>
-      <div class="w-72 h-full bg-card border-l border-border shadow-2xl">
-        <WidgetSelector @add="store.addWidget" />
-      </div>
-    </div>
+    </Teleport>
 
     <div
       v-if="dragGhost"
@@ -129,7 +135,7 @@ import WidgetWrapper from './WidgetWrapper.vue';
 import WidgetSelector from './WidgetSelector.vue';
 import { getWidgetComponent, widgetTitles } from '../../utils/widgetRegistry';
 import type { DashboardWidget } from '../../types/dashboard';
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { useElementSize } from '@vueuse/core';
 // @ts-ignore
 import { i18nTrigger } from '../../pages/dashboard/languageManager';
@@ -138,11 +144,51 @@ const store = useDashboardStore();
 const { layout, isEditMode } = storeToRefs(store);
 const { removeWidget } = store;
 
+const activeLayout = computed({
+  get: () => layout.value.filter((w) => !w.isMinimized),
+  set: (next) => {
+    const byI = new Map(next.map((w) => [w.i, w]));
+    layout.value = layout.value.map((w) => {
+      const updated = byI.get(w.i);
+      if (!updated) return w;
+      return { ...w, x: updated.x, y: updated.y, w: updated.w, h: updated.h };
+    });
+  },
+});
+
 const gridContainer = ref<HTMLElement | null>(null);
 const { width: containerWidth } = useElementSize(gridContainer);
 const colWidth = computed(() => (containerWidth.value || 1200) / 12);
 const ROW_HEIGHT = 30;
 const COLS = 12;
+
+const sidebarTopPx = ref(0);
+
+function updateSidebarMetrics() {
+  if (!gridContainer.value) return;
+  const rect = gridContainer.value.getBoundingClientRect();
+  sidebarTopPx.value = Math.max(0, Math.round(rect.top));
+}
+
+onMounted(() => {
+  updateSidebarMetrics();
+  window.addEventListener('resize', updateSidebarMetrics);
+  window.addEventListener('scroll', updateSidebarMetrics, { passive: true });
+});
+
+watch(
+  isEditMode,
+  (enabled) => {
+    if (!enabled) return;
+    nextTick(() => updateSidebarMetrics());
+  },
+  { flush: 'post' }
+);
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateSidebarMetrics);
+  window.removeEventListener('scroll', updateSidebarMetrics);
+});
 
 const getI18nText = (key: string, fallback: string) => {
   i18nTrigger.value;
@@ -214,7 +260,7 @@ function findWidgetAtPoint(
   gridY: number,
   excludeI?: string
 ): DashboardWidget | null {
-  const hit = layout.value.find(
+  const hit = activeLayout.value.find(
     (w) =>
       w.i !== excludeI && gridX >= w.x && gridX < w.x + w.w && gridY >= w.y && gridY < w.y + w.h
   );
@@ -251,9 +297,9 @@ function computeMoveDockFromCenter(
   const clampedX = Math.min(Math.max(leftX, 0), Math.max(0, COLS - w));
   const desiredY = Math.max(topY, 0);
 
-  const candidateYs = Array.from(new Set([0, ...layout.value.map((w) => w.y), desiredY])).sort(
-    (a, b) => a - b
-  );
+  const candidateYs = Array.from(
+    new Set([0, ...activeLayout.value.map((w) => w.y), desiredY])
+  ).sort((a, b) => a - b);
   const rankedYs = candidateYs
     .map((y) => ({ y, d: Math.abs(y - desiredY) }))
     .sort((a, b) => a.d - b.d);
@@ -261,7 +307,7 @@ function computeMoveDockFromCenter(
   const selfRect = { x: clampedX, y: desiredY, w, h };
   const collidesAt = (y: number) => {
     const testRect = { ...selfRect, y };
-    return layout.value.some(
+    return activeLayout.value.some(
       (other) => other.i !== draggedWidgetId && rectsOverlap(testRect, other)
     );
   };

@@ -40,7 +40,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
       case 'achievements':
         return 16;
       case 'raffle':
-        // 17 rows * 30px rowHeight ≈ 510px (matches the 500px target closely)
         return 17;
       case 'stats':
         return 11;
@@ -117,7 +116,13 @@ export const useDashboardStore = defineStore('dashboard', () => {
   ]);
 
   function addWidget(type: WidgetType) {
-    if (layout.value.some((w) => w.type === type)) return;
+    const existing = layout.value.find((w) => w.type === type);
+    if (existing) {
+      if (existing.isMinimized) {
+        existing.isMinimized = false;
+      }
+      return;
+    }
 
     const w = 4;
 
@@ -200,10 +205,9 @@ export const useDashboardStore = defineStore('dashboard', () => {
   }
 
   function removeWidget(i: string) {
-    const index = layout.value.findIndex(w => w.i === i);
-    if (index !== -1) {
-      layout.value.splice(index, 1);
-    }
+    const widget = layout.value.find((w) => w.i === i);
+    if (!widget) return;
+    widget.isMinimized = true;
   }
 
   function updateLayout(newLayout: DashboardWidget[]) {
