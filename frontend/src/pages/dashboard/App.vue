@@ -247,7 +247,7 @@ const marqueeChats = computed(() => {
   return (store.lastTips || []).map((tip) => ({
     id: (tip.timestamp || Date.now()) + '-' + tip.from,
     support_amount: parseFloat(tip.usd || tip.amount || '0'),
-    currency: tip.usd ? 'USD' : 'LBC',
+    currency: tip.usd ? 'USD' : 'AR',
     from: tip.from,
     avatar: tip.avatar || null,
   }));

@@ -622,22 +622,7 @@ export const useWidgetStore = defineStore('widgets', () => {
           if (msg.data?.credits > 0) {
              upsertLastTipHistory(msg.data, 20);
              activeNotification.value = { ...msg.data, isChatTip: true, timestamp: Date.now() };
-             try {
-               const usd = Number(msg.data.credits);
-               const rate = arPrice.value > 0 ? arPrice.value : 5;
-               const ar = Number.isFinite(usd) && usd > 0 && rate > 0 ? +(usd / rate).toFixed(6) : 0;
-               upsertLastTipHistory({
-                 from: msg.data.channelTitle || msg.data.from || 'Anonymous',
-                 amount: ar > 0 ? ar : usd,
-                 usd: Number.isFinite(usd) ? usd : undefined,
-                 message: msg.data.message || '',
-                 timestamp: msg.data.timestamp || new Date().toISOString(),
-                 source: 'chat',
-                 creditsIsUsd: true,
-                 isChatTip: true,
-               });
-               if (arPrice.value === 0) fetchArPrice();
-             } catch {}
+             if (arPrice.value === 0) fetchArPrice();
              bumpActivitiesToday(1);
           }
         } else if (msg.type === 'chatConfigUpdate') {

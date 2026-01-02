@@ -88,8 +88,8 @@ const currentPromoMessage = ref('');
 const currentPromoKey = ref('');
 let cycleTimer = null;
 
-const MARQUEE_TIME = 1 * 60 * 1000; // 1 minute (temporary)
-const PROMO_TIME = 1 * 60 * 1000; // 1 minute (temporary)
+const MARQUEE_TIME = 5 * 60 * 1000;
+const PROMO_TIME = 1 * 60 * 1000;
 
 const promoKeys = [
   'hyperchatPromo1',
@@ -255,7 +255,14 @@ function formatAmount(chat) {
   const amount = chat.support_amount || 0;
   const currency = chat.currency || 'USD';
 
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
+  if (currency === 'AR') return `${amount} AR`;
+  if (currency === 'LBC') return `${amount} LBC`;
+
+  try {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
+  } catch {
+    return `${amount} ${currency}`;
+  }
 }
 </script>
 
