@@ -13,7 +13,7 @@
           id="dashboard-chat-widget"
           ref="chatContainer"
           class="chat-container flex-1 overflow-y-auto space-y-2"
-          :class="{ 'p-2': inCustomGrid }">
+          :class="{ 'p-2': inCustomGrid, 'hide-avatars': !showAvatars }">
           <div
             v-for="(msg, index) in messages"
             :key="index"
@@ -89,6 +89,7 @@ const getI18nText = (key: string, fallback: string) => {
 };
 
 const messages = computed(() => store.chatMessages);
+const showAvatars = computed(() => store.chatConfig?.showAvatars !== false);
 
 const CYBERPUNK_PALETTE = [
   { color: '#000', border: 'rgba(17, 255, 121, 0.9)' },
@@ -199,12 +200,17 @@ onMounted(() => {
   object-fit: cover;
 }
 
+.hide-avatars .message-user-container {
+  padding-left: 0px !important;
+}
+
 .message-user-container {
   flex-wrap: wrap;
   align-items: baseline;
   width: 100%;
   position: relative;
-  margin-left: 8px;
+  margin-left: 0px;
+  padding: 0px 0px 0px 6px;
   display: flex;
 }
 
@@ -308,5 +314,9 @@ onMounted(() => {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.hide-avatars .message-avatar {
+  display: none !important;
 }
 </style>

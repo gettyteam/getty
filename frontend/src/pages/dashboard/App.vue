@@ -75,7 +75,18 @@
             id="public-wallet-login"
             class="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors"
             data-state="logged-out">
-            <i class="pi pi-user text-[16px] leading-none" aria-hidden="true"></i>
+            <img
+              src="data:image/svg+xml,%3csvg%20width='130'%20height='78'%20viewBox='0%200%20130%2078'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3e%3cpath%20fill-rule='evenodd'%20clip-rule='evenodd'%20d='M89.3721%2039.8985L66.4471%2010.8297C65.4813%209.57643%2064.5342%209.37175%2063.4969%2010.7178L40.5366%2039.8512L62.7595%2059.9368L64.9176%2013.9193L67.0756%2059.9368L89.3721%2039.8985Z'%20fill='url(%23paint0_linear_146_7479)'/%3e%3cpath%20d='M105.651%2069.9407L128.95%2020.2211C129.45%2019.132%20128.256%2018.0437%20127.218%2018.6416L92.3794%2038.6657L69.7344%2064.176L105.651%2069.9407Z'%20fill='url(%23paint1_linear_146_7479)'/%3e%3cpath%20d='M24.1509%2069.9407L0.851883%2020.2211C0.352089%2019.132%201.54565%2018.0437%202.58412%2018.6416L37.4226%2038.6657L60.0676%2064.176L24.1509%2069.9407Z'%20fill='url(%23paint2_linear_146_7479)'/%3e%3cdefs%3e%3clinearGradient%20id='paint0_linear_146_7479'%20x1='64.7823'%20y1='59.9368'%20x2='64.7823'%20y2='9.79541'%20gradientUnits='userSpaceOnUse'%3e%3cstop%20stop-color='%236B57F9'/%3e%3cstop%20offset='1'%20stop-color='%239787FF'/%3e%3c/linearGradient%3e%3clinearGradient%20id='paint1_linear_146_7479'%20x1='79.0015'%20y1='49.711'%20x2='110.284'%20y2='67.4809'%20gradientUnits='userSpaceOnUse'%3e%3cstop%20stop-color='%236B57F9'/%3e%3cstop%20offset='1'%20stop-color='%239787FF'/%3e%3c/linearGradient%3e%3clinearGradient%20id='paint2_linear_146_7479'%20x1='50.8005'%20y1='49.711'%20x2='19.5178'%20y2='67.4809'%20gradientUnits='userSpaceOnUse'%3e%3cstop%20stop-color='%236B57F9'/%3e%3cstop%20offset='1'%20stop-color='%239787FF'/%3e%3c/linearGradient%3e%3c/defs%3e%3c/svg%3e"
+              alt="Wander"
+              class="h-4 w-auto wander-logo"
+              :class="{ hidden: isOdyseeLogin }"
+              aria-hidden="true" />
+            <img
+              src="https://thumbnails.odycdn.com/optimize/s:0:0/quality:85/plain/https://player.odycdn.com/speech/spaceman-png:2.png"
+              alt="Odysee"
+              class="h-4 w-4 rounded-full odysee-logo"
+              :class="{ hidden: !isOdyseeLogin }"
+              aria-hidden="true" />
             <span class="btn-label" data-i18n="walletLogin" data-default-label="Login"></span>
             <span class="balance-label hidden text-xs font-mono" id="login-balance"></span>
           </button>
@@ -155,10 +166,19 @@
         id="main-content"
         class="mt-8 user-dashboard-grid"
         :class="{
-          'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6': !showCustomDashboard,
+          'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2': !showCustomDashboard,
           'min-h-[calc(100vh-140px)]': showCustomDashboard,
         }"
         role="main">
+        <div
+          class="col-span-1 md:col-span-2 lg:col-span-3 w-full"
+          :class="{ 'mb-2': showCustomDashboard }">
+          <HyperchatMarquee
+            :chats="marqueeChats"
+            :visible="true"
+            :language="currentLanguage"
+            context="dashboard" />
+        </div>
         <template v-if="showCustomDashboard">
           <DashboardGrid />
         </template>
@@ -210,14 +230,28 @@ import LastTipWidget from './components/LastTipWidget.vue';
 import RecentEventsWidget from './components/RecentEventsWidget.vue';
 import RaffleWidget from './components/RaffleWidget.vue';
 import TipGoalWidget from './components/TipGoalWidget.vue';
+import HyperchatMarquee from '../../widgets/chat/HyperchatMarquee.vue';
 import { useWidgetStore } from '../../stores/widgetStore';
 import { useTheme } from '../../composables/useTheme';
-import languageManager, { i18nTrigger } from './languageManager';
+import languageManager, { i18nTrigger, currentLanguage } from './languageManager';
 import GettyFooter from 'shared/components/GettyFooter.vue';
 import { useStorage, watchDebounced } from '@vueuse/core';
 
 const store = useWidgetStore();
 const dashboardStore = useDashboardStore();
+
+const arweaveAddress = ref('');
+const isOdyseeLogin = computed(() => (arweaveAddress.value || '').startsWith('odysee:'));
+
+const marqueeChats = computed(() => {
+  return (store.lastTips || []).map((tip) => ({
+    id: (tip.timestamp || Date.now()) + '-' + tip.from,
+    support_amount: parseFloat(tip.amount || '0'),
+    currency: tip.usd ? 'USD' : 'LBC',
+    from: tip.from,
+    avatar: tip.avatar || null,
+  }));
+});
 
 const dashboardViewModeStorageKey = computed(() => {
   let token = '';
@@ -701,6 +735,27 @@ onMounted(() => {
       languageManager.updatePageLanguage();
     });
   });
+
+  try {
+    const stored = localStorage.getItem('arweaveAddress');
+    if (stored) arweaveAddress.value = stored;
+  } catch {}
+
+  const btn = document.getElementById('public-wallet-login');
+  if (btn) {
+    const observer = new MutationObserver(() => {
+      try {
+        const title = btn.getAttribute('title');
+        if (title) {
+          arweaveAddress.value = title;
+        } else {
+          const stored = localStorage.getItem('arweaveAddress');
+          if (stored) arweaveAddress.value = stored;
+        }
+      } catch {}
+    });
+    observer.observe(btn, { attributes: true, attributeFilter: ['title', 'data-state'] });
+  }
 });
 
 onBeforeUnmount(() => {

@@ -45,7 +45,7 @@ export function createChatThemeManager(t) {
     {
       name: 'Twitch',
       css: `:root { --bg-main: #18181b; --bg-message: #0b0b0b; --bg-message-alt: #0b0b0b; --text: #fff; --username: #a970ff; --donation: #f7f7f7; --donation-bg: #9147ff; }
-	.message { background: #0b0b0b !important; border-radius: 4px; padding: 10px 16px; margin-bottom: 6px; border-left: 6px solid #9147ff; box-shadow: 0 2px 8px rgba(0,0,0,0.08); color: #fff !important; }
+	.message { background: #0b0b0b !important; border-radius: 4px; padding: 10px 10px; margin-bottom: 6px; border-left: 6px solid #9147ff; box-shadow: 0 2px 8px rgba(0,0,0,0.08); color: #fff !important; }
 	.message.odd { background: #0b0b0b !important; }
 	.message-username.cyberpunk { color: #a970ff; text-shadow: 0 0 4px #9147ff; text-transform: capitalize; }
 	.message-text-inline { color: #fff !important; }
@@ -57,7 +57,7 @@ export function createChatThemeManager(t) {
     {
       name: 'Claro',
       css: `:root { --bg-main: #ffffff; --bg-message: #f1f5f9; --bg-message-alt: #f1f5f9; --border: #d0d7de; --text: #111; --username: #0969da; --donation: #ffb44e; --donation-bg: #fff4e5; }
-	.message { background: #f1f5f9 !important; border-radius: 4px; padding: 10px 16px; margin-bottom: 6px; border: 1px solid #d0d7de; border-left: 6px solid #d0d7de; box-shadow: 0 2px 4px rgba(0,0,0,0.04); color: #111 !important; }
+	.message { background: #f1f5f9 !important; border-radius: 4px; padding: 10px 10px; margin-bottom: 6px; border: 1px solid #d0d7de; border-left: 6px solid #d0d7de; box-shadow: 0 2px 4px rgba(0,0,0,0.04); color: #111 !important; }
 	.message.odd { background: #f1f5f9 !important; font-size: 14px; }
 	.message-username.cyberpunk { color: #0969da; font-weight: 600; font-size: 14px; text-transform: capitalize; }
 	.message-text-inline { color: #111 !important; font-size: 14px; }
@@ -69,7 +69,7 @@ export function createChatThemeManager(t) {
     {
       name: 'Oscuro',
       css: `:root { --bg-main: #080c10; --bg-message: #0d1114; --bg-message-alt: #0d1114; --border: #313131; --text: #fff; --username: #fff; --donation: #f7f7f7; --donation-bg: #ffae12; }
-	.message { background: #0d1114 !important; border-radius: 4px; padding: 10px 16px; margin-bottom: 6px; border-left: 6px solid #313131 !important; color: #fff !important; }
+	.message { background: #0d1114 !important; border-radius: 4px; padding: 10px 10px; margin-bottom: 6px; border-left: 6px solid #313131 !important; color: #fff !important; }
 	.message.odd { background: #0d1114 !important; font-size: 14px; }
 	.message-username.cyberpunk { color: #fff; font-weight: 600; font-size: 14px; text-transform: capitalize; }
 	.message-text-inline { color: #fff !important; font-size: 14px; }
@@ -103,8 +103,6 @@ export function createChatThemeManager(t) {
   const customWorkingName = ref('');
   const customWorkingCSS = ref('');
   const previewLight = ref(false);
-  const orderMode = ref('recent');
-  const searchTerm = ref('');
   const showDiff = ref(false);
   const diffA = ref(0);
   const diffB = ref(1);
@@ -149,13 +147,7 @@ export function createChatThemeManager(t) {
     persistCustomThemesServer();
   }
   function sortCustomThemes() {
-    if (orderMode.value === 'alpha') {
-      customThemes.value.sort((a, b) =>
-        a.name.localeCompare(b.name, 'en', { sensitivity: 'base' })
-      );
-    } else {
-      customThemes.value.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-    }
+    customThemes.value.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
   }
 
   const PREVIEW_STYLE_ID = 'chat-theme-preview-style';
@@ -173,16 +165,12 @@ export function createChatThemeManager(t) {
     return Date.now() - updated < 1000 * 60 * 60;
   });
   const filteredDefaults = computed(() => {
-    const term = searchTerm.value.trim().toLowerCase();
     return defaultThemes
-      .map((t, i) => ({ i, theme: t }))
-      .filter((o) => !term || o.theme.name.toLowerCase().includes(term));
+      .map((t, i) => ({ i, theme: t }));
   });
   const filteredCustoms = computed(() => {
-    const term = searchTerm.value.trim().toLowerCase();
     return customThemes.value
-      .map((t, ci) => ({ i: defaultThemes.length + ci, theme: t }))
-      .filter((o) => !term || o.theme.name.toLowerCase().includes(term));
+      .map((t, ci) => ({ i: defaultThemes.length + ci, theme: t }));
   });
   const previewCSS = computed(() => currentCSS.value);
 
@@ -990,8 +978,6 @@ export function createChatThemeManager(t) {
     customWorkingName,
     customWorkingCSS,
     previewLight,
-    orderMode,
-    searchTerm,
     showDiff,
     diffA,
     diffB,

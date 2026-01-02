@@ -23,7 +23,9 @@ export function createChatPanel(t) {
   });
   const transparentBg = ref(false);
   const avatarRandomBg = ref(false);
+  const showAvatars = ref(true);
   const activityEffectEnabled = ref(true);
+  const hyperchatMarqueeEnabled = ref(true);
   const hasLoadedConfig = ref(false);
   let isApplyingLoadedConfig = false;
   let activityEffectTouched = false;
@@ -104,9 +106,12 @@ export function createChatPanel(t) {
 
         const isUnset = !extracted || extracted === '...' || extracted === '/' || extracted === '#';
         form.chatUrl = isUnset ? '' : extracted;
-        form.colors.bg = data.bgColor || form.colors.bg;
-        if (form.colors.bg === 'transparent') {
+        if (data.bgColor === 'transparent') {
           transparentBg.value = true;
+          form.colors.bg = '#0f1419';
+        } else {
+          form.colors.bg = data.bgColor || form.colors.bg;
+          transparentBg.value = false;
         }
         form.colors.msgBg = data.msgBgColor || form.colors.msgBg;
         form.colors.msgBgAlt = data.msgBgAltColor || form.colors.msgBgAlt;
@@ -124,12 +129,22 @@ export function createChatPanel(t) {
         form.colors.donation = data.donationColor || form.colors.donation;
         form.colors.donationBg = data.donationBgColor || form.colors.donationBg;
         if (typeof data.avatarRandomBg === 'boolean') avatarRandomBg.value = !!data.avatarRandomBg;
+        if (typeof data.showAvatars === 'boolean') {
+          showAvatars.value = !!data.showAvatars;
+        } else {
+          showAvatars.value = true;
+        }
         if (!activityEffectTouched) {
           if (typeof data.activityEffectEnabled === 'boolean') {
             activityEffectEnabled.value = !!data.activityEffectEnabled;
           } else {
             activityEffectEnabled.value = true;
           }
+        }
+        if (typeof data.hyperchatMarqueeEnabled === 'boolean') {
+          hyperchatMarqueeEnabled.value = !!data.hyperchatMarqueeEnabled;
+        } else {
+          hyperchatMarqueeEnabled.value = true;
         }
         original.snapshot = JSON.stringify(form);
         isApplyingLoadedConfig = false;
@@ -173,7 +188,9 @@ export function createChatPanel(t) {
         donationColor: form.colors.donation,
         donationBgColor: form.colors.donationBg,
         avatarRandomBg: avatarRandomBg.value,
+        showAvatars: showAvatars.value,
         activityEffectEnabled: activityEffectEnabled.value,
+        hyperchatMarqueeEnabled: hyperchatMarqueeEnabled.value,
       };
       await api.post('/api/chat', payload);
       original.snapshot = JSON.stringify(form);
@@ -293,7 +310,7 @@ export function createChatPanel(t) {
       save();
     }, 450);
   }
-  watch([overrideUsername, transparentBg, avatarRandomBg, activityEffectEnabled], () => {
+  watch([overrideUsername, transparentBg, avatarRandomBg, showAvatars, activityEffectEnabled, hyperchatMarqueeEnabled], () => {
     scheduleToggleAutosave();
   });
   onUnmounted(() => {
@@ -468,7 +485,9 @@ export function createChatPanel(t) {
     form,
     transparentBg,
     avatarRandomBg,
+    showAvatars,
     activityEffectEnabled,
+    hyperchatMarqueeEnabled,
     overrideUsername,
     clearedThemeCSS,
     ttsAllChat,

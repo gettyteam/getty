@@ -191,7 +191,7 @@ const senderName = computed<string>(() => {
 const formattedMessage = computed(() => {
   if (!currentNotification.value?.message) return '';
   const truncated = truncateTipMessage(currentNotification.value.message);
-  return formatWithMapping(truncated);
+  return formatWithMapping(truncated, store.emojiMapping);
 });
 
 const sanitizedMessage = computed(() => {

@@ -1,6 +1,18 @@
 import './chat.css';
 
 let activityEffectApp = null;
+let hyperchatMarqueeApp = null;
+let hyperchatMarqueeEnabled = true;
+
+function unmountHyperchatMarquee() {
+    try {
+        if (hyperchatMarqueeApp && typeof hyperchatMarqueeApp.unmount === 'function') {
+            hyperchatMarqueeApp.unmount();
+        }
+    } catch {}
+    hyperchatMarqueeApp = null;
+}
+
 async function tryMountActivityEffect() {
     try {
         const { mountChatActivityEffect } = await import('./mountActivityEffect.js');
@@ -123,6 +135,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     let activityEffectEnabled = true;
+    let showAvatars = true;
+
+    function applyShowAvatars(enabled) {
+        showAvatars = enabled;
+        if (chatContainer) {
+            if (showAvatars) {
+                chatContainer.classList.remove('hide-avatars');
+            } else {
+                chatContainer.classList.add('hide-avatars');
+            }
+        }
+    }
 
     async function fetchChatConfig() {
         try {
@@ -130,6 +154,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             return await res.json();
         } catch {
             return null;
+        }
+    }
+
+    function applyHyperchatMarqueeEnabled(nextEnabled) {
+        const enabled = typeof nextEnabled === 'boolean' ? nextEnabled : true;
+        hyperchatMarqueeEnabled = enabled;
+        if (!hyperchatMarqueeEnabled) {
+            unmountHyperchatMarquee();
+            return;
+        }
+        if (!hyperchatMarqueeApp) {
+            try { 
+                import('./mountHyperchatMarquee.js').then(({ mountHyperchatMarquee }) => {
+                    hyperchatMarqueeApp = mountHyperchatMarquee(chatLanguage);
+                });
+            } catch {}
         }
     }
 
@@ -145,11 +185,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    let chatLanguage = 'en';
+
     try {
         const cfg = await fetchChatConfig();
         if (cfg) {
+            if (cfg.language) {
+                chatLanguage = cfg.language;
+            }
             if (typeof cfg.activityEffectEnabled === 'boolean') {
                 activityEffectEnabled = !!cfg.activityEffectEnabled;
+            }
+            if (typeof cfg.hyperchatMarqueeEnabled === 'boolean') {
+                hyperchatMarqueeEnabled = !!cfg.hyperchatMarqueeEnabled;
+            }
+            if (typeof cfg.showAvatars === 'boolean') {
+                applyShowAvatars(!!cfg.showAvatars);
             }
             if (
                 (typeof randomAvatarBgPerMessage !== 'boolean' || randomAvatarBgPerMessage === false) &&
@@ -162,6 +213,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch {}
 
     applyActivityEffectEnabled(activityEffectEnabled);
+    applyHyperchatMarqueeEnabled(hyperchatMarqueeEnabled);
     function resolveSocketHost() {
         if (wsPortOverride) {
             return `${window.location.hostname}:${wsPortOverride}`;
@@ -253,20 +305,45 @@ document.addEventListener('DOMContentLoaded', async () => {
                     fetchAndApplyTheme();
                     applyChatColors();
 
+                    let showAvatarsUpdated = false;
                     try {
                         if (Object.prototype.hasOwnProperty.call(msg.data || {}, 'activityEffectEnabled')) {
                             applyActivityEffectEnabled(!!msg.data.activityEffectEnabled);
                         }
-                    } catch {}
+                        if (Object.prototype.hasOwnProperty.call(msg.data || {}, 'hyperchatMarqueeEnabled')) {
+                            applyHyperchatMarqueeEnabled(!!msg.data.hyperchatMarqueeEnabled);
+                        }
+                        if (Object.prototype.hasOwnProperty.call(msg.data || {}, 'showAvatars')) {
+                            const newVal = !!msg.data.showAvatars;
+                            applyShowAvatars(newVal);
+                            showAvatarsUpdated = true;
+                        }
+                    } catch (err) {
+                        if (isDev) console.error('[chat widget] error applying config:', err);
+                    }
 
                     (async () => {
                         try {
                             const cfg = await fetchChatConfig();
-                            if (cfg && typeof cfg.avatarRandomBg === 'boolean') {
-                                randomAvatarBgPerMessage = !!cfg.avatarRandomBg;
-                            }
-                            if (cfg && typeof cfg.activityEffectEnabled === 'boolean') {
-                                applyActivityEffectEnabled(!!cfg.activityEffectEnabled);
+                            if (cfg) {
+                                if (cfg.language) {
+                                    chatLanguage = cfg.language;
+                                    if (hyperchatMarqueeApp && typeof hyperchatMarqueeApp.setLanguage === 'function') {
+                                        hyperchatMarqueeApp.setLanguage(chatLanguage);
+                                    }
+                                }
+                                if (typeof cfg.avatarRandomBg === 'boolean') {
+                                    randomAvatarBgPerMessage = !!cfg.avatarRandomBg;
+                                }
+                                if (typeof cfg.activityEffectEnabled === 'boolean') {
+                                    applyActivityEffectEnabled(!!cfg.activityEffectEnabled);
+                                }
+                                if (typeof cfg.hyperchatMarqueeEnabled === 'boolean') {
+                                    applyHyperchatMarqueeEnabled(!!cfg.hyperchatMarqueeEnabled);
+                                }
+                                if (!showAvatarsUpdated && typeof cfg.showAvatars === 'boolean') {
+                                    applyShowAvatars(!!cfg.showAvatars);
+                                }
                             }
                         } catch {/* ignore */}
                     })();
@@ -286,12 +363,44 @@ document.addEventListener('DOMContentLoaded', async () => {
                     } catch {}
                     return;
                 }
-                if (msg.type === 'chatMessage' && msg.data) addMessage(msg.data);
-                else if (msg.type === 'chat') addMessage(msg);
+                
+                const processHyperchat = (m) => {
+                    if (!hyperchatMarqueeApp || !m) return;
+                    
+                    let amount = m.support_amount;
+                    if (amount === undefined && m.credits && (m.isChatTip || m.donationOnly)) {
+                        amount = m.credits;
+                    }
+                    
+                    if (amount > 0) {
+                        const normalized = {
+                            ...m,
+                            support_amount: amount,
+                            id: m.id || m.comment_id || `temp-${Date.now()}-${Math.random()}`,
+                            currency: m.currency || (m.creditsIsUsd ? 'USD' : 'LBC')
+                        };
+                        hyperchatMarqueeApp.addHyperchat(normalized);
+                    }
+                };
+
+                if (msg.type === 'chatMessage' && msg.data) {
+                    addMessage(msg.data);
+                    processHyperchat(msg.data);
+                }
+                else if (msg.type === 'chat') {
+                    addMessage(msg);
+                    processHyperchat(msg);
+                }
                 else if (msg.type === 'init' && msg.data?.chatHistory) {
-                    msg.data.chatHistory.forEach(m => addMessage(m));
+                    msg.data.chatHistory.forEach(m => {
+                        addMessage(m);
+                        processHyperchat(m);
+                    });
                 } else if (msg.type === 'batch' && Array.isArray(msg.messages)) {
-                    msg.messages.forEach(m => addMessage(m));
+                    msg.messages.forEach(m => {
+                        addMessage(m);
+                        processHyperchat(m);
+                    });
                 }
             } catch (e) {
                 console.error('Error processing message:', e);
@@ -500,12 +609,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (themeActive) {
             setCssVar('--chat-bg', '');
+            document.body.classList.remove('transparent-bg');
             return;
         }
         if (chatColors.bgColor === 'transparent') {
             setCssVar('--chat-bg', '');
+            document.body.classList.add('transparent-bg');
         } else {
             setCssVar('--chat-bg', (chatColors.bgColor || '#0f1419'));
+            document.body.classList.remove('transparent-bg');
         }
     }
 

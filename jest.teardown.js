@@ -1,4 +1,3 @@
-/* global module, require, global */
 module.exports = async () => {
   try {
     const WS = require('./tests/mocks/ws');

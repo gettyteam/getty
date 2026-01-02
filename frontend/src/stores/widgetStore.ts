@@ -8,6 +8,7 @@ export const useWidgetStore = defineStore('widgets', () => {
   const tipGoal = ref<any>(null);
   const activeNotification = ref<any>(null);
   const chatMessages = ref<any[]>([]);
+  const chatConfig = ref<any>({});
   const raffleState = ref<any>(null);
   const raffleWinner = ref<any>(null);
   const achievements = ref<any[]>([]);
@@ -41,8 +42,20 @@ export const useWidgetStore = defineStore('widgets', () => {
 
   function normalizeTip(input: any): any | null {
     if (!input || typeof input !== 'object') return null;
-    const from = typeof input.from === 'string' && input.from.trim() ? input.from.trim() : 'Anonymous';
-    const amountRaw = (input as any).amount;
+    
+    let from = typeof input.from === 'string' && input.from.trim() ? input.from.trim() : '';
+    if (!from && typeof input.channelTitle === 'string') from = input.channelTitle.trim();
+    if (!from && typeof input.username === 'string') from = input.username.trim();
+    if (!from) from = 'Anonymous';
+
+    let amountRaw = (input as any).amount;
+    if (amountRaw === undefined || amountRaw === null) {
+        amountRaw = (input as any).support_amount;
+    }
+    if (amountRaw === undefined || amountRaw === null) {
+        amountRaw = (input as any).credits;
+    }
+
     const amountNum =
       typeof amountRaw === 'number'
         ? amountRaw
@@ -58,8 +71,9 @@ export const useWidgetStore = defineStore('widgets', () => {
     const message = typeof input.message === 'string' ? input.message : '';
     const timestamp = (input as any).timestamp || (input as any).ts || undefined;
     const source = typeof input.source === 'string' ? input.source : undefined;
+    const avatar = typeof input.avatar === 'string' ? input.avatar : undefined;
 
-    return { from, amount, usd, message, timestamp, source };
+    return { from, amount, usd, message, timestamp, source, avatar };
   }
 
   function tipIdentity(tip: any): string {
@@ -70,7 +84,7 @@ export const useWidgetStore = defineStore('widgets', () => {
     return `${timestamp}|${from}|${amount}|${message}`;
   }
 
-  function upsertLastTipHistory(tipLike: any, maxItems = 6): void {
+  function upsertLastTipHistory(tipLike: any, maxItems = 20): void {
     const tip = normalizeTip(tipLike);
     if (!tip) return;
 
@@ -452,6 +466,23 @@ export const useWidgetStore = defineStore('widgets', () => {
         const history = await chatHistoryRes.json().catch(() => null);
         if (Array.isArray(history)) {
           chatMessages.value = history;
+
+          history.forEach(msg => {
+             if (msg.credits > 0 || msg.support_amount > 0) {
+                 upsertLastTipHistory(msg, 20);
+             }
+          });
+        }
+      }
+
+      const chatConfigRes = await fetch(withWidgetToken('/api/chat-config'), {
+        credentials: 'include',
+        cache: 'no-store',
+      }).catch(() => null);
+      if (chatConfigRes && chatConfigRes.ok) {
+        const cfg = await chatConfigRes.json().catch(() => null);
+        if (cfg) {
+          chatConfig.value = cfg;
         }
       }
 
@@ -560,7 +591,7 @@ export const useWidgetStore = defineStore('widgets', () => {
              if (payload) lastTip.value = payload;
           }
           if (Array.isArray(msg.data.persistentTips)) {
-            lastTips.value = msg.data.persistentTips.slice(0, 6);
+            lastTips.value = msg.data.persistentTips.slice(0, 20);
             if (!lastTip.value && lastTips.value.length) {
               lastTip.value = lastTips.value[0];
             }
@@ -586,24 +617,29 @@ export const useWidgetStore = defineStore('widgets', () => {
             chatMessages.value.shift();
           }
           if (msg.data?.credits > 0) {
-            activeNotification.value = { ...msg.data, isChatTip: true, timestamp: Date.now() };
-            try {
-              const usd = Number(msg.data.credits);
-              const rate = arPrice.value > 0 ? arPrice.value : 5;
-              const ar = Number.isFinite(usd) && usd > 0 && rate > 0 ? +(usd / rate).toFixed(6) : 0;
-              upsertLastTipHistory({
-                from: msg.data.channelTitle || msg.data.from || 'Anonymous',
-                amount: ar > 0 ? ar : usd,
-                usd: Number.isFinite(usd) ? usd : undefined,
-                message: msg.data.message || '',
-                timestamp: msg.data.timestamp || new Date().toISOString(),
-                source: 'chat',
-                creditsIsUsd: true,
-                isChatTip: true,
-              });
-              if (arPrice.value === 0) fetchArPrice();
-            } catch {}
-            bumpActivitiesToday(1);
+             upsertLastTipHistory(msg.data, 20);
+             activeNotification.value = { ...msg.data, isChatTip: true, timestamp: Date.now() };
+             try {
+               const usd = Number(msg.data.credits);
+               const rate = arPrice.value > 0 ? arPrice.value : 5;
+               const ar = Number.isFinite(usd) && usd > 0 && rate > 0 ? +(usd / rate).toFixed(6) : 0;
+               upsertLastTipHistory({
+                 from: msg.data.channelTitle || msg.data.from || 'Anonymous',
+                 amount: ar > 0 ? ar : usd,
+                 usd: Number.isFinite(usd) ? usd : undefined,
+                 message: msg.data.message || '',
+                 timestamp: msg.data.timestamp || new Date().toISOString(),
+                 source: 'chat',
+                 creditsIsUsd: true,
+                 isChatTip: true,
+               });
+               if (arPrice.value === 0) fetchArPrice();
+             } catch {}
+             bumpActivitiesToday(1);
+          }
+        } else if (msg.type === 'chatConfigUpdate') {
+          if (msg.data) {
+            chatConfig.value = { ...chatConfig.value, ...msg.data };
           }
         } else if (msg.type === 'raffle_state') {
           bumpActivitiesToday(1);
@@ -661,6 +697,7 @@ export const useWidgetStore = defineStore('widgets', () => {
     tipGoal,
     activeNotification,
     chatMessages,
+    chatConfig,
     raffleState,
     raffleWinner,
     achievements,

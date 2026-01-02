@@ -27,16 +27,6 @@
           <label class="label mb-0" :for="selectId">{{
             t('chatThemeSelect') || 'Select theme'
           }}</label>
-          <input
-            :placeholder="t('themeSearchPlaceholder') || 'Search'"
-            v-model="searchTerm"
-            class="input w-40 min-w-[140px]" />
-          <select v-model="orderMode" class="select w-32">
-            <option value="recent">
-              {{ t('themeOrderRecent') || 'Recent' }}
-            </option>
-            <option value="alpha">{{ t('themeOrderAlpha') || 'A→Z' }}</option>
-          </select>
           <div class="relative inline-block">
             <button
               ref="themeDropdownTrigger"
@@ -221,9 +211,7 @@
           class="btn btn-secondary btn-compact-secondary"
           @click="beginCustomize">
           {{
-            customizing
-              ? t('chatThemeEditing') || 'Editing…'
-              : t('chatThemeEdit') || 'Create/Edit theme'
+            customizing ? t('chatThemeEditing') || 'Editing…' : t('chatThemeEdit') || 'Create/Edit'
           }}
         </button>
         <button type="button" class="btn btn-secondary btn-compact-secondary" @click="clearTheme">
@@ -234,7 +222,7 @@
           class="btn btn-secondary btn-compact-secondary"
           @click="revertSizes"
           :disabled="!hasSizeBlock">
-          {{ t('revertSizes') || 'Revert sizes' }}
+          {{ t('revertSizes') || 'Revert' }}
         </button>
         <button
           type="button"
@@ -256,7 +244,7 @@
           class="btn btn-secondary btn-compact-secondary"
           @click="openSizeVariantModal"
           :disabled="creatingVariant">
-          {{ t('saveSizeVariant') || 'Save size variant' }}
+          {{ t('saveSizeVariant') || 'Save size' }}
         </button>
         <input
           ref="importFileInput"
@@ -379,7 +367,7 @@
         @click.self="!creatingVariant && (showVariantModal = false)">
         <div class="modal-card max-w-[420px]">
           <div class="modal-title text-sm font-semibold">
-            {{ t('saveSizeVariant') || 'Save size variant' }}
+            {{ t('saveSizeVariant') || 'Save size' }}
           </div>
           <div class="modal-body flex flex-col gap-3">
             <label class="text-xs font-medium" for="variant-name">{{
@@ -607,8 +595,6 @@ const {
   customWorkingName,
   customWorkingCSS,
   previewLight,
-  orderMode,
-  searchTerm,
   showDiff,
   diffA,
   diffB,

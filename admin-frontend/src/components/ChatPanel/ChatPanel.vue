@@ -130,23 +130,41 @@
             </HeaderIcon>
             <span>{{ t('usernameColors') || 'Username' }}</span>
           </h3>
-          <div class="mb-2">
-            <label class="inline-flex items-center gap-2 text-sm cursor-pointer select-none">
-              <div
-                class="switch"
-                @click="overrideUsername = !overrideUsername"
-                :aria-pressed="overrideUsername ? 'true' : 'false'"
-                tabindex="0"
-                @keydown.enter="overrideUsername = !overrideUsername"
-                @keydown.space.prevent="overrideUsername = !overrideUsername">
-                <div class="knob"></div>
-              </div>
-              <span>{{ t('overrideUsername') || 'Override username colors' }}</span>
-            </label>
-            <small class="block opacity-70 mt-1" id="username-hint">{{
-              t('toggleUsernameOverride') ||
-              'Override username colors (otherwise the palette is used)'
-            }}</small>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
+            <div>
+              <label class="inline-flex items-center gap-2 text-sm cursor-pointer select-none">
+                <div
+                  class="switch"
+                  @click="overrideUsername = !overrideUsername"
+                  :aria-pressed="overrideUsername ? 'true' : 'false'"
+                  tabindex="0"
+                  @keydown.enter="overrideUsername = !overrideUsername"
+                  @keydown.space.prevent="overrideUsername = !overrideUsername">
+                  <div class="knob"></div>
+                </div>
+                <span>{{ t('overrideUsername') || 'Override username colors' }}</span>
+              </label>
+              <small class="block opacity-70 mt-1" id="username-hint">{{
+                t('toggleUsernameOverride') || 'Override username colors'
+              }}</small>
+            </div>
+            <div>
+              <label class="inline-flex items-center gap-2 text-sm cursor-pointer select-none">
+                <div
+                  class="switch"
+                  @click="showAvatars = !showAvatars"
+                  :aria-pressed="showAvatars ? 'true' : 'false'"
+                  tabindex="0"
+                  @keydown.enter="showAvatars = !showAvatars"
+                  @keydown.space.prevent="showAvatars = !showAvatars">
+                  <div class="knob"></div>
+                </div>
+                <span>{{ t('showAvatars') || 'Show avatars' }}</span>
+              </label>
+              <small class="block opacity-70 mt-1">{{
+                t('showAvatarsHint') || 'Show user avatars in chat messages.'
+              }}</small>
+            </div>
           </div>
           <div v-if="overrideUsername" class="grid grid-cols-1 sm:grid-cols-2 gap-2 items-end">
             <ColorInput v-model="form.colors.username" :label="t('colorMsgUsername')" />
@@ -399,6 +417,21 @@
             </label>
           </div>
 
+          <div class="mt-2">
+            <label class="inline-flex items-center gap-2 text-sm cursor-pointer select-none">
+              <div
+                class="switch"
+                @click="hyperchatMarqueeEnabled = !hyperchatMarqueeEnabled"
+                :aria-pressed="hyperchatMarqueeEnabled ? 'true' : 'false'"
+                tabindex="0"
+                @keydown.enter="hyperchatMarqueeEnabled = !hyperchatMarqueeEnabled"
+                @keydown.space.prevent="hyperchatMarqueeEnabled = !hyperchatMarqueeEnabled">
+                <div class="knob"></div>
+              </div>
+              <span>{{ t('hyperchatMarqueeEnabled') || 'Hyperchat Marquee' }}</span>
+            </label>
+          </div>
+
           <div class="mt-0 grid grid-cols-1 sm:grid-cols-2 gap-4 items-start" aria-live="off">
             <div class="form-group mb-0">
               <label class="label">{{ t('simulateBurst') || 'Simulate burst' }}</label>
@@ -492,7 +525,9 @@ const {
   form,
   transparentBg,
   avatarRandomBg,
+  showAvatars,
   activityEffectEnabled,
+  hyperchatMarqueeEnabled,
   overrideUsername,
   errors,
   claimPlaceholder,

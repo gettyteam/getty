@@ -12,6 +12,7 @@
   },
   "include": [
     "frontend/src/**/*",
+    "frontend/types/**/*",
     "admin-frontend/src/**/*",
     "public/js/**/*.js",
     "scripts/**/*",
@@ -24,8 +25,5 @@
     "dist/**/*",
     "dist-frontend/**/*",
     "public/js/min/**/*"
-  ],
-  "vueCompilerOptions": {
-    "globalTypesPath": "frontend/types/vue-global.d.ts"
-  }
+  ]
 }

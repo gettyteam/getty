@@ -2460,7 +2460,7 @@ try {
   });
 } catch {}
 
-registerChatRoutes(app, chat, limiter, CHAT_CONFIG_FILE, { store, chatNs });
+registerChatRoutes(app, chat, limiter, CHAT_CONFIG_FILE, { store, chatNs, wss });
 registerStreamHistoryRoutes(app, limiter, { store, historyStore, wss });
 registerUserProfileRoutes(app, { store });
 
@@ -7532,7 +7532,7 @@ app.post('/api/test-discord', express.json(), async (req, res) => {
   }
 });
 
-registerLanguageRoutes(app, languageConfig);
+registerLanguageRoutes(app, languageConfig, wssBound, store);
 
 app.post('/api/test-donation', express.json(), (req, res) => {
   try {

@@ -20,7 +20,7 @@ const messages = {
     saveSettings: 'Save Settings',
     usernameColors: 'Username',
     overrideUsername: 'Override username colors',
-    toggleUsernameOverride: 'Override username colors (otherwise the palette is used)',
+    toggleUsernameOverride: 'Override username colors',
     usernameOverrideOn: 'These colors will replace the per-user palette.',
     usernameOverrideOff: 'Using the cyberpunk palette, each user gets a different color.',
     transparentBg: 'Transparent background',

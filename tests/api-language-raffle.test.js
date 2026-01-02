@@ -1,7 +1,7 @@
 const request = require('supertest');
 const { freshServer } = require('./helpers/freshServer');
 let appRef; let restoreBaseline;
-beforeAll(() => { ({ app: appRef, restore: restoreBaseline } = freshServer({ REDIS_URL: null, GETTY_REQUIRE_SESSION: null })); });
+beforeAll(() => { ({ app: appRef, restore: restoreBaseline } = freshServer({ REDIS_URL: null, GETTY_REQUIRE_SESSION: null, GETTY_ENABLE_CSRF: '1' })); });
 afterAll(() => { try { restoreBaseline && restoreBaseline(); } catch {} });
 
 describe('Language API (hardened)', () => {

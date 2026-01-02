@@ -6,10 +6,13 @@ const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
 const { isOpenTestMode } = require('../lib/test-open-mode');
 const { writeHybridConfig, readHybridConfig } = require('../lib/hybrid-config');
 const { normalizeHexColor, normalizeHexColorOrEmpty } = require('../lib/color-sanitize');
+const LanguageConfig = require('../modules/language-config');
+const languageConfig = new LanguageConfig();
 
 function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}) {
   const store = options.store;
   const chatNs = options.chatNs;
+  const wss = options.wss;
   const CHAT_CONFIG_FILE =
     chatConfigFilePath || path.join(process.cwd(), 'config', 'chat-config.json');
 
@@ -68,6 +71,21 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
       } catch {}
       let config = loaded && typeof loaded === 'object' ? loaded : {};
       config.themeCSS = config.themeCSS || '';
+      
+      let lang = languageConfig.getLanguage();
+      try {
+        const ltLang = await loadTenantConfig(
+          { ns: { admin: ns } },
+          store,
+          path.join(process.cwd(), 'language-settings.json'),
+          'language-settings.json'
+        );
+        const loadedLang = ltLang.data?.data ? ltLang.data.data : ltLang.data;
+        if (loadedLang && loadedLang.language) {
+          lang = loadedLang.language;
+        }
+      } catch {}
+      config.language = lang;
 
       const hasNs = !!ns;
       const conceal = shouldMaskSensitive(req);
@@ -85,6 +103,9 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
           themeCSS: config.themeCSS || '',
           avatarRandomBg: !!config.avatarRandomBg,
           activityEffectEnabled: config.activityEffectEnabled !== false,
+          showAvatars: config.showAvatars !== false,
+          hyperchatMarqueeEnabled: config.hyperchatMarqueeEnabled !== false,
+          language: config.language || 'en',
           chatUrl: '',
           odyseeWsUrl: '',
         };
@@ -144,6 +165,7 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
         themeCSS: z.string().max(20000).optional(),
         avatarRandomBg: z.boolean().optional(),
         activityEffectEnabled: z.boolean().optional(),
+        showAvatars: z.boolean().optional(),
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: 'Invalid chat config' });
@@ -160,6 +182,7 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
         donationBgColor,
         avatarRandomBg,
         activityEffectEnabled,
+        showAvatars,
       } = parsed.data;
       const chatUrl = (parsed.data.chatUrl || '').trim();
       let { themeCSS } = parsed.data;
@@ -197,7 +220,7 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
         ...config,
         chatUrl,
         odyseeWsUrl: odyseeWsUrl || config.odyseeWsUrl || '',
-        bgColor: normalizeHexColor(bgColor, config.bgColor || '#080c10'),
+        bgColor: bgColor === 'transparent' ? 'transparent' : normalizeHexColor(bgColor, config.bgColor || '#080c10'),
         msgBgColor: normalizeHexColor(msgBgColor, config.msgBgColor || '#0a0e12'),
         msgBgAltColor: normalizeHexColor(msgBgAltColor, config.msgBgAltColor || '#0d1114'),
         borderColor: normalizeHexColor(borderColor, config.borderColor || '#161b22'),
@@ -212,6 +235,7 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
           activityEffectEnabled !== undefined
             ? !!activityEffectEnabled
             : config.activityEffectEnabled !== false,
+        showAvatars: showAvatars !== undefined ? !!showAvatars : config.showAvatars !== false,
       };
       const isHosted = !!(store && req.ns && req.ns.admin);
       let prevUrl = null;
@@ -282,9 +306,9 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
       }
 
       try {
-        const wss = req.app?.get('wss');
+        const broadcastNs = req?.ns?.admin || req?.ns?.pub || null;
+        
         if (wss && typeof wss.broadcast === 'function') {
-          const broadcastNs = req?.ns?.admin || req?.ns?.pub || null;
           if (broadcastNs) {
             try {
               wss.broadcast(broadcastNs, { type: 'chatConfigUpdate', data: newConfig, meta });
@@ -296,6 +320,15 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
               }
             } catch {}
           }
+        } else if (wss && wss.clients) {
+             const payload = JSON.stringify({ type: 'chatConfigUpdate', data: newConfig, meta });
+             wss.clients.forEach(client => {
+                 if (client.readyState === 1) {
+                     if (broadcastNs && client.nsToken === broadcastNs) {
+                        client.send(payload);
+                     }
+                 }
+             });
         }
       } catch {}
       res.json({ success: true, ...(meta ? { meta } : {}), ...newConfig, ...result });

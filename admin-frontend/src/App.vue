@@ -589,6 +589,7 @@ import WalletLoginButton from './components/WalletLoginButton.vue';
 import WalletLogoutButton from './components/WalletLogoutButton.vue';
 import { useWanderSession } from './wander/store/wanderSession';
 import { fetchChannelAnalyticsConfig } from './services/channelAnalytics';
+import api from './services/api';
 import odyseeLogo from './assets/odysee.svg?url';
 import wanderLogo from './assets/wander.svg?url';
 
@@ -712,8 +713,6 @@ function loadTenantIndicators() {
     lastWanderWalletHash.value = '';
   }
 
-  // If there is an active wallet session (Odysee/wallet auth), show the current walletHash
-  // even if we haven't stored it yet.
   if (!lastOdyseeWalletHash.value) {
     const candidate = String(wanderSession.state.walletHash || '').trim();
     if (candidate) {
@@ -902,6 +901,7 @@ function setLocale(l) {
     localStorage.setItem('admin_locale', l);
     localStorage.setItem('lang', l);
   } catch {}
+  api.post('/api/language', { language: l }).catch(() => {});
 }
 
 function handleSuspended() {
