@@ -66,7 +66,10 @@ export const useWidgetStore = defineStore('widgets', () => {
     const amount = amountNum.toFixed(6);
 
     const usdRaw = (input as any).usd;
-    const usd = typeof usdRaw === 'number' || typeof usdRaw === 'string' ? usdRaw : undefined;
+    let usd = typeof usdRaw === 'number' || typeof usdRaw === 'string' ? usdRaw : undefined;
+    if (usd === undefined && (input as any).credits) {
+      usd = (input as any).credits;
+    }
 
     const message = typeof input.message === 'string' ? input.message : '';
     const timestamp = (input as any).timestamp || (input as any).ts || undefined;
