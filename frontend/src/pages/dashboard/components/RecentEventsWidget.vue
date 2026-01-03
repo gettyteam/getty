@@ -42,7 +42,7 @@
               role="listitem">
               <div
                 class="feed-badge mt-0.5 h-7 w-7 rounded-full text-white flex items-center justify-center text-xs font-semibold shrink-0"
-                style="background-color: #22c55e; color: #fff">
+                :style="{ backgroundColor: colorForKind(ev.kind), color: '#fff' }">
                 {{ iconForKind(ev.kind) }}
               </div>
               <div class="min-w-0 flex-1">
@@ -65,7 +65,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted } from 'vue';
 import { useWidgetStore } from '../../../stores/widgetStore';
 import BlockedState from './BlockedState.vue';
 // @ts-ignore
@@ -89,7 +89,7 @@ type FeedEvent = {
   kind: FeedKind;
 };
 
-type FeedKind = 'tip' | 'achievement' | 'giveaway';
+type FeedKind = 'tip' | 'achievement' | 'giveaway' | 'flame';
 
 const store = useWidgetStore();
 
@@ -104,19 +104,26 @@ const activitiesTodayText = computed(() => {
   return `${Number.isFinite(count) ? count : 0} ${suffix}`;
 });
 
-const tipEvents = ref<FeedEvent[]>([]);
-
 let livePollTimer: number | null = null;
 
 function iconForKind(_kind: FeedKind): string {
   if (_kind === 'tip') return '$';
   if (_kind === 'achievement') return '✔';
+  if (_kind === 'flame') return '🔥';
   return '✱';
+}
+
+function colorForKind(kind: FeedKind): string {
+  if (kind === 'tip') return '#22c55e';
+  if (kind === 'achievement') return '#a855f7';
+  if (kind === 'flame') return '#f97316';
+  return '#3b82f6';
 }
 
 function labelForKind(kind: FeedKind): string {
   if (kind === 'tip') return getI18nText('recentEventsKindTip', 'Tip');
   if (kind === 'achievement') return getI18nText('recentEventsKindAchievement', 'Achievement');
+  if (kind === 'flame') return getI18nText('recentEventsKindFlame', 'Activity');
   return getI18nText('recentEventsKindGiveaway', 'Giveaway');
 }
 
@@ -146,7 +153,10 @@ function formatAgo(ts: number): string {
   const diffHr = Math.floor(diffMin / 60);
   if (diffHr < 24) return `${diffHr}h`;
   const diffDay = Math.floor(diffHr / 24);
-  return `${diffDay}d`;
+  if (diffDay < 7) return `${diffDay}d`;
+  if (diffDay < 30) return `${Math.floor(diffDay / 7)}w`;
+  if (diffDay < 365) return `${Math.floor(diffDay / 30)}mo`;
+  return `${Math.floor(diffDay / 365)}y`;
 }
 
 function formatTipLabel(data: any): string {
@@ -178,33 +188,63 @@ function formatAchievementLabel(a: any): string {
   return getI18nText('achievementUnlocked', 'Achievement unlocked');
 }
 
-watch(
-  () => store.activeNotification,
-  (newVal) => {
-    if (!newVal) return;
-
-    const ts = typeof newVal?.timestamp === 'number' ? (newVal.timestamp as number) : Date.now();
-    tipEvents.value.unshift({
-      id: `tip-${ts}-${Math.random().toString(16).slice(2)}`,
+const tipEvents = computed<FeedEvent[]>(() => {
+  return (store.lastTips || []).map((tip) => {
+    let ts = typeof tip.timestamp === 'number' ? tip.timestamp : new Date(tip.timestamp).getTime();
+    if (!ts || ts < 1000000000000) ts = Date.now();
+    return {
+      id: `tip-${ts}-${tip.from}`,
       ts,
-      label: formatTipLabel(newVal),
+      label: formatTipLabel(tip),
       kind: 'tip',
-    } satisfies FeedEvent);
+    };
+  });
+});
 
-    if (tipEvents.value.length > 30) tipEvents.value = tipEvents.value.slice(0, 30);
+const flameEvents = computed<FeedEvent[]>(() => {
+  const events: FeedEvent[] = [];
+  const userWindows = new Map<string, number[]>();
+  const WINDOW = 120000;
+  const THRESHOLD = 5;
+
+  for (const msg of store.chatMessages) {
+    const uid = msg.userId || msg.channelId || msg.username || msg.from || msg.channelTitle;
+    if (!uid) continue;
+
+    let ts = typeof msg.timestamp === 'number' ? msg.timestamp : new Date(msg.timestamp).getTime();
+    if (!ts || ts < 1000000000000) ts = Date.now();
+
+    if (!userWindows.has(uid)) userWindows.set(uid, []);
+    const timestamps = userWindows.get(uid)!;
+
+    timestamps.push(ts);
+
+    const valid = timestamps.filter((t) => ts - t <= WINDOW);
+    userWindows.set(uid, valid);
+
+    if (valid.length === THRESHOLD) {
+      events.push({
+        id: `flame-${uid}-${ts}`,
+        ts,
+        label: `High activity: ${msg.username || msg.from || msg.channelTitle || 'User'}`,
+        kind: 'flame',
+      });
+    }
   }
-);
+  return events;
+});
 
 const achievementEvents = computed<FeedEvent[]>(() => {
   const raw = Array.isArray(store.achievements) ? store.achievements : [];
   return raw
     .map((a: any) => {
-      const ts =
+      let ts =
         typeof a?.timestamp === 'number'
           ? (a.timestamp as number)
           : typeof a?.createdAt === 'number'
             ? (a.createdAt as number)
             : Date.now();
+      if (!ts || ts < 1000000000000) ts = Date.now();
       return {
         id: `ach-${String(a?.id ?? '')}-${ts}`,
         ts,
@@ -219,10 +259,11 @@ const raffleEvents = computed<FeedEvent[]>(() => {
   const events: FeedEvent[] = [];
 
   if (store.raffleWinner) {
-    const ts =
+    let ts =
       typeof (store.raffleWinner as any)?.timestamp === 'number'
         ? ((store.raffleWinner as any).timestamp as number)
         : Date.now();
+    if (!ts || ts < 1000000000000) ts = Date.now();
     const winner = (store.raffleWinner as any)?.winner;
     const winnerName = (winner?.name || winner?.channelTitle || winner?.channel || winner?.id || '')
       .toString()
@@ -244,7 +285,8 @@ const raffleEvents = computed<FeedEvent[]>(() => {
 
   if (store.raffleState) {
     const state: any = store.raffleState;
-    const ts = typeof state?.timestamp === 'number' ? (state.timestamp as number) : Date.now();
+    let ts = typeof state?.timestamp === 'number' ? (state.timestamp as number) : Date.now();
+    if (!ts || ts < 1000000000000) ts = Date.now();
     const active = !!state.active;
     const paused = !!state.paused;
     let label = '';
@@ -262,7 +304,12 @@ const raffleEvents = computed<FeedEvent[]>(() => {
 });
 
 const events = computed<FeedEvent[]>(() => {
-  const merged = [...tipEvents.value, ...achievementEvents.value, ...raffleEvents.value];
+  const merged = [
+    ...tipEvents.value,
+    ...achievementEvents.value,
+    ...raffleEvents.value,
+    ...flameEvents.value,
+  ];
   merged.sort((a, b) => b.ts - a.ts);
   return merged.slice(0, 30);
 });

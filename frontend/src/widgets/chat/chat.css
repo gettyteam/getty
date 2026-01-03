@@ -1165,7 +1165,6 @@ body {
   right: -8px;
 }
 
-/* Hide avatars when configured */
 #chat-container.hide-avatars .message-avatar {
   display: none !important;
 }
