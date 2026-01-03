@@ -174,7 +174,11 @@ function formatTipLabel(data: any): string {
   })();
 
   const amountStr = amount == null ? '' : `${amount.toFixed(2)} AR`;
-  const from = (data?.channelTitle || data?.from || '').toString().trim();
+  let from = (data?.channelTitle || data?.from || '').toString().trim();
+
+  if (from.length > 20 && !from.includes(' ')) {
+    from = `${from.substring(0, 10)}...`;
+  }
 
   if (from) {
     return `New tip: ${amountStr} from ${from}`.trim();
