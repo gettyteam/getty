@@ -43,9 +43,10 @@ export const useWidgetStore = defineStore('widgets', () => {
   function normalizeTip(input: any): any | null {
     if (!input || typeof input !== 'object') return null;
     
-    let from = typeof input.from === 'string' && input.from.trim() ? input.from.trim() : '';
-    if (!from && typeof input.channelTitle === 'string') from = input.channelTitle.trim();
-    if (!from && typeof input.username === 'string') from = input.username.trim();
+    let from = '';
+    if (typeof input.channelTitle === 'string' && input.channelTitle.trim()) from = input.channelTitle.trim();
+    if (!from && typeof input.username === 'string' && input.username.trim()) from = input.username.trim();
+    if (!from && typeof input.from === 'string' && input.from.trim()) from = input.from.trim();
     if (!from) from = 'Anonymous';
 
     let amountRaw = (input as any).amount;
@@ -611,17 +612,17 @@ export const useWidgetStore = defineStore('widgets', () => {
         } else if (msg.type === 'tipGoal' || msg.type === 'tipGoalUpdate' || msg.type === 'goalUpdate') {
           tipGoal.value = msg.data;
         } else if (msg.type === 'tipNotification') {
-          activeNotification.value = { ...msg.data, isDirectTip: true, timestamp: Date.now() };
+          activeNotification.value = { ...msg.data, isDirectTip: true, timestamp: msg.data.timestamp || Date.now() };
           upsertLastTipHistory(msg.data);
           bumpActivitiesToday(1);
         } else if (msg.type === 'chatMessage') {
-          chatMessages.value.push({ ...msg.data, timestamp: Date.now() });
+          chatMessages.value.push({ ...msg.data, timestamp: msg.data.timestamp || Date.now() });
           if (chatMessages.value.length > 100) {
             chatMessages.value.shift();
           }
           if (msg.data?.credits > 0) {
              upsertLastTipHistory(msg.data, 20);
-             activeNotification.value = { ...msg.data, isChatTip: true, timestamp: Date.now() };
+             activeNotification.value = { ...msg.data, isChatTip: true, timestamp: msg.data.timestamp || Date.now() };
              if (arPrice.value === 0) fetchArPrice();
              bumpActivitiesToday(1);
           }

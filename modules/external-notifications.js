@@ -380,6 +380,10 @@ class ExternalNotifications {
         timestamp: tipData.timestamp || new Date().toISOString(),
       };
 
+      if (!formattedTip.timestamp) {
+        formattedTip.timestamp = new Date().toISOString();
+      }
+
       const isTenant = !!ns;
       if (isTenant) {
         const { loadTenantConfig, saveTenantConfig } = ensureTenantLib();
