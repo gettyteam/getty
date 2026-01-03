@@ -295,14 +295,6 @@ class ExternalNotifications {
       if (config.channelUploadLastTitle) this.channelUploadLastTitle = config.channelUploadLastTitle;
       this.template = config.template;
 
-      const persistSecrets =
-        !process.env.DISCORD_WEBHOOK &&
-        !process.env.TELEGRAM_BOT_TOKEN &&
-        !process.env.TELEGRAM_CHAT_ID &&
-        !process.env.LIVE_DISCORD_WEBHOOK &&
-        !process.env.LIVE_TELEGRAM_BOT_TOKEN &&
-        !process.env.LIVE_TELEGRAM_CHAT_ID &&
-        !process.env.CHANNEL_UPLOAD_DISCORD_WEBHOOK;
       const filePayload = {
         template: this.template,
         lastTips: this.lastTips,
@@ -312,22 +304,22 @@ class ExternalNotifications {
         channelUploadLastUrl: this.channelUploadLastUrl,
         channelUploadLastTitle: this.channelUploadLastTitle,
       };
-      if (persistSecrets) {
-        filePayload.discordWebhook = this.discordWebhook;
-        filePayload.telegramBotToken = this.telegramBotToken;
-        filePayload.telegramChatId = this.telegramChatId;
-        filePayload.liveDiscordWebhook = this.liveDiscordWebhook;
+
+      if (!process.env.DISCORD_WEBHOOK) filePayload.discordWebhook = this.discordWebhook;
+      if (!process.env.TELEGRAM_BOT_TOKEN) filePayload.telegramBotToken = this.telegramBotToken;
+      if (!process.env.TELEGRAM_CHAT_ID) filePayload.telegramChatId = this.telegramChatId;
+      if (!process.env.LIVE_DISCORD_WEBHOOK) filePayload.liveDiscordWebhook = this.liveDiscordWebhook;
+      if (!process.env.LIVE_TELEGRAM_BOT_TOKEN)
         filePayload.liveTelegramBotToken = this.liveTelegramBotToken;
+      if (!process.env.LIVE_TELEGRAM_CHAT_ID)
         filePayload.liveTelegramChatId = this.liveTelegramChatId;
+      if (!process.env.CHANNEL_UPLOAD_DISCORD_WEBHOOK)
         filePayload.channelUploadDiscordWebhook = this.channelUploadDiscordWebhook;
-      }
 
       fs.writeFileSync(this.configFile, JSON.stringify(filePayload, null, 2));
       if (!IS_TEST && __VERBOSE_EXT_NOTIF)
         try {
-          console.warn('[ExternalNotifications] Config saved', {
-            persistedSecrets: persistSecrets,
-          });
+          console.warn('[ExternalNotifications] Config saved');
         } catch {}
     } catch {
       console.error('[ExternalNotifications] Error saving config');

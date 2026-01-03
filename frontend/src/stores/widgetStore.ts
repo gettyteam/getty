@@ -638,7 +638,7 @@ export const useWidgetStore = defineStore('widgets', () => {
             localStorage.removeItem(RAFFLE_WINNER_KEY);
             localStorage.removeItem(RAFFLE_STATE_KEY);
           } else {
-            raffleState.value = { ...msg, timestamp: Date.now() };
+            raffleState.value = { ...msg, timestamp: msg.updatedAt || 0 };
 
             if (!raffleWinner.value && (msg.active || msg.paused)) {
               localStorage.setItem(RAFFLE_STATE_KEY, JSON.stringify(raffleState.value));
@@ -662,7 +662,7 @@ export const useWidgetStore = defineStore('widgets', () => {
           localStorage.removeItem(RAFFLE_STATE_KEY);
         } else if (msg.type === 'init' && msg.data?.raffle) {
 
-           raffleState.value = { ...msg.data.raffle, timestamp: Date.now() };
+           raffleState.value = { ...msg.data.raffle, timestamp: msg.data.raffle.updatedAt || 0 };
         } else if (msg.type === 'achievement' && msg.data) {
           achievements.value.push(msg.data);
           if (achievements.value.length > 20) achievements.value.shift();

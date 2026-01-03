@@ -310,6 +310,7 @@ class RaffleModule {
       enabled: s.enabled,
       participants: Array.from(s.participants.values()).map((p) => p.username),
       totalWinners: s.previousWinners.size,
+      updatedAt: s.updatedAt || 0,
     };
   }
 
@@ -328,6 +329,7 @@ class RaffleModule {
     s.active = true;
     s.paused = false;
     s.participants.clear();
+    s.updatedAt = Date.now();
     return { success: true };
   }
 
@@ -335,6 +337,7 @@ class RaffleModule {
     const s = await this.getOrCreate(ns);
     s.active = false;
     s.paused = false;
+    s.updatedAt = Date.now();
     return { success: true };
   }
 
@@ -342,6 +345,7 @@ class RaffleModule {
     const s = await this.getOrCreate(ns);
     if (!s.active) return { success: false, error: 'Raffle is not active' };
     s.paused = true;
+    s.updatedAt = Date.now();
     return { success: true };
   }
 
@@ -349,6 +353,7 @@ class RaffleModule {
     const s = await this.getOrCreate(ns);
     if (!s.active) return { success: false, error: 'Raffle is not active' };
     s.paused = false;
+    s.updatedAt = Date.now();
     return { success: true };
   }
 

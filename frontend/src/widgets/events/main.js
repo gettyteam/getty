@@ -58,7 +58,11 @@ if (window.__events_started) {
       if (diff < 60) return 'now';
       if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
       if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-      return `${Math.floor(diff / 86400)}d ago`;
+      const diffDay = Math.floor(diff / 86400);
+      if (diffDay < 7) return `${diffDay}d ago`;
+      if (diffDay < 30) return `${Math.floor(diffDay / 7)}w ago`;
+      if (diffDay < 365) return `${Math.floor(diffDay / 30)}mo ago`;
+      return `${Math.floor(diffDay / 365)}y ago`;
     };
 
     const getAnimationClass = (animationType) => {
@@ -114,10 +118,14 @@ if (window.__events_started) {
           const from = typeof data.from === 'string' && data.from.length ? data.from.slice(0, 15) : 'Anonymous';
           text = `Tip: ${amountLabel} AR from ${from}`;
           if (data.timestamp) {
-            const numericTs = typeof data.timestamp === 'string'
+            let numericTs = typeof data.timestamp === 'string'
               ? new Date(data.timestamp).getTime() / 1000
               : Number(data.timestamp);
-            if (Number.isFinite(numericTs)) timestamp = numericTs;
+            
+            if (Number.isFinite(numericTs)) {
+              if (numericTs > 100000000000) numericTs /= 1000;
+              timestamp = numericTs;
+            }
           }
           break;
         }
@@ -126,8 +134,14 @@ if (window.__events_started) {
           const safeAmount = Number.isFinite(amount) ? amount : 0;
           text = `Chat tip: ${safeAmount.toFixed(4)} AR`;
           if (data.timestamp) {
-            const numericTs = new Date(data.timestamp).getTime() / 1000;
-            if (Number.isFinite(numericTs)) timestamp = numericTs;
+            let numericTs = typeof data.timestamp === 'string'
+              ? new Date(data.timestamp).getTime() / 1000
+              : Number(data.timestamp);
+
+            if (Number.isFinite(numericTs)) {
+              if (numericTs > 100000000000) numericTs /= 1000;
+              timestamp = numericTs;
+            }
           }
           break;
         }
