@@ -5486,6 +5486,11 @@ try {
         'raffle-image-library.json',
         'tip-notification-gif-library.json',
         'user-profile-share-index.json',
+        'user-profile-config.json',
+        'stream-history-config.json',
+        'dashboard-preferences.json',
+        'events-settings.json',
+        'goal-followers-config.json',
       ];
 
       const globalPaths = Object.fromEntries(
@@ -5597,6 +5602,11 @@ try {
         'raffle-image-library.json',
         'tip-notification-gif-library.json',
         'user-profile-share-index.json',
+        'user-profile-config.json',
+        'stream-history-config.json',
+        'dashboard-preferences.json',
+        'events-settings.json',
+        'goal-followers-config.json',
       ];
 
       const globalPaths = Object.fromEntries(

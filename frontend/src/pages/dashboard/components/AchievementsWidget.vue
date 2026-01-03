@@ -29,7 +29,7 @@
               </div>
             </div>
             <div class="text-xs text-muted-foreground whitespace-nowrap pt-0.5">
-              {{ formatAgo(ach.timestamp) }}
+              {{ formatAgo(ach.timestamp || ach.ts) }}
             </div>
           </div>
 
@@ -93,7 +93,10 @@ function formatAgo(ts: any): string {
   const diffHr = Math.floor(diffMin / 60);
   if (diffHr < 24) return `${diffHr}h`;
   const diffDay = Math.floor(diffHr / 24);
-  return `${diffDay}d`;
+  if (diffDay < 7) return `${diffDay}d`;
+  if (diffDay < 30) return `${Math.floor(diffDay / 7)}w`;
+  if (diffDay < 365) return `${Math.floor(diffDay / 30)}mo`;
+  return `${Math.floor(diffDay / 365)}y`;
 }
 
 const achievements = computed(() => store.achievements);

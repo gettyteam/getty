@@ -243,11 +243,13 @@ const achievementEvents = computed<FeedEvent[]>(() => {
   return raw
     .map((a: any) => {
       let ts =
-        typeof a?.timestamp === 'number'
-          ? (a.timestamp as number)
-          : typeof a?.createdAt === 'number'
-            ? (a.createdAt as number)
-            : Date.now();
+        typeof a?.ts === 'number'
+          ? (a.ts as number)
+          : typeof a?.timestamp === 'number'
+            ? (a.timestamp as number)
+            : typeof a?.createdAt === 'number'
+              ? (a.createdAt as number)
+              : Date.now();
       if (!ts || ts < 1000000000000) ts = Date.now();
       return {
         id: `ach-${String(a?.id ?? '')}-${ts}`,
@@ -289,19 +291,22 @@ const raffleEvents = computed<FeedEvent[]>(() => {
 
   if (store.raffleState) {
     const state: any = store.raffleState;
-    let ts = typeof state?.timestamp === 'number' ? (state.timestamp as number) : Date.now();
-    if (!ts || ts < 1000000000000) ts = Date.now();
+    let ts = typeof state?.timestamp === 'number' ? (state.timestamp as number) : 0;
     const active = !!state.active;
     const paused = !!state.paused;
-    let label = '';
-    if (active && paused) {
-      label = getI18nText('giveawayPaused', 'Giveaway paused');
-    } else if (active) {
-      label = getI18nText('giveawayActive', 'Giveaway active');
-    } else {
-      label = getI18nText('giveawayEnded', 'Giveaway ended');
+
+    if (ts !== 0 || active || paused) {
+      if (!ts || ts < 1000000000000) ts = Date.now();
+      let label = '';
+      if (active && paused) {
+        label = getI18nText('giveawayPaused', 'Giveaway paused');
+      } else if (active) {
+        label = getI18nText('giveawayActive', 'Giveaway active');
+      } else {
+        label = getI18nText('giveawayEnded', 'Giveaway ended');
+      }
+      events.push({ id: `raffle-state-${ts}`, ts, label, kind: 'giveaway' } satisfies FeedEvent);
     }
-    events.push({ id: `raffle-state-${ts}`, ts, label, kind: 'giveaway' } satisfies FeedEvent);
   }
 
   return events;
