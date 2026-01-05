@@ -249,6 +249,7 @@ class ChatNsManager {
       if (s.ws) {
         try {
           s.ws.removeAllListeners && s.ws.removeAllListeners();
+          s.ws.on('error', () => {});
         } catch {}
         try {
           s.ws.terminate && s.ws.terminate();

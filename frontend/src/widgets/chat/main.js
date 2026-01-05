@@ -563,7 +563,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 	.message.has-donation { background: #ececec !important; }
 	.message.has-donation .message-username { color: #111 !important; }
 	.message.has-donation .message-text-inline { color: #111 !important; }
-	.message-donation { background: #ddb826 !important; color: #111 !important; }`;
+	.message-donation { background: #ddb826 !important; color: #111 !important; }
+    .badge { display: none; }`;
 
         const badgesVertical = CYBERPUNK_PALETTE
             .map(
@@ -708,6 +709,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         const cpIndex = Math.abs(hash) % CYBERPUNK_PALETTE.length;
         usernameElement.classList.add(`cp-${cpIndex + 1}`);
         userContainer.appendChild(usernameElement);
+
+        if (msg.isHyperchat || (msg.credits > 0 && !msg.donationOnly)) {
+             const badge = document.createElement('span');
+             badge.className = 'badge badge-hyperchat';
+             badge.textContent = 'HyperChat';
+             userContainer.appendChild(badge);
+             messageEl.classList.add('hyperchat');
+        }
+        if (msg.isFire) {
+             const badge = document.createElement('span');
+             badge.className = 'badge badge-fire';
+             badge.textContent = 'In Fire';
+             userContainer.appendChild(badge);
+        }
 
         const cleanMessage = (msg.message || '').replace(/&lt;stkr&gt;(.*?)&lt;\/stkr&gt;/g, '<stkr>$1</stkr>');
         const hasSticker = /<stkr>/.test(cleanMessage);

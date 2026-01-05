@@ -202,9 +202,9 @@ body {
 
 .message-donation {
   position: absolute;
-  right: -4px;
+  right: 4px;
   bottom: 0;
-  margin-bottom: -16px;
+  margin-bottom: -12px;
   background-color: #ddb826;
   color: #131313;
   padding: 0px 2px;
@@ -553,7 +553,7 @@ body {
   background: none;
   color: #fff;
   text-shadow: none;
-  border-radius: 2px;
+  border-radius: 4px;
   font-size: 14px;
 }
 .horizontal-chat .message:not(.has-donation) .message-text-inline {

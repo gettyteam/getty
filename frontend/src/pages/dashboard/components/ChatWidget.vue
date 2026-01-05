@@ -178,11 +178,8 @@ onMounted(() => {
 }
 
 .message-header {
-  display: flex;
+  display: flow-root;
   position: relative;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  align-items: flex-start;
 }
 
 .message-avatar {
@@ -191,7 +188,8 @@ onMounted(() => {
   border-radius: 50%;
   overflow: hidden;
   background: #21262d;
-  flex: 0 0 auto;
+  float: left;
+  margin-right: 6px;
 }
 
 .message-avatar img {
@@ -205,13 +203,11 @@ onMounted(() => {
 }
 
 .message-user-container {
-  flex-wrap: wrap;
-  align-items: baseline;
+  display: block;
   width: 100%;
   position: relative;
   margin-left: 0px;
-  padding: 0px 0px 0px 6px;
-  display: flex;
+  padding: 0;
 }
 
 .message-username {
@@ -234,9 +230,8 @@ onMounted(() => {
 #dashboard-chat-widget .message-text-inline {
   display: inline;
   word-break: break-word;
+  overflow-wrap: anywhere;
   white-space: normal;
-  flex-grow: 1;
-  min-width: 0;
   font-size: 12px;
   font-weight: 600;
   line-height: 1.4;
@@ -255,6 +250,7 @@ onMounted(() => {
   color: #131313;
   padding: 0px 2px;
   border-radius: 4px;
+  margin-bottom: -10px;
   font-weight: 800;
   font-size: 12px;
   z-index: 10;
