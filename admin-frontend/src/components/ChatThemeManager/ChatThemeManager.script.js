@@ -32,11 +32,10 @@ export function createChatThemeManager(t) {
     },
     {
       name: 'odysee',
-      css: `:root { --bg-main: #0e0e10; --bg-message: #323239; --bg-message-alt: #323239; --text: #efeff1; --username: #efeff1; --donation: #00c8ff; --donation-bg: rgba(255, 255, 255, 0.1); --accent-color: #9146ff; --fire-color: #ff6b35; --hyperchat-color: #00c8ff; }
+      css: `:root { --bg-main: #0e0e10; --bg-message: #161620; --bg-message-alt: #161620; --text: #efeff1; --username: #efeff1; --donation: #00c8ff; --donation-bg: rgba(255, 255, 255, 0.1); --accent-color: #9146ff; --fire-color: #ff6b35; --hyperchat-color: #00c8ff; }
 	body { font-family: 'San Francisco', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: var(--bg-main); color: var(--text); }
-	.message { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 8px 6px; border-radius: 8px; background-color: rgba(255, 255, 255, 0.03) !important; margin-bottom: 6px; transition: all 0.3s ease; color: var(--text) !important; position: relative !important; }
-	.message.odd { background-color: rgba(255, 255, 255, 0.03) !important; }
-	.message:hover { background-color: rgba(255, 255, 255, 0.06) !important; }
+	.message { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 8px 6px; border-radius: 8px; background-color: #161620 !important; margin-bottom: 6px; transition: all 0.3s ease; color: var(--text) !important; position: relative !important; }
+	.message.odd { background-color: #161620 !important; }
 	.message.hyperchat { animation: hyperchatEntrance 0.5s cubic-bezier(0.21, 0.61, 0.35, 1) forwards; opacity: 0; transform: translateY(20px) scale(0.98); border-radius: 8px; background-color: rgba(255, 255, 255, 0.08) !important; backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
 	@keyframes hyperchatEntrance { 0% { opacity: 0; transform: translateY(20px) scale(0.98); filter: blur(2px); } 50% { opacity: 0.8; transform: translateY(-3px) scale(1.01); filter: blur(0); } 100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); background-color: rgba(255, 255, 255, 0.08); } }
 	.message-username.cyberpunk { color: var(--username); font-weight: 700; font-size: 14px; }
