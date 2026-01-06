@@ -9,6 +9,10 @@ import {
   buildDisplayData,
 } from './utils/streamHistoryUtils.js';
 import { renderStreamHistoryChart, renderViewersSparkline } from './utils/renderChart.js';
+import {
+  fetchChannelAnalyticsEnvelope,
+  fetchChannelAnalyticsConfig,
+} from '../../services/channelAnalytics';
 
 const QUICK_SPAN_VALUES = Object.freeze([7, 14, 30, 90]);
 const MAX_CALENDAR_RANGE_DAYS = 360;
@@ -32,6 +36,12 @@ export function createStreamHistoryPanel(t) {
   const perf = ref({
     range: { hoursStreamed: 0, avgViewers: 0, peakViewers: 0, hoursWatched: 0, activeDays: 0 },
     allTime: { totalHoursStreamed: 0, highestViewers: 0 },
+  });
+  const followersPerf = ref({
+    total: null,
+    change: null,
+    available: true,
+    range: 'week',
   });
   const recentStreams = ref([]);
   const status = ref({
@@ -407,6 +417,48 @@ export function createStreamHistoryPanel(t) {
           allTime: p.data.allTime,
         };
         recentStreams.value = Array.isArray(p.data.recentStreams) ? p.data.recentStreams : [];
+      }
+      try {
+        let analyticsRange = 'week';
+        if (['day', 'week', 'month', 'halfyear', 'year'].includes(period.value)) {
+          analyticsRange = period.value;
+        }
+
+        const config = await fetchChannelAnalyticsConfig();
+        if (config && config.hasAuthToken) {
+          const envelope = await fetchChannelAnalyticsEnvelope(analyticsRange);
+          if (envelope && envelope.data) {
+            const totals = envelope.data.totals;
+            const highlights = envelope.data.highlights;
+            followersPerf.value = {
+              total: totals?.subscribers || 0,
+              change: highlights?.subsChange,
+              available: true,
+              range: analyticsRange,
+            };
+          } else {
+            followersPerf.value = {
+              total: null,
+              change: null,
+              available: true,
+              range: analyticsRange,
+            };
+          }
+        } else {
+          followersPerf.value = {
+            total: null,
+            change: null,
+            available: true,
+            range: analyticsRange,
+          };
+        }
+      } catch {
+        followersPerf.value = {
+          total: null,
+          change: null,
+          available: true,
+          range: 'week',
+        };
       }
       try {
         const pr = await api.get('/api/ar-price');
@@ -915,6 +967,7 @@ function queueChartReflow() {
     showViewerTrend,
     sparklineAvailable,
     peakSessionSummary,
+    followersPerf,
     acceptNewTimezone,
     keepPreviousTimezone,
     forceRefreshTimezone,

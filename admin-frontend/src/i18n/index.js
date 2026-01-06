@@ -1551,10 +1551,14 @@ adminExtra.en.quickToday = 'Per day';
 adminExtra.en.quickThisWeek = 'Per week';
 adminExtra.en.quickThisMonth = 'Per month';
 adminExtra.en.quickThisYear = 'Per year';
+adminExtra.en.kpiFollowersTooltip = 'Log in with Odysee and set up channel analytics.';
+adminExtra.en.invalidWalletAddress = 'Invalid wallet address.';
 adminExtra.es.quickToday = 'Por día';
 adminExtra.es.quickThisWeek = 'Por semana';
 adminExtra.es.quickThisMonth = 'Por mes';
 adminExtra.es.quickThisYear = 'Por año';
+adminExtra.es.kpiFollowersTooltip = 'Inicia sesión con Odysee y configura las analíticas del canal.';
+adminExtra.es.invalidWalletAddress = 'Dirección de wallet inválida.';
 
 const merge = (base, extra) => ({ ...base, ...extra });
 const messages = {

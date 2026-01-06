@@ -14,7 +14,7 @@
             type="text"
             maxlength="120"
             :placeholder="t('lastTipCustomTitlePlaceholder')" />
-          <div class="flex gap-2 small justify-between">
+          <div class="flex gap-2 small justify-between mt-2">
             <small>{{ errors.title || t('lastTipCustomTitleHint') }}</small>
             <small aria-live="polite" aria-atomic="true">{{
               t('charsUsed', { used: form.title.length, max: 120 })

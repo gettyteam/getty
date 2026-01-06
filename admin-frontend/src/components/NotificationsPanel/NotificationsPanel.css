@@ -1,5 +1,81 @@
 .notif-root {
   --notif-gap: 10px;
+  --os-help-icon-size: 12px;
+}
+
+.notif-root .os-help-icon {
+  font-size: var(--os-help-icon-size, 12px);
+  line-height: 1;
+}
+
+.notif-root .custom-tooltip-btn {
+  position: relative;
+}
+
+.notif-root .custom-tooltip-btn::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  translate: -50% 0;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  background: var(--card-bg, #111827);
+  color: var(--text-primary, #e5e7eb);
+  border: 1px solid var(--card-border);
+  font-size: 0.75rem;
+  line-height: 1.25;
+  border-radius: 0.5rem;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 50;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.18);
+  width: 200px;
+  white-space: normal;
+  text-align: center;
+  font-weight: 500;
+  transform: translateY(6px);
+  transition:
+    opacity 160ms ease-out,
+    transform 180ms ease-out,
+    visibility 0ms linear 180ms;
+}
+
+.notif-root .custom-tooltip-btn::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  translate: -50% 0;
+  margin-bottom: 3px;
+  width: 9px;
+  height: 9px;
+  background: var(--card-bg, #111827);
+  border-left: 1px solid var(--card-border);
+  border-bottom: 1px solid var(--card-border);
+  transform: rotate(45deg) translateY(6px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 50;
+  transition:
+    opacity 160ms ease-out,
+    transform 180ms ease-out,
+    visibility 0ms linear 180ms;
+}
+
+.notif-root .custom-tooltip-btn:hover::after,
+.notif-root .custom-tooltip-btn:hover::before,
+.notif-root .custom-tooltip-btn:focus::after,
+.notif-root .custom-tooltip-btn:focus::before {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  transition:
+    opacity 160ms ease-out,
+    transform 180ms ease-out,
+    visibility 0ms;
 }
 .notif-section-title {
   font-weight: 700;

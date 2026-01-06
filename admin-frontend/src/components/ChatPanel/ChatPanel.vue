@@ -412,7 +412,7 @@
                   'If disabled, the chat widget will not render the flame activity effect.'
                 "
                 tabindex="0">
-                <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+                <i class="pi pi-exclamation-triangle os-help-icon" aria-hidden="true"></i>
               </button>
             </label>
           </div>

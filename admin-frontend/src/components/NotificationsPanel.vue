@@ -54,13 +54,15 @@
             <div class="notif-setting-text">
               <div class="notif-setting-title flex items-center gap-2">
                 <span>{{ t('storageProviderLabel') }}</span>
-                <i
+                <button
                   v-if="hasTurboOption"
-                  class="pi pi-info-circle text-[13px] text-emerald-400 cursor-help"
-                  :title="t('storageProviderArweaveTooltip')"
+                  type="button"
+                  class="custom-tooltip-btn inline-flex items-center justify-center w-5 h-5 rounded cursor-help text-emerald-400"
+                  :data-tooltip="t('storageProviderArweaveTooltip')"
                   :aria-label="t('storageProviderArweaveTooltip')"
-                  role="note"
-                  tabindex="0"></i>
+                  tabindex="0">
+                  <i class="pi pi-info-circle os-help-icon" aria-hidden="true"></i>
+                </button>
               </div>
               <div class="notif-setting-desc">{{ t('storageProviderDesc') }}</div>
             </div>
