@@ -440,12 +440,14 @@ const onDragEnd = (e: MouseEvent) => {
 
 .bg-grid-pattern {
   background-color: var(--bg-background);
-  background-image: radial-gradient(#cbd5e1 1px, var(--bg-background) 1px);
+  background-image: radial-gradient(rgba(100, 116, 139, 0.4) 1px, transparent 1px);
   background-size: 20px 20px;
 }
+</style>
 
-:global(.dark) .bg-grid-pattern {
-  background-color: var(--bg-background);
-  background-image: radial-gradient(#334155 1px, var(--bg-background) 1px);
+<style>
+.dark .bg-grid-pattern {
+  background-color: var(--bg-background) !important;
+  background-image: radial-gradient(rgba(203, 213, 225, 0.2) 1px, transparent 1px) !important;
 }
 </style>
