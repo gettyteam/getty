@@ -672,6 +672,33 @@
         </div>
       </div>
       <div class="kpi">
+        <div class="kpi-label flex items-center gap-1">
+          <span>{{ t('channelHighlightsFollowers') || 'Followers' }}</span>
+          <button
+            type="button"
+            class="custom-tooltip-btn inline-flex items-center justify-center w-4 h-4 rounded cursor-help opacity-70 hover:opacity-100"
+            :data-tooltip="
+              t('kpiFollowersTooltip') ||
+              'This metric depends on Odysee login and Channel Analytics configuration.'
+            "
+            tabindex="0">
+            <i class="pi pi-question-circle os-help-icon" aria-hidden="true"></i>
+          </button>
+        </div>
+        <div class="kpi-value">
+          <template v-if="followersPerf.total != null">
+            {{ Number(followersPerf.total || 0).toLocaleString() }}
+          </template>
+          <span v-else class="text-neutral-400 font-normal text-2xl">—</span>
+        </div>
+        <div v-if="followersPerf.change" class="kpi-subtitle">
+          <span class="kpi-delta" :class="deltaClass(followersPerf.change)">
+            {{ followersPerf.change > 0 ? '+' : '' }}{{ followersPerf.change }}
+            <span class="delta-range" v-if="followersRangeLabel">({{ followersRangeLabel }})</span>
+          </span>
+        </div>
+      </div>
+      <div class="kpi">
         <div class="kpi-label">{{ t('kpiActiveDays') }}</div>
         <div class="kpi-value">{{ perf.range.activeDays }}</div>
       </div>
@@ -867,6 +894,7 @@ const {
   applyCustomRange,
   clearCustomRange,
   streamComparisons,
+  followersPerf,
 } = state;
 
 const usingWalletBalance = computed(() => {
@@ -961,6 +989,13 @@ const formatAvgViewersDelta = (delta) => formatDeltaValue(delta, 2);
 const formatPeakViewersDelta = (delta) => formatDeltaValue(delta, 0);
 
 const formatViewerHoursDelta = (delta) => formatDeltaValue(delta, 2, 'h');
+
+const followersRangeLabel = computed(() => {
+  if (!followersPerf.value) return '';
+  const r = followersPerf.value.range;
+  const opt = quickPeriodOptions.value.find((o) => o.value === r);
+  return opt ? opt.label : r;
+});
 
 const deltaClass = (delta) => {
   if (delta == null) return 'neutral';

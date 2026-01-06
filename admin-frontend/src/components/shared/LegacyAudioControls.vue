@@ -80,13 +80,15 @@
             <div v-if="storageProviderOptions.length" class="storage-provider-field mb-3">
               <label class="label mb-1 flex items-center gap-2" for="legacy-audio-storage-provider">
                 <span>{{ t('storageProviderLabel') }}</span>
-                <i
+                <button
                   v-if="hasTurboOption"
-                  class="pi pi-info-circle text-[13px] text-emerald-400 cursor-help"
-                  :title="t('storageProviderArweaveTooltip')"
+                  type="button"
+                  class="custom-tooltip-btn inline-flex items-center justify-center w-5 h-5 rounded cursor-help text-emerald-400"
+                  :data-tooltip="t('storageProviderArweaveTooltip')"
                   :aria-label="t('storageProviderArweaveTooltip')"
-                  role="note"
-                  tabindex="0"></i>
+                  tabindex="0">
+                  <i class="pi pi-info-circle os-help-icon" aria-hidden="true"></i>
+                </button>
               </label>
               <QuickSelect
                 :model-value="storageSelection"
@@ -646,16 +648,16 @@ function applyWuzzyAudioEntry(entry = {}) {
     typeof entry.originalName === 'string' && entry.originalName
       ? entry.originalName
       : typeof entry.displayName === 'string' && entry.displayName
-      ? entry.displayName
-      : `${nextId}.mp3`;
+        ? entry.displayName
+        : `${nextId}.mp3`;
   wuzzySelection.size = Math.max(0, Number(entry.size) || 0);
   wuzzySelection.owner = typeof entry.owner === 'string' ? entry.owner : '';
   wuzzySelection.mimeType =
     typeof entry.contentType === 'string' && entry.contentType
       ? entry.contentType
       : typeof entry.mimeType === 'string'
-      ? entry.mimeType
-      : 'audio/mpeg';
+        ? entry.mimeType
+        : 'audio/mpeg';
   wuzzySelection.sha256 = typeof entry.sha256 === 'string' ? entry.sha256 : '';
   wuzzySelection.fingerprint =
     typeof entry.fingerprint === 'string' && entry.fingerprint ? entry.fingerprint : nextId;
@@ -1116,6 +1118,85 @@ watch(
 </script>
 
 <style scoped>
+.legacy-audio {
+  --os-help-icon-size: 12px;
+}
+
+.os-help-icon {
+  font-size: var(--os-help-icon-size, 12px);
+  line-height: 1;
+}
+
+.custom-tooltip-btn {
+  position: relative;
+}
+
+.custom-tooltip-btn::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  translate: -50% 0;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  background: var(--card-bg, #111827);
+  color: var(--text-primary, #e5e7eb);
+  border: 1px solid var(--card-border);
+  font-size: 0.75rem;
+  line-height: 1.25;
+  border-radius: 0.5rem;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 50;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.18);
+  width: 200px;
+  white-space: normal;
+  text-align: center;
+  font-weight: 500;
+  transform: translateY(6px);
+  transition:
+    opacity 160ms ease-out,
+    transform 180ms ease-out,
+    visibility 0ms linear 180ms;
+}
+
+.custom-tooltip-btn::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  translate: -50% 0;
+  margin-bottom: 3px;
+  width: 9px;
+  height: 9px;
+  background: var(--card-bg, #111827);
+  border-left: 1px solid var(--card-border);
+  border-bottom: 1px solid var(--card-border);
+  transform: rotate(45deg) translateY(6px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 50;
+  transition:
+    opacity 160ms ease-out,
+    transform 180ms ease-out,
+    visibility 0ms linear 180ms;
+}
+
+.custom-tooltip-btn:hover::after,
+.custom-tooltip-btn:hover::before,
+.custom-tooltip-btn:focus::after,
+.custom-tooltip-btn:focus::before {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  transition:
+    opacity 160ms ease-out,
+    transform 180ms ease-out,
+    visibility 0ms;
+}
+
 .legacy-audio-grid {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) auto;
@@ -1288,7 +1369,9 @@ watch(
   border: 1px solid var(--border, var(--border-color, #d0d0d0));
   border-radius: 9999px;
   position: relative;
-  transition: background 0.2s ease, border-color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
   display: inline-flex;
   align-items: center;
 }
@@ -1364,7 +1447,9 @@ watch(
   min-width: 34px;
   padding: 0;
   position: relative;
-  transition: background 0.15s ease, opacity 0.15s ease;
+  transition:
+    background 0.15s ease,
+    opacity 0.15s ease;
 }
 .remove-audio-btn svg {
   width: 16px;
@@ -1418,7 +1503,9 @@ html.dark .confirm-pop {
 }
 .fade-fast-enter-active,
 .fade-fast-leave-active {
-  transition: opacity 0.18s ease, transform 0.18s ease;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
 }
 .fade-fast-enter-from,
 .fade-fast-leave-to {

@@ -47,7 +47,6 @@
   "dependencies": {
     "@ardrive/turbo-sdk": "^1.39.2",
     "@infisical/sdk": "^4.0.6",
-    "@modelcontextprotocol/sdk": "^1.24.1",
     "@primevue/themes": "^4.5.4",
     "@supabase/supabase-js": "^2.89.0",
     "@untitledui/icons": "^0.0.19",
@@ -84,7 +83,6 @@
     "qrcode": "^1.5.4",
     "radix-vue": "^1.9.17",
     "react-aria-components": "^1.13.0",
-    "shadcn-vue": "^2.4.3",
     "tailwind-merge": "^3.4.0",
     "tailwindcss-react-aria-components": "^1.0.0",
     "vue-chartjs": "^5.3.3",
@@ -165,8 +163,7 @@
       "purgecss>glob": "11.1.0",
       "@ardrive/turbo-sdk>ws": "7.5.10",
       "@ardrive/turbo-sdk>elliptic": "^6.6.1",
-      "@ardrive/turbo-sdk>secp256k1": "5.0.1",
-      "@modelcontextprotocol/sdk": ">=1.24.0"
+      "@ardrive/turbo-sdk>secp256k1": "5.0.1"
     }
   },
   "resolutions": {
