@@ -32,7 +32,7 @@ export function createChatThemeManager(t) {
     },
     {
       name: 'odysee',
-      css: `:root { --bg-main: #0e0e10; --bg-message: #161620; --bg-message-alt: #161620; --text: #efeff1; --username: #efeff1; --donation: #00c8ff; --donation-bg: rgba(255, 255, 255, 0.1); --accent-color: #9146ff; --fire-color: #ff6b35; --hyperchat-color: #00c8ff; }
+      css: `:root { --bg-main: #09090b; --bg-message: #161620; --bg-message-alt: #161620; --text: #efeff1; --username: #efeff1; --donation: #00c8ff; --donation-bg: rgba(255, 255, 255, 0.1); --accent-color: #9146ff; --fire-color: #ff6b35; --hyperchat-color: #00c8ff; }
 	body { font-family: 'San Francisco', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: var(--bg-main); color: var(--text); }
 	.message { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 8px 6px; border-radius: 8px; background-color: #161620 !important; margin-bottom: 6px; transition: all 0.3s ease; color: var(--text) !important; position: relative !important; }
 	.message.odd { background-color: #161620 !important; }
@@ -307,18 +307,44 @@ export function createChatThemeManager(t) {
   onMounted(async () => {
     loadCustomThemes();
     try {
-      const stored = localStorage.getItem('chatLiveThemeCSS');
-      if (stored && typeof stored === 'string' && stored.trim()) {
-        currentCSS.value = stored;
-        cssSource = 'local';
+      const chatConfig = await api
+        .get('/api/chat-config')
+        .then((r) => r.data)
+        .catch(() => null);
+
+      if (chatConfig && chatConfig.themeCSS) {
+        currentCSS.value = chatConfig.themeCSS;
+        cssSource = 'server';
+        
+        const strippedServer = stripSizeCSS(currentCSS.value).replace(/\s/g, '');
+        let foundIdx = -1;
+        
+        for (let i = 0; i < customThemes.value.length; i++) {
+          const stripped = stripSizeCSS(customThemes.value[i].css || '').replace(/\s/g, '');
+          if (stripped === strippedServer) {
+            foundIdx = defaultThemes.length + i;
+            break;
+          }
+        }
+        
+        if (foundIdx === -1) {
+          for (let i = 0; i < defaultThemes.length; i++) {
+            const stripped = stripSizeCSS(defaultThemes[i].css || '').replace(/\s/g, '');
+            if (stripped === strippedServer) {
+              foundIdx = i;
+              break;
+            }
+          }
+        }
+        
+        if (foundIdx !== -1) {
+          selectedIdx.value = foundIdx;
+        }
       } else {
-        const chatConfig = await api
-          .get('/api/chat-config')
-          .then((r) => r.data)
-          .catch(() => null);
-        if (chatConfig && chatConfig.themeCSS) {
-          currentCSS.value = chatConfig.themeCSS;
-          cssSource = 'server';
+        const stored = localStorage.getItem('chatLiveThemeCSS');
+        if (stored && typeof stored === 'string' && stored.trim()) {
+          currentCSS.value = stored;
+          cssSource = 'local';
         } else {
           currentCSS.value = currentTheme.value.css || '';
           cssSource = 'fallback';
