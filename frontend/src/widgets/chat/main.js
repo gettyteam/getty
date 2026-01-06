@@ -18,8 +18,8 @@ async function tryMountActivityEffect() {
         const { mountChatActivityEffect } = await import('./mountActivityEffect.js');
         activityEffectApp = mountChatActivityEffect({
             windowMs: 120000,
-            threshold: 5,
-            maxMessages: 25,
+            threshold: 20,
+            maxMessages: 45,
             highlightDurationMs: 30000,
             announce: false,
         });

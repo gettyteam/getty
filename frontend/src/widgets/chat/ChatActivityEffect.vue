@@ -55,8 +55,8 @@ import { computed, onMounted, onUnmounted, ref, shallowRef } from 'vue';
 
 const props = defineProps({
   windowMs: { type: Number, default: 120_000 },
-  threshold: { type: Number, default: 5 },
-  maxMessages: { type: Number, default: 25 },
+  threshold: { type: Number, default: 20 },
+  maxMessages: { type: Number, default: 45 },
   highlightDurationMs: { type: Number, default: 30_000 },
   announce: { type: Boolean, default: false },
 });
@@ -128,9 +128,9 @@ function dispatchMilestone(userKey, milestone) {
   } catch {}
 
   if (props.announce) {
-    if (milestone === '50') liveText.value = `Actividad alta: ${userKey}`;
-    else if (milestone === '100') liveText.value = `Actividad máxima: ${userKey}`;
-    else if (milestone === 'reset') liveText.value = `Actividad reiniciada: ${userKey}`;
+    if (milestone === '50') liveText.value = `High activity: ${userKey}`;
+    else if (milestone === '100') liveText.value = `Max activity: ${userKey}`;
+    else if (milestone === 'reset') liveText.value = `Activity reset: ${userKey}`;
   }
 }
 
