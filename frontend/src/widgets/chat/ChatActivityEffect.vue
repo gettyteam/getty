@@ -59,9 +59,15 @@ const props = defineProps({
   maxMessages: { type: Number, default: 45 },
   highlightDurationMs: { type: Number, default: 30_000 },
   announce: { type: Boolean, default: false },
+  lang: { type: String, default: 'en' },
 });
 
 const emit = defineEmits(['milestone']);
+
+const STRINGS = {
+  en: { 50: 'High activity', 100: 'Max activity', reset: 'Activity reset' },
+  es: { 50: 'Actividad alta', 100: 'Actividad máxima', reset: 'Actividad reiniciada' },
+};
 
 const userStates = shallowRef(new Map());
 
@@ -128,9 +134,10 @@ function dispatchMilestone(userKey, milestone) {
   } catch {}
 
   if (props.announce) {
-    if (milestone === '50') liveText.value = `High activity: ${userKey}`;
-    else if (milestone === '100') liveText.value = `Max activity: ${userKey}`;
-    else if (milestone === 'reset') liveText.value = `Activity reset: ${userKey}`;
+    const s = STRINGS[props.lang] || STRINGS.en;
+    if (milestone === '50') liveText.value = `${s['50']}: ${userKey}`;
+    else if (milestone === '100') liveText.value = `${s['100']}: ${userKey}`;
+    else if (milestone === 'reset') liveText.value = `${s.reset}: ${userKey}`;
   }
 }
 

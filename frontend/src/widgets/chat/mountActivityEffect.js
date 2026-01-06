@@ -25,6 +25,7 @@ export function mountChatActivityEffect(options = {}) {
         maxMessages: options.maxMessages,
         highlightDurationMs: options.highlightDurationMs,
         announce: !!options.announce,
+        lang: options.lang || 'en',
       });
     },
   });

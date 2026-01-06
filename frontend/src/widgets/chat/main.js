@@ -13,7 +13,7 @@ function unmountHyperchatMarquee() {
     hyperchatMarqueeApp = null;
 }
 
-async function tryMountActivityEffect() {
+async function tryMountActivityEffect(lang = 'en') {
     try {
         const { mountChatActivityEffect } = await import('./mountActivityEffect.js');
         activityEffectApp = mountChatActivityEffect({
@@ -22,6 +22,7 @@ async function tryMountActivityEffect() {
             maxMessages: 45,
             highlightDurationMs: 30000,
             announce: false,
+            lang: lang,
         });
         return true;
     } catch (err) {
@@ -181,7 +182,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         if (!activityEffectApp) {
-            try { void tryMountActivityEffect(); } catch {}
+            try { void tryMountActivityEffect(chatLanguage); } catch {}
         }
     }
 
@@ -1076,7 +1077,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         const text = document.createElement('div');
         text.className = 'streak-text';
-        text.innerHTML = `<strong>${userName || userKey}</strong> has reached the chat message streak and is on fire! Congratulations! 🎉`;
+        
+        const streakMessages = {
+            en: `<strong>${userName || userKey}</strong> has reached the chat message streak and is on fire! Congratulations! 🎉`,
+            es: `¡<strong>${userName || userKey}</strong> ha alcanzado la racha de mensajes y está en llamas! ¡Felicidades! 🎉`
+        };
+
+        text.innerHTML = streakMessages[chatLanguage] || streakMessages.en;
         
         content.appendChild(icon);
         content.appendChild(text);
