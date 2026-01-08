@@ -1,28 +1,60 @@
 .chart-wrap {
   position: relative;
+  background-color: var(--bg-chat);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
+
 .chart-canvas {
   width: 100%;
   height: 280px;
   overflow: hidden;
-  border: 1px solid var(--card-border);
-  border-radius: 10px;
+  border: none;
+  border-radius: 0;
   padding: 0;
-  background: var(--bg-chat);
+  background: transparent !important;
   --chart-goal-met: #ff184c;
   --chart-goal-base: rgba(148, 163, 184, 0.45);
+  position: relative;
+  --chart-grid: rgba(148, 163, 184, 0.15);
+}
+
+.dark .chart-canvas {
+  --chart-grid: rgba(255, 255, 255, 0.08);
+}
+
+.chart-canvas.reflowing {
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
 }
 .chart-canvas.reflowing .line-path {
-  transition: d 160ms ease-out;
+  transition: none;
 }
 .chart-canvas.reflowing .line-point {
-  transition:
-    cx 160ms ease-out,
-    cy 160ms ease-out;
+  transition: none;
 }
 .chart-canvas.reflowing .bar {
-  transition: height 160ms ease-out;
+  transition: none;
 }
+
+.chart-canvas .bar {
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  transform-origin: bottom;
+}
+
+.chart-canvas .bar:hover {
+  opacity: 0.9;
+  transform: scaleY(1.05) scaleX(1.02);
+  box-shadow: 0 0 10px rgba(135, 87, 246, 0.5);
+  z-index: 20;
+}
+
 .chart-annotation {
   position: absolute;
   background: var(--card-bg, #ffffff);
@@ -116,15 +148,22 @@
   height: 8px;
   border-radius: 50%;
   display: inline-block;
+  flex-shrink: 0;
 }
 .dot-teal {
-  background: #2261ee;
+  background: #22d3ee;
 }
 .dot-red {
-  background: #ef4444;
+  background: #f74843;
+}
+.dot-purple {
+  background: #8757f6;
+}
+.dot-pink {
+  background: #ff184c;
 }
 .dot-slate {
-  background: #64748b;
+  background: #ff184c;
 }
 @media (prefers-color-scheme: dark) {
   .chart-overlay {
@@ -321,8 +360,72 @@ body:not(.dark) .kpi-delta.negative {
 .status-row .badge .hist-points-info:hover {
   opacity: 1;
 }
-.chart-tip {
+:global(.chart-tip) {
   z-index: 10;
+  position: absolute;
+  pointer-events: none;
+  padding: 8px 12px;
+  font-size: 13px;
+  line-height: 1.4;
+  min-width: 180px;
+  border-radius: 6px;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg, #111827);
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.18);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease,
+    visibility 0.2s ease;
+}
+:global(.chart-tip.visible) {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+:global(.chart-tip-title) {
+  font-weight: 600;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--card-border);
+  opacity: 0.9;
+}
+:global(.chart-tip-row) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+:global(.chart-tip-dot) {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+:global(.chart-tip-dot.dot-purple) {
+  background-color: #8757f6;
+}
+:global(.chart-tip-dot.dot-connected-avg) {
+  background-color: var(--accent, #22d3ee);
+}
+:global(.chart-tip-dot.dot-peak) {
+  background-color: #f74843;
+}
+:global(.chart-tip-label) {
+  opacity: 0.8;
+}
+:global(.chart-tip-value) {
+  margin-left: auto;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+:global(.chart-tip .chart-tip-row span:first-child) {
+  display: inline-block !important;
+  width: 8px !important;
+  height: 8px !important;
 }
 .modal-overlay {
   position: fixed;
@@ -852,7 +955,7 @@ select.quick-select::-ms-expand {
   top: calc(100% + 8px);
   left: 0;
   z-index: 30;
-  min-width: 260px;
+  min-width: 420px;
   border-radius: 12px;
   border: 1px solid var(--card-border);
   background: var(--card-bg, #ffffff);
@@ -864,6 +967,16 @@ select.quick-select::-ms-expand {
 .range-popover-body {
   display: grid;
   gap: 10px;
+}
+
+.range-popover-body.split {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.calendar-pane {
+  flex: 1;
 }
 
 .range-popover-body label {
@@ -945,5 +1058,75 @@ select.quick-select::-ms-expand {
     background: rgba(30, 41, 59, 0.75);
     border-color: rgba(148, 163, 184, 0.35);
     color: inherit;
+    color-scheme: dark;
+  }
+}
+
+.nav-bar-layout {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 64px;
+  border: 1px solid var(--card-border);
+  margin-top: 6px;
+  background: var(--bg-chat, #f8fafc);
+  border-radius: 8px;
+  padding: 0 10px;
+}
+
+.nav-bar-layout > .Layout {
+  display: flex;
+  align-items: center;
+}
+
+.tw-interactable {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 44px;
+  border-radius: 4px;
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: background-color 0.2s;
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+}
+
+.tw-interactable:hover {
+  background-color: var(--bg-hover, rgba(0, 0, 0, 0.05));
+}
+
+.tw-interactable svg {
+  fill: currentColor;
+}
+
+.nav-bar-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 16px;
+}
+
+.nav-bar-header__text {
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.nav-bar-header__text:last-child {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+@media (prefers-color-scheme: dark) {
+  .nav-bar-layout {
+    background: var(--card-bg, #111827);
+  }
+  .tw-interactable:hover {
+    background-color: rgba(255, 255, 255, 0.05);
   }
 }

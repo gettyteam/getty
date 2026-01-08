@@ -48,23 +48,54 @@
         v-for="it in items"
         :key="it.key"
         class="p-2 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] flex flex-col gap-1">
-        <div class="flex items-center gap-1 justify-between">
-          <span class="font-medium">{{ it.label }}</span>
-          <span
-            class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide"
-            :class="badgeClass(it.displayState)">
-            <template v-if="it.displayState === 'active'">{{ t('commonOn') || 'On' }}</template>
-            <template v-else-if="it.displayState === 'configured'">{{
-              t('commonConfigured') || 'Configured'
-            }}</template>
-            <template v-else-if="it.displayState === 'blocked'">{{
-              t('commonBlocked') || 'Blocked'
-            }}</template>
-            <template v-else>{{ t('commonOff') || 'Off' }}</template>
-          </span>
-        </div>
-        <div v-if="it.extra" class="text-[10px] opacity-70 leading-snug">{{ it.extra }}</div>
-        <div v-if="it.uptime" class="text-[10px] opacity-60">↑ {{ it.uptime }}</div>
+        <template v-if="it.isSplit">
+          <div class="flex flex-col h-full gap-1">
+            <div class="flex items-center justify-between gap-1">
+              <span class="font-medium text-[0.8rem]">{{ it.label1 }}</span>
+              <span
+                class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide"
+                :class="badgeClass(it.state1)">
+                <template v-if="it.state1 === 'configured'">{{
+                  t('commonConfigured') || 'Configured'
+                }}</template>
+                <template v-else-if="it.state1 === 'active'">{{ t('commonOn') || 'On' }}</template>
+                <template v-else>{{ t('commonOff') || 'Off' }}</template>
+              </span>
+            </div>
+            <div class="w-full h-px bg-[var(--card-border)] my-0.5 opacity-50"></div>
+            <div class="flex items-center justify-between gap-1">
+              <span class="font-medium text-[0.8rem]">{{ it.label2 }}</span>
+              <span
+                class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide"
+                :class="badgeClass(it.state2)">
+                <template v-if="it.state2 === 'configured'">{{
+                  t('commonConfigured') || 'Configured'
+                }}</template>
+                <template v-else-if="it.state2 === 'active'">{{ t('commonOn') || 'On' }}</template>
+                <template v-else>{{ t('commonOff') || 'Off' }}</template>
+              </span>
+            </div>
+          </div>
+        </template>
+        <template v-else>
+          <div class="flex items-center gap-1 justify-between">
+            <span class="font-medium">{{ it.label }}</span>
+            <span
+              class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide"
+              :class="badgeClass(it.displayState)">
+              <template v-if="it.displayState === 'active'">{{ t('commonOn') || 'On' }}</template>
+              <template v-else-if="it.displayState === 'configured'">{{
+                t('commonConfigured') || 'Configured'
+              }}</template>
+              <template v-else-if="it.displayState === 'blocked'">{{
+                t('commonBlocked') || 'Blocked'
+              }}</template>
+              <template v-else>{{ t('commonOff') || 'Off' }}</template>
+            </span>
+          </div>
+          <div v-if="it.extra" class="text-[10px] opacity-70 leading-snug">{{ it.extra }}</div>
+          <div v-if="it.uptime" class="text-[10px] opacity-60">↑ {{ it.uptime }}</div>
+        </template>
       </div>
     </div>
     <div class="mt-3 text-[11px] opacity-60 flex justify-between" v-if="lastUpdated">
@@ -82,6 +113,8 @@ import OsCard from './os/OsCard.vue';
 import SkeletonLoader from './SkeletonLoader.vue';
 import api from '../services/api';
 import { useWanderSession } from '../wander/store/wanderSession';
+
+const emit = defineEmits(['loaded']);
 
 const { t } = useI18n();
 const session = useWanderSession();
@@ -123,6 +156,22 @@ function fmtTime(ts) {
 function buildItems(d) {
   if (!d) return [];
   const out = [];
+
+  const s1Obj = d.channelAnalytics || {};
+  const s2Obj = d.streamHistory || {};
+  let s1 = s1Obj.active || s1Obj.configured ? 'configured' : 'inactive';
+  if (s1Obj.blocked) s1 = 'blocked';
+  let s2 = s2Obj.active || s2Obj.configured ? 'configured' : 'inactive';
+  if (s2Obj.blocked) s2 = 'blocked';
+  out.push({
+    key: 'channelLiveSplit',
+    isSplit: true,
+    label1: t('channelAnalytics') || 'Analytics',
+    state1: s1,
+    label2: t('liveStream') || 'Live Stream',
+    state2: s2,
+  });
+
   const push = (key, label, obj, extraFn) => {
     if (!obj || typeof obj !== 'object') return;
     const uptime =
@@ -202,6 +251,7 @@ async function refresh() {
     masked.value = !!data.value.masked;
     items.value = buildItems(data.value);
     lastUpdated.value = Date.now();
+    emit('loaded', data.value);
   } catch (e) {
     error.value = e?.message || 'failed';
   } finally {

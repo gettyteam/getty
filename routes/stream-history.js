@@ -863,7 +863,7 @@ function aggregateDailyBuckets(hist, spanDays = 30, tzOffsetMinutes = 0, options
   const fmtYMD = (dayStart) => formatLocalDateYMD(dayStart, offset);
   for (let i = span - 1; i >= 0; i--) {
     const dayStart = todayStart - i * 86400000;
-    buckets.push({ key: dayStart, label: fmtYMD(dayStart), ms: 0, vsec: 0, lsec: 0, peak: 0, tips: 0 });
+    buckets.push({ key: dayStart, label: fmtYMD(dayStart), ms: 0, vsec: 0, lsec: 0, peak: 0, tips: 0, maxFollowers: 0, maxChatters: 0 });
   }
   if (!buckets.length) return [];
   const bmap = new Map(buckets.map((b) => [b.key, b]));
@@ -908,6 +908,19 @@ function aggregateDailyBuckets(hist, spanDays = 30, tzOffsetMinutes = 0, options
       const t0 = Math.max(rangeStart, curTs);
       const t1 = Math.min(rangeEnd, nextTs);
       if (t1 <= t0) continue;
+
+      const f = Math.max(0, Number(cur.followers || 0));
+      const c = Math.max(0, Number(cur.chatters || 0));
+      if (f > 0 || c > 0) {
+        for (const part of splitSpanByDayTz(t0, t1, offset)) {
+          const b = bmap.get(part.day);
+          if (b) {
+             if (f > 0) b.maxFollowers = Math.max(b.maxFollowers || 0, f);
+             if (c > 0) b.maxChatters = Math.max(b.maxChatters || 0, c);
+          }
+        }
+      }
+
       if (cur && cur.live) {
         const v = Math.max(0, Number(cur.viewers || 0));
         for (const part of splitSpanByDayTz(t0, t1, offset)) {
@@ -954,6 +967,8 @@ function aggregateDailyBuckets(hist, spanDays = 30, tzOffsetMinutes = 0, options
     hours: +(b.ms / 3600000).toFixed(2),
     avgViewers: b.lsec > 0 ? +(b.vsec / b.lsec).toFixed(2) : 0,
     peakViewers: Number(b.peak || 0),
+    followers: Number(b.maxFollowers || 0),
+    uniqueChatters: Number(b.maxChatters || 0),
     bucketStartEpoch: b.key,
     bucketEndEpoch: computeBucketEndEpoch(b.key, 'day', offset),
     bucketLabel: b.label,
@@ -1054,6 +1069,8 @@ function aggregate(hist, period = 'day', span = 30, tzOffsetMinutes = 0, options
       vsec: 0,
       lsec: 0,
       peakViewers: 0,
+      maxFollowers: 0,
+      maxChatters: 0,
       firstActiveEpoch: null,
       lastActiveEpoch: null,
       tipCount: 0,
@@ -1083,6 +1100,16 @@ function aggregate(hist, period = 'day', span = 30, tzOffsetMinutes = 0, options
       entry.peakViewers = Math.max(entry.peakViewers, peakCandidate);
     }
 
+    const followersCandidate = Number(item?.followers || 0);
+    if (Number.isFinite(followersCandidate)) {
+      entry.maxFollowers = Math.max(entry.maxFollowers || 0, followersCandidate);
+    }
+
+    const chattersCandidate = Number(item?.uniqueChatters || 0);
+    if (Number.isFinite(chattersCandidate)) {
+      entry.maxChatters = Math.max(entry.maxChatters || 0, chattersCandidate);
+    }
+
     const tipCountVal = Number(item?.tipCount || 0);
     if (Number.isFinite(tipCountVal) && tipCountVal > 0) {
       entry.tipCount = (entry.tipCount || 0) + tipCountVal;
@@ -1110,6 +1137,8 @@ function aggregate(hist, period = 'day', span = 30, tzOffsetMinutes = 0, options
         hours: +totalHours.toFixed(2),
         avgViewers: entry.lsec > 0 ? +Number(entry.vsec / entry.lsec).toFixed(2) : 0,
         peakViewers: Number(entry.peakViewers || 0),
+        followers: Number(entry.maxFollowers || 0),
+        uniqueChatters: Number(entry.maxChatters || 0),
         rangeStartEpoch: entry.rangeStartEpoch,
         rangeEndEpoch: entry.rangeEndEpoch,
         rangeStartDate: formatLocalDateYMD(entry.rangeStartEpoch, offset),
@@ -1216,6 +1245,8 @@ function computePerformance(hist, period = 'day', span = 30, tzOffsetMinutes = 0
   const activeDays = daily.filter((d) => (d.hours || 0) > 0).length;
 
   let peakViewers = 0;
+  let maxFollowers = 0;
+  let maxChatters = 0;
   let rangeWatchedHours = 0;
   let liveWeightedSeconds = 0;
   for (let i = 0; i < sortedSamples.length; i++) {
@@ -1226,6 +1257,8 @@ function computePerformance(hist, period = 'day', span = 30, tzOffsetMinutes = 0
     if (!isFinite(curTs) || !isFinite(nextTs)) continue;
     if (curTs >= start && curTs <= end) {
       peakViewers = Math.max(peakViewers, Number(cur.viewers || 0));
+      maxFollowers = Math.max(maxFollowers, Number(cur.followers || 0));
+      maxChatters = Math.max(maxChatters, Number(cur.chatters || 0));
     }
     const t0 = Math.max(start, curTs);
     const t1 = Math.min(end, nextTs);
@@ -1266,6 +1299,8 @@ function computePerformance(hist, period = 'day', span = 30, tzOffsetMinutes = 0
       hoursStreamed,
       avgViewers,
       peakViewers,
+      maxFollowers,
+      maxChatters,
       hoursWatched: watchedHours,
       activeDays,
     },
@@ -1327,6 +1362,23 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       }
     } catch {}
     return count;
+  }
+
+  async function getFollowerCount(claimId) {
+    if (!claimId) return 0;
+    try {
+      const params = new URLSearchParams();
+      params.append('claim_id', claimId);
+      const resp = await axios.post('https://api.odysee.com/subscription/sub_count', params, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        timeout: 3000,
+      });
+      const data = resp?.data?.data || resp?.data?.result;
+      const val = Number(data?.count || data?.sub_count || 0);
+      return Number.isFinite(val) ? val : 0;
+    } catch {
+      return 0;
+    }
   }
 
   async function resetUniqueChatters(nsToken) {
@@ -1908,7 +1960,13 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
         endSegment(hist, nowTs, { uniqueChatters });
       }
       if (!Array.isArray(hist.samples)) hist.samples = [];
-      const sample = { ts: nowTs, live: nowLive, viewers: viewerCount };
+      const sample = {
+        ts: nowTs,
+        live: nowLive,
+        viewers: viewerCount,
+        chatters: await getUniqueChattersSnapshot(adminNs || null),
+        followers: await getFollowerCount(cfgClaim),
+      };
       try {
         hist.samples.push(sample);
         markSampleAppended(hist, sample);

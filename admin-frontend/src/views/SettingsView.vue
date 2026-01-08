@@ -1,6 +1,10 @@
 <template>
   <section class="admin-tab active">
-    <div class="mb-4">
+    <div class="mb-8">
+      <ModulesStatusPanel @loaded="updateModulesStatus" />
+    </div>
+
+    <div class="mt-8 mb-4 border-t border-[var(--card-border)] pt-6">
       <h3 class="text-lg font-semibold mb-2">
         {{ t('tenantConfigManagement') || 'Tenant Configuration' }}
       </h3>
@@ -180,9 +184,9 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import api from '../services/api';
+import ModulesStatusPanel from '../components/ModulesStatusPanel.vue';
 import TwoFactorSettings from '../components/TwoFactorSettings.vue';
 import TwoFactorTutorial from '../components/TwoFactorTutorial.vue';
 
@@ -192,8 +196,6 @@ const exporting = ref(false);
 const importResult = ref(null);
 const error = ref(null);
 const modulesStatus = ref({});
-const loadingStatus = ref(false);
-
 const moduleOrder = [
   'announcement',
   'socialmedia',
@@ -574,21 +576,9 @@ const handleFileSelect = async (event) => {
   }
 };
 
-async function fetchModulesStatus() {
-  try {
-    loadingStatus.value = true;
-    const r = await api.get('/api/modules');
-    modulesStatus.value = r.data || {};
-  } catch (e) {
-    console.error('Failed to fetch module status', e);
-  } finally {
-    loadingStatus.value = false;
-  }
+function updateModulesStatus(data) {
+  if (data) modulesStatus.value = data;
 }
-
-onMounted(() => {
-  fetchModulesStatus();
-});
 </script>
 
 <style scoped></style>

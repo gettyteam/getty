@@ -186,22 +186,16 @@ function buildAnimationSignature(display, { chartMode, showViewersFlag, period, 
       Number(goalHours || 0).toFixed(2)
     }`;
   }
-  const len = display.length;
+
   const first = display[0] || {};
-  const mid = display[Math.floor(len / 2)] || {};
-  const last = display[len - 1] || {};
+  const firstEpoch = first.rangeStartEpoch || first.rangeStartDate || '0';
+  
   const parts = [
     chartMode || 'line',
     showViewersFlag ? 'v1' : 'v0',
     period || '',
-    len,
     Number(goalHours || 0).toFixed(2),
-    Number(first.hours || 0).toFixed(2),
-    Number(first.avgViewers || 0).toFixed(2),
-    Number(mid.hours || 0).toFixed(2),
-    Number(mid.avgViewers || 0).toFixed(2),
-    Number(last.hours || 0).toFixed(2),
-    Number(last.avgViewers || 0).toFixed(2),
+    firstEpoch,
   ];
   return parts.join('|');
 }
@@ -221,20 +215,6 @@ function primePathAnimation(path, delayMs = 0) {
   } catch {}
 }
 
-function primeGrowAnimation(el, delayMs = 0) {
-  if (!el || prefersReducedMotion()) return;
-  try {
-    el.style.transformOrigin = 'center bottom';
-    el.style.transform = 'scaleY(0.001)';
-    el.style.opacity = '0';
-    el.style.transition = `transform 420ms cubic-bezier(0.22, 0.68, 0, 1) ${delayMs}ms, opacity 320ms ease ${delayMs}ms`;
-    requestAnimationFrame(() => {
-      el.style.transform = 'scaleY(1)';
-      el.style.opacity = '1';
-    });
-  } catch {}
-}
-
 function renderStreamHistoryChart(
   el,
   data,
@@ -245,6 +225,8 @@ function renderStreamHistoryChart(
     showHours = true,
     smoothWindow = 1,
     goalHours = 0,
+    activeMetric = 'avg-viewers',
+    followers: _followers = null,
     translate,
     locale,
   } = {}
@@ -253,20 +235,49 @@ function renderStreamHistoryChart(
   const t = (key, params) => translator(key, params);
   const prevLocale = runtimeLocale;
   runtimeLocale = resolveLocalePreference(locale);
-  const showHoursSeries = showHours !== false;
-  const chartMode = showHoursSeries ? mode : 'line';
+
   if (!el) {
     runtimeLocale = prevLocale;
     return;
   }
   try {
-    try {
-      el.innerHTML = '';
-    } catch {}
+    el.innerHTML = '';
+  } catch {}
   el.style.position = 'relative';
   el.style.background = 'var(--chart-bg, #fefefe)';
 
-  const viewersFlag = showViewers ? '1' : '0';
+  const showHoursSeries = showHours !== false;
+  const chartMode = showHoursSeries ? mode : 'line';
+
+  let metricKey = 'avgViewers';
+  let metricLabel = t('chartTooltipParticipants');
+  let metricDot = 'dot-connected-avg';
+  let metricColor = 'var(--accent,#22d3ee)';
+  let metricAreaStart = 'var(--accent,#553fee)';
+  
+  if (activeMetric === 'unique-viewers') {
+    metricKey = 'peakViewers';
+    metricLabel = t('metricUniqueViewers') || 'Unique Viewers'; 
+    metricDot = 'bg-orange-500';
+    metricColor = '#f97316';
+    metricAreaStart = '#f97316';
+  } else if (activeMetric === 'unique-chatters') {
+    metricKey = 'uniqueChatters';
+    metricLabel = t('metricUniqueChatters') || 'Unique Chatters';
+    metricDot = 'dot-pink';
+    metricColor = '#ec4899';
+    metricAreaStart = '#ec4899';
+  } else if (activeMetric === 'follows') {
+    metricKey = 'followers';
+    metricLabel = t('metricFollows') || 'Follows';
+    metricDot = 'dot-green';
+    metricColor = '#22c55e';
+    metricAreaStart = '#22c55e';
+  }
+
+  const effectiveShowViewers = (activeMetric === 'avg-viewers') || (showViewers && activeMetric !== 'time-streamed');
+
+  const viewersFlag = effectiveShowViewers ? '1' : '0';
   const viewersStateChanged = el.dataset.lastViewersState !== viewersFlag;
   el.dataset.lastViewersState = viewersFlag;
 
@@ -281,22 +292,11 @@ function renderStreamHistoryChart(
     if (!peakCandidate || candidate.hours > peakCandidate.hours) peakCandidate = candidate;
   };
 
+
   const tip = document.createElement('div');
   tip.className = 'chart-tip';
-  Object.assign(tip.style, {
-    position: 'absolute',
-    pointerEvents: 'none',
-    padding: '8px 12px',
-    fontSize: '13px',
-    lineHeight: '1.4',
-    minWidth: '180px',
-    borderRadius: '6px',
-    border: '1px solid var(--card-border)',
-    background: 'var(--card-bg, #111827)',
-    display: 'none',
-    zIndex: 10,
-    boxShadow: '0 10px 25px rgba(15, 23, 42, 0.18)',
-  });
+  tip.style.position = 'absolute';
+
   el.appendChild(tip);
   const getTipRect = () => {
     const rect = tip.getBoundingClientRect();
@@ -360,7 +360,7 @@ function renderStreamHistoryChart(
   };
   const showTooltip = (bucket, hoursValue, avgViewersValue, position, preferAbove = false) => {
     tip.innerHTML = buildTooltipHtml(bucket, hoursValue, avgViewersValue);
-    tip.style.display = 'block';
+    tip.classList.add('visible');
     if (position?.event) {
       placeTipFromMouse(position.event, preferAbove);
     } else if (position?.element) {
@@ -370,18 +370,28 @@ function renderStreamHistoryChart(
     }
   };
   const hideTooltip = () => {
-    tip.style.display = 'none';
+    tip.classList.remove('visible');
   };
 
   const displayRaw = buildDisplayData(data).map((d) => ({
     ...d,
-    avgViewers: Number(d?.avgViewers || 0),
+    avgViewers: Number(d?.[metricKey] || 0),
   }));
 
-  const win = Math.max(1, Number(smoothWindow || 1));
+  const isTotalMetric =
+    activeMetric === 'unique-viewers' ||
+    activeMetric === 'unique-chatters' ||
+    activeMetric === 'follows';
+
+  const win = isTotalMetric ? 1 : Math.max(1, Number(smoothWindow || 1));
   const display = displayRaw.map((d, i, arr) => {
-    if (!showViewers || win <= 1 || arr.length <= 1) return d;
-    const effectiveWin = Math.max(1, Math.min(win, arr.length));
+
+    if (Number(d.hours || 0) <= 0) return d;
+
+    const safeWin = arr.length < 5 ? 1 : win;
+
+    if (!effectiveShowViewers || safeWin <= 1 || arr.length <= 1) return d;
+    const effectiveWin = Math.max(1, Math.min(safeWin, arr.length));
     if (effectiveWin <= 1) return d;
     const half = Math.floor(effectiveWin / 2);
     let start = Math.max(0, i - half);
@@ -393,8 +403,12 @@ function renderStreamHistoryChart(
     let sum = 0;
     let cnt = 0;
     for (let k = start; k <= end; k++) {
-      sum += Number(arr[k].avgViewers || 0);
-      cnt++;
+      const v = Number(arr[k].avgViewers || 0);
+
+      if (v > 0 || Number(arr[k].hours || 0) > 0) {
+          sum += v;
+          cnt++;
+      }
     }
     return { ...d, avgViewers: cnt > 0 ? sum / cnt : d.avgViewers };
   });
@@ -402,9 +416,7 @@ function renderStreamHistoryChart(
     1,
     ...display.filter((d) => d && d.hours != null).map((d) => Number(d.hours || 0))
   );
-  const maxViewers = showViewers
-    ? Math.max(0, ...display.map((d) => Number(d.avgViewers || 0)))
-    : 0;
+  const maxViewers = Math.max(0, ...display.map((d) => Number(d.avgViewers || 0)));
 
   const trimTrailingEmptyBuckets = (source) => {
     const copy = Array.isArray(source) ? [...source] : [];
@@ -421,7 +433,7 @@ function renderStreamHistoryChart(
   const barDisplay = trimTrailingEmptyBuckets(display);
   const animationSignature = buildAnimationSignature(display, {
     chartMode,
-    showViewersFlag: showViewers,
+    showViewersFlag: effectiveShowViewers,
     period,
     goalHours: goal,
   });
@@ -547,11 +559,34 @@ function renderStreamHistoryChart(
         return hoursSafe.toFixed(2);
       }
     })();
-    let html = `<div class="tip-title">${title}</div>`;
-    html += `<div class="tip-subtle">${t('chartTooltipHoursStreamed')} ${hoursLabel}</div>`;
-    html += `<div class="tip-viewers">${t('chartTooltipParticipants')} ${formatAverageCount(avgVal)}</div>`;
+
+    let html = `<div class="chart-tip-title">${title}</div>`;
+
+    html += `<div class="chart-tip-row">
+      <span class="chart-tip-dot dot-purple"></span>
+      <span class="chart-tip-label">${t('chartTooltipHoursStreamed')}</span>
+      <span class="chart-tip-value">${hoursLabel}</span>
+    </div>`;
+
+    if (effectiveShowViewers) {
+      const displayVal =
+        activeMetric === 'unique-viewers' || activeMetric === 'unique-chatters'
+          ? formatViewerCount(avgVal)
+          : formatAverageCount(avgVal);
+
+      html += `<div class="chart-tip-row">
+      <span class="chart-tip-dot ${metricDot}"></span>
+      <span class="chart-tip-label">${metricLabel}</span>
+      <span class="chart-tip-value">${displayVal}</span>
+    </div>`;
+    }
+
     if (peakVal > 0) {
-      html += `<div class="tip-viewers">${t('chartTooltipPeakParticipants')} ${formatViewerCount(peakVal)}</div>`;
+      html += `<div class="chart-tip-row">
+        <span class="chart-tip-dot dot-peak"></span>
+        <span class="chart-tip-label">${t('chartTooltipPeakParticipants')}</span>
+        <span class="chart-tip-value">${formatViewerCount(peakVal)}</span>
+      </div>`;
     }
     return html;
   };
@@ -597,9 +632,9 @@ function renderStreamHistoryChart(
       hoursGradientId = `${gradientPrefix}-hours`;
       defs.appendChild(createAreaGradient(hoursGradientId, '#8757f6', 0.35, 0.08));
     }
-    if (showViewers && maxViewers > 0) {
+    if (effectiveShowViewers && maxViewers > 0) {
       viewersGradientId = `${gradientPrefix}-viewers`;
-      defs.appendChild(createAreaGradient(viewersGradientId, 'var(--accent,#553fee)', 0.25, 0.04));
+      defs.appendChild(createAreaGradient(viewersGradientId, metricAreaStart, 0.25, 0.04));
     }
     if (defs.childNodes.length) {
       svg.appendChild(defs);
@@ -614,6 +649,7 @@ function renderStreamHistoryChart(
       bg.setAttribute('fill', 'var(--chart-bg,#fefefe)');
       svg.appendChild(bg);
       const gridColor =
+        getComputedStyle(el).getPropertyValue('--chart-grid').trim() ||
         getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim() ||
         '#f3f7fa';
       const { lines, padY, bottomAxis } = gridConfig;
@@ -654,10 +690,10 @@ function renderStreamHistoryChart(
           svg.appendChild(txt);
         }
 
-        if (showHoursSeries && maxViewers > 0) {
-          for (let i = 0; i <= ticks - 1; i++) {
-            const y = Math.round(pad + ((h - bottom - pad * 2) * i) / (ticks - 1));
-            const v = maxViewers * (1 - i / (ticks - 1));
+    if (showHoursSeries && maxViewers > 0) {
+      for (let i = 0; i <= ticks - 1; i++) {
+        const y = Math.round(pad + ((h - bottom - pad * 2) * i) / (ticks - 1));
+        const v = maxViewers * (1 - i / (ticks - 1));
             const txtR = document.createElementNS(svgNS, 'text');
             txtR.setAttribute('x', String(w - 6));
             txtR.setAttribute('y', String(Math.max(10, Math.min(h - bottom - 2, y + 3))));
@@ -737,7 +773,7 @@ function renderStreamHistoryChart(
       svg.appendChild(areaPath);
     }
 
-    if (showViewers && maxViewers > 0 && points.length > 0 && viewersGradientId) {
+    if (effectiveShowViewers && maxViewers > 0 && points.length > 0 && viewersGradientId) {
       const baseViewersY = toYViewers(0);
       let viewersAreaD = `M ${points[0].x} ${baseViewersY}`;
       points.forEach((pt) => {
@@ -785,8 +821,8 @@ function renderStreamHistoryChart(
     }
 
     let pathV = null;
-    const animateViewerLine = showViewers && maxViewers > 0 && (animateLine || viewersStateChanged);
-    if (showViewers && maxViewers > 0 && points.length > 0) {
+    const animateViewerLine = effectiveShowViewers && maxViewers > 0 && (animateLine || viewersStateChanged);
+    if (effectiveShowViewers && maxViewers > 0 && points.length > 0) {
       let dPathV = '';
       points.forEach((pt, idx) => {
         dPathV += idx === 0 ? `M ${pt.x} ${pt.yViewers}` : ` L ${pt.x} ${pt.yViewers}`;
@@ -794,7 +830,7 @@ function renderStreamHistoryChart(
       pathV = document.createElementNS(svgNS, 'path');
       pathV.setAttribute('d', dPathV);
       pathV.setAttribute('fill', 'none');
-      pathV.setAttribute('stroke', 'var(--accent,#22d3ee)');
+      pathV.setAttribute('stroke', metricColor);
       pathV.setAttribute('stroke-width', '2.5');
       pathV.setAttribute('stroke-linecap', 'round');
       pathV.setAttribute('stroke-linejoin', 'round');
@@ -856,12 +892,12 @@ function renderStreamHistoryChart(
       }
       updatePeak({ hours: hoursValue, avgViewers: avgViewersValue, x, y: yHours });
 
-      if (showViewers && maxViewers > 0) {
+      if (effectiveShowViewers && maxViewers > 0) {
         const cv = document.createElementNS(svgNS, 'circle');
         cv.setAttribute('cx', String(x));
         cv.setAttribute('cy', String(yViewers));
         cv.setAttribute('r', '2.6');
-        cv.setAttribute('fill', 'var(--accent,#22d3ee)');
+        cv.setAttribute('fill', metricColor);
         cv.classList.add('line-point-viewers');
         if (animateViewerLine) {
           cv.style.opacity = '0';
@@ -916,13 +952,17 @@ function renderStreamHistoryChart(
   const gap = 4;
   const series = barDisplay;
   const seriesLength = Math.max(1, series.length);
-  const barW = Math.max(
-    8,
-    Math.floor((w - axisLeft - gap * Math.max(0, seriesLength - 1)) / seriesLength)
-  );
+  const minBarW = 4;
+  const computedBarW = (w - axisLeft - gap * Math.max(0, seriesLength - 1)) / seriesLength;
+  const barW = Math.max(minBarW, computedBarW);
+
   const barModeLabel = chartMode === 'candle' ? 'candle' : 'bar';
   const animateBars = shouldAnimate(el, barModeLabel, `${animationSignature}|${barModeLabel}`);
   const gridConfig = calcGridLayout(h);
+  
+  const useMetricForBars = activeMetric !== 'time-streamed';
+  const chartMaxVal = useMetricForBars ? maxViewers : maxHours;
+
   const gridSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   gridSvg.setAttribute('viewBox', `0 0 ${w} ${h}`);
   gridSvg.style.position = 'absolute';
@@ -944,6 +984,7 @@ function renderStreamHistoryChart(
 
   try {
     const gridColor =
+      getComputedStyle(el).getPropertyValue('--chart-grid').trim() ||
       getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim() ||
       '#f3f7fa';
     const labelColor =
@@ -961,13 +1002,13 @@ function renderStreamHistoryChart(
       ln.setAttribute('stroke-width', '1');
       gridSvg.appendChild(ln);
     }
-    if (maxHours > 0) {
+    if (chartMaxVal > 0) {
       const ticks = gridConfig.lines + 2;
       const pad = gridConfig.padY;
       const bottom = gridConfig.bottomAxis;
       for (let i = 0; i <= ticks - 1; i++) {
         const y = Math.round(pad + ((h - bottom - pad * 2) * i) / (ticks - 1));
-        const val = maxHours * (1 - i / (ticks - 1));
+        const val = chartMaxVal * (1 - i / (ticks - 1));
         const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         txt.setAttribute('x', '6');
         txt.setAttribute('y', String(Math.max(10, Math.min(h - bottom - 2, y + 3))));
@@ -975,14 +1016,20 @@ function renderStreamHistoryChart(
         txt.setAttribute('font-size', '10');
         txt.setAttribute('text-anchor', 'start');
         try {
-          txt.textContent = formatHours ? formatHours(val) : String(Math.round(val));
+          if (!useMetricForBars && formatHours) {
+             txt.textContent = formatHours(val);
+          } else if (useMetricForBars) {
+             txt.textContent = formatViewerCount(val);
+          } else {
+             txt.textContent = String(Math.round(val));
+          }
         } catch {
           txt.textContent = String(Math.round(val));
         }
         gridSvg.appendChild(txt);
       }
-      if (goal > 0 && maxHours >= goal) {
-        const goalY = Math.round(gridConfig.padY + (h - gridConfig.bottomAxis - gridConfig.padY * 2) * (1 - goal / maxHours));
+      if (!useMetricForBars && goal > 0 && chartMaxVal >= goal) {
+        const goalY = Math.round(gridConfig.padY + (h - gridConfig.bottomAxis - gridConfig.padY * 2) * (1 - goal / chartMaxVal));
         const goalLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         goalLine.setAttribute('x1', String(axisLeft));
         goalLine.setAttribute('y1', String(goalY));
@@ -1029,11 +1076,26 @@ function renderStreamHistoryChart(
   const innerHeight = Math.max(1, h - bottomAxis - padY * 2);
   container.style.height = innerHeight + 'px';
   container.style.marginTop = padY + 'px';
-  const maxVal = maxHours;
   const available = innerHeight;
+  const listMaxVal = useMetricForBars ? (maxViewers > 0 ? maxViewers : 1) : (maxHours > 0 ? maxHours : 1);
+
+  let seriesMax = 0;
+  series.forEach((d) => {
+    const v = Number(useMetricForBars ? (d.avgViewers || 0) : (d.hours || 0));
+    if (v > seriesMax) seriesMax = v;
+  });
+  const renderMax = Math.max(listMaxVal, seriesMax);
+
   series.forEach((d, idx) => {
-    const v = d.hours || 0;
-    const bh = Math.round((v / maxVal) * available);
+
+    const val = Number(useMetricForBars ? (d.avgViewers || 0) : (d.hours || 0));
+
+    let barColor = useMetricForBars ? metricColor : '#8757f6';
+    if (!useMetricForBars && goal > 0 && val >= goal) {
+      barColor = 'var(--chart-goal-met,#ff184c)';
+    }
+
+    const bh = Math.round((val / renderMax) * available);
     const bar = document.createElement('div');
     bar.style.width = barW + 'px';
     bar.style.height = Math.max(2, bh) + 'px';
@@ -1042,13 +1104,19 @@ function renderStreamHistoryChart(
         const fragments = [];
         const rangeTitle = formatRangeTitle(d);
         if (rangeTitle) fragments.push(rangeTitle);
-        fragments.push(`${t('chartTooltipHoursStreamed')} ${formatHours ? formatHours(v) : v}`);
-        fragments.push(
-          `${t('chartTooltipParticipants')} ${formatAverageCount(Number(d.avgViewers || 0))}`
-        );
-        const peakVal = Number(d.peakViewers || 0);
-        if (peakVal > 0)
-          fragments.push(`${t('chartTooltipPeakParticipants')} ${formatViewerCount(peakVal)}`);
+        if (useMetricForBars) {
+           fragments.push(`${metricLabel} ${formatViewerCount(val)}`);
+        } else {
+           fragments.push(`${t('chartTooltipHoursStreamed')} ${formatHours ? formatHours(val) : val}`);
+        }
+        
+        if (useMetricForBars && d.hours > 0) {
+           fragments.push(`${t('chartTooltipHoursStreamed')} ${formatHours ? formatHours(d.hours) : d.hours}`);
+        }
+        if (!useMetricForBars && d.avgViewers > 0) {
+           fragments.push(`${t('chartTooltipParticipants')} ${formatAverageCount(d.avgViewers)}`);
+        }
+        
         return fragments.join('. ');
       } catch {
         return '';
@@ -1058,78 +1126,44 @@ function renderStreamHistoryChart(
       bar.setAttribute('role', 'img');
       bar.setAttribute('aria-label', ariaTitle);
     }
-    const meetsGoal = goal > 0 && v >= goal;
-    const positiveColor = meetsGoal
-      ? 'var(--chart-goal-met,#ff184c)'
-      : '#8757f6';
-    const neutralColor =
-      goal > 0 ? 'var(--chart-goal-base,rgba(148,163,184,0.45))' : 'rgba(128,128,128,.35)';
-    bar.style.background = v > 0 ? positiveColor : neutralColor;
-    bar.style.borderRadius = '6px';
+    
+    bar.style.background = val > 0 ? barColor : 'rgba(128,128,128,.35)';
+    bar.style.borderRadius = '4px 4px 1px 1px';
     bar.className = 'bar';
-    if (!animateBars) {
-      bar.style.opacity = '1';
-      bar.style.transform = 'none';
-      bar.style.transition = 'none';
-    }
-    if (chartMode === 'candle') {
-      bar.style.background = 'transparent';
-      const wrap = document.createElement('div');
-      wrap.style.position = 'relative';
-      wrap.style.width = '100%';
-      wrap.style.height = Math.max(2, bh) + 'px';
-      const fill = document.createElement('div');
-      fill.style.height = '100%';
-      fill.style.background = v > 0 ? positiveColor : 'rgba(128,128,128,.55)';
-      fill.style.width = '100%';
-      fill.style.borderRadius = '6px';
-      wrap.appendChild(fill);
-
-      if (showViewers && maxViewers > 0) {
-        const vh = Math.round((Math.max(0, Number(d.avgViewers || 0)) / maxViewers) * available);
-        const viewersLine = document.createElement('div');
-        viewersLine.style.position = 'absolute';
-        viewersLine.style.left = '0';
-        viewersLine.style.right = '0';
-        viewersLine.style.bottom = '0';
-        viewersLine.style.height = Math.max(2, Math.min(vh, available)) + 'px';
-        viewersLine.style.background = 'var(--accent,#22d3ee)';
-        viewersLine.style.opacity = '0.75';
-        viewersLine.style.borderRadius = '6px';
-        wrap.appendChild(viewersLine);
-      }
-      bar.appendChild(wrap);
+    if (animateBars) {
+      bar.style.opacity = '0';
+      bar.style.transform = 'scaleY(0)';
+      bar.style.transformOrigin = 'bottom';
+      bar.style.transition = `transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1) ${
+        idx * 16
+      }ms, opacity 200ms ease ${idx * 16}ms`;
+      requestAnimationFrame(() => {
+        bar.style.opacity = '0.85';
+        bar.style.transform = 'scaleY(1)';
+      });
+    } else {
+      bar.style.opacity = '0.85';
     }
     const show = (e) => {
-      showTooltip(d, v, Number(d.avgViewers || 0), { event: e }, v === 0);
+      bar.style.opacity = '1';
+      showTooltip(d, d.hours, d.avgViewers, { event: e }, val === 0);
     };
-    const showFromFocus = () => {
-      showTooltip(d, v, Number(d.avgViewers || 0), { element: bar }, v === 0);
+    const hide = () => {
+      bar.style.opacity = '0.85';
+      hideTooltip();
     };
     bar.addEventListener('mouseenter', show);
-    bar.addEventListener('mousemove', show);
-    bar.addEventListener('mouseleave', hideTooltip);
-    bar.addEventListener('focus', showFromFocus);
-    bar.addEventListener('blur', hideTooltip);
-    bar.tabIndex = 0;
-    const delay = Math.min(idx * 18, 180);
-    if (animateBars) {
-      primeGrowAnimation(chartMode === 'candle' ? bar.firstChild : bar, delay + 80);
-      primeGrowAnimation(bar, delay);
-    }
-    container.appendChild(bar);
-    const barTop = padY + Math.max(0, available - Math.max(2, bh));
-    const centerX = Math.round(axisLeft + (barW + gap) * idx + barW / 2);
-    updatePeak({
-      hours: Number(v || 0),
-      avgViewers: Number(d.avgViewers || 0),
-      x: centerX,
-      y: barTop,
+    bar.addEventListener('mouseleave', hide);
+    bar.addEventListener('focus', () => {
+      bar.style.opacity = '1';
+      showTooltip(d, d.hours, d.avgViewers, { element: bar }, val === 0);
     });
+    bar.addEventListener('blur', hide);
+    container.appendChild(bar);
   });
   el.appendChild(container);
 
-  if (chartMode !== 'candle' && showViewers && maxViewers > 0 && series.length > 0) {
+  if (chartMode !== 'candle' && effectiveShowViewers && maxViewers > 0 && series.length > 0) {
     const overlaySvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     overlaySvg.setAttribute('viewBox', `0 0 ${w} ${h}`);
     overlaySvg.style.position = 'absolute';
@@ -1164,7 +1198,9 @@ function renderStreamHistoryChart(
       viewerPath.classList.add('viewers-overlay-path');
       overlaySvg.appendChild(viewerPath);
       if (animateBars) {
-        primePathAnimation(viewerPath, 120);
+        viewerPath.style.opacity = '0';
+        viewerPath.style.transition = 'opacity 400ms ease 120ms';
+        requestAnimationFrame(() => viewerPath.style.opacity = '1');
       } else {
         viewerPath.style.opacity = '1';
       }
@@ -1178,11 +1214,10 @@ function renderStreamHistoryChart(
     }
     el.appendChild(overlaySvg);
   }
+
   return { peak: peakCandidate };
-  } finally {
-    runtimeLocale = prevLocale;
-  }
 }
+
 
 function renderViewersSparkline(
   el,
@@ -1213,8 +1248,9 @@ function renderViewersSparkline(
   }));
   const win = Math.max(1, Number(smoothWindow || 1));
   const viewers = displayRaw.map((d, i, arr) => {
-    if (win <= 1 || arr.length <= 1) return d.avgViewers;
-    const effectiveWin = Math.max(1, Math.min(win, arr.length));
+    const safeWin = arr.length < 5 ? 1 : win;
+    if (safeWin <= 1 || arr.length <= 1) return d.avgViewers;
+    const effectiveWin = Math.max(1, Math.min(safeWin, arr.length));
     if (effectiveWin <= 1) return d.avgViewers;
     const half = Math.floor(effectiveWin / 2);
     let start = Math.max(0, i - half);

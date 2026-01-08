@@ -1,7 +1,6 @@
 <template>
   <section class="admin-tab active">
-    <div class="flex flex-col gap-4">
-      <ModulesStatusPanel />
+    <div class="flex flex-col gap-1">
       <MetricsPanel />
 
       <div ref="historySentinel"></div>
@@ -30,7 +29,6 @@
 <script setup>
 import { ref, onMounted, defineAsyncComponent } from 'vue';
 import MetricsPanel from '../components/MetricsPanel.vue';
-import ModulesStatusPanel from '../components/ModulesStatusPanel.vue';
 import SkeletonLoader from '../components/SkeletonLoader.vue';
 
 const AsyncStreamHistoryPanel = defineAsyncComponent(

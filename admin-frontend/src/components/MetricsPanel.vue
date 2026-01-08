@@ -35,18 +35,17 @@
     <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-3">
       <div class="p-2 rounded-os-sm os-subtle">
         <div class="os-th text-xs mb-1 flex items-center gap-1.5">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true">
-            <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V5a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
-          </svg>
+          <span class="icon os-icon" aria-hidden="true"
+            ><svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round">
+              <path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2v5Z"></path>
+              <path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"></path></svg
+          ></span>
           <span>{{ t('metricsChatActivity') || 'Chat activity' }}</span>
         </div>
         <div class="text-sm flex items-baseline gap-2">
@@ -57,8 +56,8 @@
               deltas.chat.dir === 'up'
                 ? 'text-green-500'
                 : deltas.chat.dir === 'down'
-                ? 'text-red-500'
-                : 'text-neutral-400'
+                  ? 'text-red-500'
+                  : 'text-neutral-400'
             "
             class="text-xs font-normal">
             <span v-if="deltas.chat.dir === 'up'">▲</span>
@@ -79,7 +78,7 @@
           {{ t('metrics1h') || '1h' }}: <strong>{{ metrics.chat?.lastHour ?? 0 }}</strong>
         </div>
         <div class="mt-1">
-          <OsSparkline :data="hist.chat" :width="sparkMedW" :height="28" color="#a78bfa" />
+          <OsSparkline :data="hist.chat" :width="sparkMedW" :height="28" color="#ff184c" />
         </div>
       </div>
       <div class="p-2 rounded-os-sm os-subtle">
@@ -144,7 +143,7 @@
           }}) • {{ metrics.tips?.rate?.last5m?.count ?? 0 }} {{ t('metricsTipsCount') || 'tips' }}
         </div>
         <div class="mt-1">
-          <OsSparkline :data="hist.tips" :width="sparkMedW" :height="28" color="#ef4444" />
+          <OsSparkline :data="hist.tips" :width="sparkMedW" :height="28" color="#22c55e" />
         </div>
       </div>
       <div class="p-2 rounded-os-sm os-subtle flex flex-col">
