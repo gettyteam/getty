@@ -1,3 +1,5 @@
+/* global module */
+
 function formatHours(h) {
   const v = Number(h || 0);
   const minutes = v * 60;
@@ -22,7 +24,9 @@ function formatTotalHours(h) {
   if (v >= 24) return (v / 24).toFixed(v / 24 >= 10 ? 0 : 1) + ' d';
   if (v >= 10) return Math.round(v) + ' h';
   if (v >= 1) return (Number.isInteger(v) ? v : v.toFixed(1)) + ' h';
-  return v.toFixed(2) + ' h';
+  const minutes = v * 60;
+  if (minutes > 0 && minutes < 60) return Math.round(minutes) + ' min';
+  return v === 0 ? '0 h' : v.toFixed(2) + ' h';
 }
 
 function usdFromAr(arAmount, usdRate) {

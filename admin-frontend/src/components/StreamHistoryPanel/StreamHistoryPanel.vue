@@ -17,213 +17,8 @@
       </h3>
     </template>
     <BlockedState v-if="isBlocked" :module-name="t('streamHistoryTitle')" :details="blockDetails" />
-    <div class="status-row" v-else-if="!settingsCollapsed">
-      <span class="badge" :class="status.connected ? 'ok' : 'err'">
-        {{ status.connected ? t('connected') : t('disconnected') }}
-      </span>
-      <span class="badge" :class="status.live ? 'live' : 'idle'" v-if="status.connected">
-        {{ status.live ? t('liveNow') : t('notLive') }}
-      </span>
-      <span
-        class="badge samples"
-        :title="
-          t('streamHistoryDataPointsHint') +
-          '\n' +
-          t('streamHistoryDataPointsCurrent') +
-          ': ' +
-          sampleCount
-        ">
-        {{ t('streamHistoryDataPoints') }}: {{ sampleCount }}
-        <span class="hist-points-info" aria-hidden="true">
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round">
-            <rect x="3" y="10" width="3" height="11" rx="0.5" />
-            <rect x="9" y="6" width="3" height="15" rx="0.5" />
-            <rect x="15" y="13" width="3" height="8" rx="0.5" />
-            <path d="M3 21h18" />
-          </svg>
-        </span>
-      </span>
-    </div>
-    <div
-      class="grid [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))] gap-3"
-      v-if="!isBlocked && !settingsCollapsed">
-      <span v-if="samplingCaption" class="text-[0.72rem] opacity-90 italic sampling-caption">
-        {{ samplingCaption }}
-      </span>
-      <div class="form-group [grid-column:1/-1]">
-        <label class="label">{{ t('streamHistoryClaimId') }}</label>
-        <input class="input" v-model="claimid" />
-        <div class="mt-2 flex flex-wrap items-center gap-1.5">
-          <button
-            type="button"
-            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs opacity-85 hover:opacity-100 disabled:opacity-60"
-            :disabled="saving"
-            :title="saving ? t('commonSaving') || 'Saving…' : t('commonSave') || 'Save'"
-            @click="saveConfig">
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true">
-              <path
-                d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round" />
-              <path
-                d="M7 3v6h8V3"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round" />
-              <path
-                d="M7 21v-7h10v7"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round" />
-            </svg>
-            <span>{{ saving ? t('commonSaving') : t('commonSave') }}</span>
-          </button>
 
-          <button
-            type="button"
-            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs opacity-85 hover:opacity-100"
-            :title="t('commonRefresh') || 'Refresh'"
-            @click="refresh">
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true">
-              <path
-                d="M21 12a9 9 0 1 1-2.64-6.36"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round" />
-              <path
-                d="M21 3v6h-6"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round" />
-            </svg>
-            <span>{{ t('commonRefresh') }}</span>
-          </button>
-
-          <button
-            type="button"
-            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs text-red-500 hover:opacity-100"
-            :title="t('streamHistoryClear') || 'Clear'"
-            @click="clearHistory">
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true">
-              <path d="M3 6h18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-              <path
-                d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round" />
-              <path
-                d="M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round" />
-            </svg>
-            <span>{{ t('streamHistoryClear') }}</span>
-          </button>
-
-          <button
-            type="button"
-            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs opacity-85 hover:opacity-100"
-            :title="t('streamHistoryExport') || 'Export'"
-            @click="downloadExport">
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true">
-              <path
-                d="M12 3v12"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round" />
-              <path
-                d="M8 11l4 4 4-4"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round" />
-              <path d="M4 21h16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-            </svg>
-            <span>{{ t('streamHistoryExport') }}</span>
-          </button>
-
-          <label
-            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs opacity-85 hover:opacity-100 cursor-pointer"
-            :title="t('streamHistoryImport') || 'Import'">
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true">
-              <path
-                d="M12 21V9"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round" />
-              <path
-                d="M16 13l-4-4-4 4"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round" />
-              <path d="M4 21h16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-            </svg>
-            <span>{{ t('streamHistoryImport') }}</span>
-            <input type="file" accept="application/json" @change="onImport" class="hidden" />
-          </label>
-        </div>
-        <div class="mt-3 flex flex-col gap-1">
-          <label class="label flex items-center gap-2">
-            <span>{{ t('streamHistoryDailyGoalLabel') }}</span>
-            <span class="text-[0.7rem] font-normal opacity-70">{{
-              t('streamHistoryDailyGoalHint')
-            }}</span>
-          </label>
-          <input class="input w-28" type="number" min="0" step="0.5" v-model.number="goalHours" />
-        </div>
-      </div>
-    </div>
-
-    <div class="flex flex-wrap items-center justify-between -m-2" v-if="!isBlocked">
+    <div class="nav-bar-layout h-auto min-h-[64px] py-1 mb-3 flex-wrap" v-if="!isBlocked">
       <div class="w-auto p-2 flex items-center gap-2">
         <h3 class="font-heading text-lg font-semibold">{{ t('activity') }}</h3>
         <button
@@ -257,7 +52,8 @@
           </svg>
         </button>
       </div>
-      <div class="w-auto p-2 flex flex-wrap items-center gap-2">
+
+      <div class="w-auto p-2 ml-auto flex flex-wrap items-center gap-2">
         <div class="live-analytics-trigger relative">
           <button
             type="button"
@@ -325,16 +121,12 @@
 
         <div class="relative flex items-center gap-1">
           <button
-            ref="calendarTriggerRef"
             type="button"
             class="range-trigger"
-            :class="customRangeActive ? 'range-trigger-active' : ''"
             :aria-expanded="String(calendarOpen)"
             aria-haspopup="dialog"
-            :title="rangeLabel"
-            @click="toggleCalendar"
-            @keydown.enter.prevent="toggleCalendar"
-            @keydown.space.prevent="toggleCalendar">
+            :title="t('streamHistoryRangePlaceholder')"
+            @click="toggleCalendar">
             <span class="range-trigger-icon" aria-hidden="true">
               <svg
                 width="14"
@@ -345,13 +137,15 @@
                 stroke-width="1.8"
                 stroke-linecap="round"
                 stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" />
-                <path d="M3 10h18" />
-                <path d="M8 2v4" />
-                <path d="M16 2v4" />
+                <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                <path d="M3 10h18"></path>
+                <path d="M8 2v4"></path>
+                <path d="M16 2v4"></path>
               </svg>
             </span>
-            <span class="range-trigger-label sr-only sm:not-sr-only">{{ rangeLabel }}</span>
+            <span class="range-trigger-label sr-only sm:not-sr-only">{{
+              t('streamHistoryRangePlaceholder')
+            }}</span>
             <span class="range-trigger-icon" aria-hidden="true">
               <svg
                 width="12"
@@ -362,91 +156,20 @@
                 stroke-width="1.8"
                 stroke-linecap="round"
                 stroke-linejoin="round">
-                <polyline points="6 9 12 15 18 9" />
+                <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
             </span>
           </button>
-          <button
-            v-if="customRangeActive || hasDraft"
-            type="button"
-            class="range-clear-btn"
-            :title="t('streamHistoryRangeClear')"
-            @click="onClearRangeClick">
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.8"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-          <div
-            v-if="calendarOpen"
-            ref="calendarPopoverRef"
-            class="range-popover"
-            role="dialog"
-            :aria-label="t('streamHistoryRangePlaceholder')">
-            <div class="range-popover-body">
-              <label>
-                <span>{{ t('streamHistoryRangeStart') }}</span>
-                <input
-                  type="date"
-                  v-model="rangeDraft.start"
-                  :min="minCalendarDate"
-                  :max="todayIso" />
-              </label>
-              <label>
-                <span>{{ t('streamHistoryRangeEnd') }}</span>
-                <input
-                  type="date"
-                  v-model="rangeDraft.end"
-                  :min="rangeDraft.start || minCalendarDate"
-                  :max="todayIso" />
-              </label>
-              <p v-if="rangeError" class="range-error">{{ rangeError }}</p>
-            </div>
-            <div class="range-popover-footer">
-              <button
-                type="button"
-                class="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs font-medium hover:opacity-100 disabled:opacity-60"
-                :disabled="!customRangeActive && !hasDraft"
-                @click="onClearRangeClick">
-                {{ t('streamHistoryRangeClear') }}
-              </button>
-              <div class="range-actions">
-                <button
-                  type="button"
-                  class="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-transparent bg-transparent text-xs font-medium text-[var(--text-secondary,#475569)] hover:underline"
-                  @click="closeCalendar">
-                  {{ t('commonCancel') }}
-                </button>
-                <button
-                  type="button"
-                  class="inline-flex items-center gap-1 px-3 py-1 rounded-md border border-transparent bg-[#2563eb] text-xs font-semibold text-white disabled:opacity-60 disabled:cursor-not-allowed range-apply-btn"
-                  :disabled="applyDisabled"
-                  @click="applyCalendarRange">
-                  {{ t('streamHistoryRangeApply') }}
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
 
         <div class="relative">
           <button
-            ref="quickPeriodTriggerRef"
             type="button"
             class="quick-select-trigger"
-            :class="quickPeriodOpen ? 'quick-select-trigger-active' : ''"
             :aria-expanded="String(quickPeriodOpen)"
             aria-haspopup="listbox"
-            @click="toggleQuickPeriod">
+            @click="quickPeriodOpen = !quickPeriodOpen"
+            ref="quickPeriodTriggerRef">
             <span class="quick-select-label">{{ quickPeriodLabel }}</span>
             <span class="quick-select-caret" aria-hidden="true">
               <svg
@@ -458,7 +181,7 @@
                 stroke-width="1.8"
                 stroke-linecap="round"
                 stroke-linejoin="round">
-                <polyline points="6 9 12 15 18 9" />
+                <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
             </span>
           </button>
@@ -466,31 +189,35 @@
             v-if="quickPeriodOpen"
             ref="quickPeriodPopoverRef"
             class="quick-select-popover"
-            role="listbox"
-            :aria-label="t('streamHistoryRangePlaceholder')">
+            role="listbox">
             <button
-              v-for="option in quickPeriodOptions"
-              :key="option.value"
+              v-for="opt in quickPeriodOptions"
+              :key="opt.value"
               type="button"
               class="quick-select-option"
-              :class="filterQuick === option.value ? 'quick-select-option-active' : ''"
-              role="option"
-              :aria-selected="filterQuick === option.value ? 'true' : 'false'"
-              @click="selectQuickPeriod(option.value)">
-              {{ option.label }}
+              :class="{ active: filterQuick === opt.value }"
+              @click="onQuickFilterChange(opt.value)">
+              {{ opt.label }}
+            </button>
+            <div class="h-px bg-[var(--card-border)] my-1"></div>
+            <button
+              type="button"
+              class="quick-select-option"
+              :class="{ active: filterQuick === 'custom' }"
+              @click="onQuickFilterChange('custom')">
+              {{ t('streamHistoryRangeCustom') }}
             </button>
           </div>
         </div>
 
         <div class="relative">
           <button
-            ref="quickSpanTriggerRef"
             type="button"
             class="quick-select-trigger"
-            :class="quickSpanOpen ? 'quick-select-trigger-active' : ''"
             :aria-expanded="String(quickSpanOpen)"
             aria-haspopup="listbox"
-            @click="toggleQuickSpan">
+            @click="quickSpanOpen = !quickSpanOpen"
+            ref="quickSpanTriggerRef">
             <span class="quick-select-label">{{ quickSpanLabel }}</span>
             <span class="quick-select-caret" aria-hidden="true">
               <svg
@@ -502,7 +229,7 @@
                 stroke-width="1.8"
                 stroke-linecap="round"
                 stroke-linejoin="round">
-                <polyline points="6 9 12 15 18 9" />
+                <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
             </span>
           </button>
@@ -510,21 +237,500 @@
             v-if="quickSpanOpen"
             ref="quickSpanPopoverRef"
             class="quick-select-popover"
-            role="listbox"
-            :aria-label="t('streamHistoryRangePlaceholder')">
+            role="listbox">
             <button
-              v-for="option in quickSpanOptions"
-              :key="option.value"
+              v-for="opt in quickSpanOptions"
+              :key="opt.value"
               type="button"
               class="quick-select-option"
-              :class="Number(filterQuickSpan) === option.value ? 'quick-select-option-active' : ''"
-              role="option"
-              :aria-selected="Number(filterQuickSpan) === option.value ? 'true' : 'false'"
-              @click="selectQuickSpan(option.value)">
-              {{ option.label }}
+              :class="{ active: Number(filterQuickSpan) === opt.value }"
+              @click="onQuickRangeChange(opt.value)">
+              {{ opt.label }}
             </button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div class="w-full mb-4 px-1 flex flex-wrap items-center gap-2" v-if="!isBlocked">
+      <div class="text-xs font-bold uppercase tracking-wide opacity-60 mr-1 hidden sm:block">
+        Metrics:
+      </div>
+
+      <button
+        class="px-2 py-1 rounded text-xs border border-[var(--card-border)] flex items-center gap-1.5 transition-colors"
+        :class="
+          activeMetric === 'time-streamed'
+            ? 'bg-[rgba(139,92,246,0.15)] border-[rgba(139,92,246,0.5)] text-[var(--text-primary)] font-semibold'
+            : 'bg-[var(--bg-chat)] hover:bg-[var(--card-bg)] opacity-80 hover:opacity-100'
+        "
+        @click="activeMetric = 'time-streamed'">
+        <span class="dot dot-purple"></span>
+        {{ t('metricTimeStreamed') || 'Time Streamed' }}
+      </button>
+
+      <button
+        class="px-2 py-1 rounded text-xs border border-[var(--card-border)] flex items-center gap-1.5 transition-colors"
+        :class="
+          activeMetric === 'avg-viewers'
+            ? 'bg-[rgba(34,211,238,0.15)] border-[rgba(34,211,238,0.5)] text-[var(--text-primary)] font-semibold'
+            : 'bg-[var(--bg-chat)] hover:bg-[var(--card-bg)] opacity-80 hover:opacity-100'
+        "
+        @click="activeMetric = 'avg-viewers'">
+        <span class="dot dot-teal"></span>
+        {{ t('metricAvgViewers') || 'Avg Viewers' }}
+      </button>
+
+      <button
+        class="px-2 py-1 rounded text-xs border border-[var(--card-border)] flex items-center gap-1.5 transition-colors"
+        :class="
+          activeMetric === 'follows'
+            ? 'bg-[rgba(34,197,94,0.15)] border-[rgba(34,197,94,0.5)] text-[var(--text-primary)] font-semibold'
+            : 'bg-[var(--bg-chat)] hover:bg-[var(--card-bg)] opacity-80 hover:opacity-100'
+        "
+        @click="activeMetric = 'follows'">
+        <span class="dot bg-green-500"></span>
+        {{ t('metricFollows') || 'Follows' }}
+      </button>
+
+      <button
+        class="px-2 py-1 rounded text-xs border border-[var(--card-border)] flex items-center gap-1.5 transition-colors"
+        :class="
+          activeMetric === 'unique-viewers'
+            ? 'bg-[rgba(249,115,22,0.15)] border-[rgba(249,115,22,0.5)] text-[var(--text-primary)] font-semibold'
+            : 'bg-[var(--bg-chat)] hover:bg-[var(--card-bg)] opacity-80 hover:opacity-100'
+        "
+        @click="activeMetric = 'unique-viewers'">
+        <span class="dot bg-orange-500"></span>
+        {{ t('metricUniqueViewers') || 'Unique Viewers' }}
+      </button>
+
+      <button
+        class="px-2 py-1 rounded text-xs border border-[var(--card-border)] flex items-center gap-1.5 transition-colors"
+        :class="
+          activeMetric === 'unique-chatters'
+            ? 'bg-[rgba(236,72,153,0.15)] border-[rgba(236,72,153,0.5)] text-[var(--text-primary)] font-semibold'
+            : 'bg-[var(--bg-chat)] hover:bg-[var(--card-bg)] opacity-80 hover:opacity-100'
+        "
+        @click="activeMetric = 'unique-chatters'">
+        <span class="dot dot-pink"></span>
+        {{ t('metricUniqueChatters') || 'Unique Chatters' }}
+      </button>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-4" v-if="!isBlocked">
+      <div
+        class="p-3 rounded-[8px] border cursor-pointer transition-all duration-200"
+        :class="
+          activeMetric === 'time-streamed'
+            ? 'bg-[rgba(139,92,246,0.08)] border-[rgba(139,92,246,0.4)] shadow-md'
+            : 'bg-[var(--bg-chat)] border-[var(--card-border)] hover:border-[rgba(139,92,246,0.3)] hover:-translate-y-0.5'
+        "
+        @click="activeMetric = 'time-streamed'">
+        <div class="text-xs uppercase tracking-wide opacity-70 mb-1 font-semibold">
+          {{ t('metricTimeStreamed') || 'Time Streamed' }}
+        </div>
+        <div class="text-2xl font-bold">
+          {{ fmtTotal(perf.range.hoursStreamed) }}
+        </div>
+        <div class="text-[10px] flex items-center gap-1 mt-1 opacity-80">Range total</div>
+      </div>
+
+      <div
+        class="p-3 rounded-[8px] border cursor-pointer transition-all duration-200"
+        :class="
+          activeMetric === 'avg-viewers'
+            ? 'bg-[rgba(34,211,238,0.08)] border-[rgba(34,211,238,0.4)] shadow-md'
+            : 'bg-[var(--bg-chat)] border-[var(--card-border)] hover:border-[rgba(34,211,238,0.3)] hover:-translate-y-0.5'
+        "
+        @click="activeMetric = 'avg-viewers'">
+        <div class="text-xs uppercase tracking-wide opacity-70 mb-1 font-semibold">
+          {{ t('metricAvgViewers') || 'Avg Viewers' }}
+        </div>
+        <div class="text-2xl font-bold">{{ perf.range.avgViewers || 0 }}</div>
+        <div
+          class="text-[10px] flex items-center gap-1 mt-1 opacity-80"
+          v-if="perf.range.activeDays > 0">
+          {{ perf.range.activeDays }} streams
+        </div>
+      </div>
+
+      <div
+        class="p-3 rounded-[8px] border cursor-pointer transition-all duration-200"
+        :class="
+          activeMetric === 'follows'
+            ? 'bg-[rgba(34,197,94,0.08)] border-[rgba(34,197,94,0.4)] shadow-md'
+            : 'bg-[var(--bg-chat)] border-[var(--card-border)] hover:border-[rgba(34,197,94,0.3)] hover:-translate-y-0.5'
+        "
+        @click="activeMetric = 'follows'">
+        <div class="text-xs uppercase tracking-wide opacity-70 mb-1 font-semibold">
+          {{ t('metricFollows') || 'Follows' }}
+        </div>
+        <div class="text-2xl font-bold">
+          {{
+            followersPerf.total != null
+              ? followersPerf.total
+              : perf.range.maxFollowers
+                ? perf.range.maxFollowers
+                : '-'
+          }}
+        </div>
+        <div
+          class="text-[10px] flex items-center gap-1 mt-1"
+          :class="Number(followersPerf.change) > 0 ? 'text-green-500' : 'text-neutral-400'">
+          <span v-if="Number(followersPerf.change) > 0">▲</span>{{ followersPerf.change || '-' }}
+        </div>
+      </div>
+
+      <div
+        class="p-3 rounded-[8px] border cursor-pointer transition-all duration-200"
+        :class="
+          activeMetric === 'unique-viewers'
+            ? 'bg-[rgba(249,115,22,0.08)] border-[rgba(249,115,22,0.4)] shadow-md'
+            : 'bg-[var(--bg-chat)] border-[var(--card-border)] hover:border-[rgba(249,115,22,0.3)] hover:-translate-y-0.5'
+        "
+        @click="activeMetric = 'unique-viewers'">
+        <div class="text-xs uppercase tracking-wide opacity-70 mb-1 font-semibold">
+          {{ t('metricUniqueViewers') || 'Unique Viewers' }}
+        </div>
+        <div class="text-2xl font-bold">{{ perf.range.peakViewers || 0 }}</div>
+        <div class="text-[10px] flex items-center gap-1 mt-1 opacity-80">Range peak (est)</div>
+      </div>
+
+      <div
+        class="p-3 rounded-[8px] border cursor-pointer transition-all duration-200"
+        :class="
+          activeMetric === 'unique-chatters'
+            ? 'bg-[rgba(236,72,153,0.08)] border-[rgba(236,72,153,0.4)] shadow-md'
+            : 'bg-[var(--bg-chat)] border-[var(--card-border)] hover:border-[rgba(236,72,153,0.3)] hover:-translate-y-0.5'
+        "
+        @click="activeMetric = 'unique-chatters'">
+        <div class="text-xs uppercase tracking-wide opacity-70 mb-1 font-semibold">
+          {{ t('metricUniqueChatters') || 'Unique Chatters' }}
+        </div>
+        <div class="text-2xl font-bold">{{ perf.range.maxChatters || '-' }}</div>
+        <div class="text-[10px] flex items-center gap-1 mt-1 opacity-80">Range peak</div>
+      </div>
+    </div>
+
+    <div
+      class="w-full p-3 mb-2 rounded-[8px] border border-[var(--card-border)] bg-[var(--bg-chat)]"
+      v-if="!settingsCollapsed">
+      <div class="grid [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))] gap-3">
+        <span v-if="samplingCaption" class="text-[0.72rem] opacity-90 italic sampling-caption">
+          {{ samplingCaption }}
+        </span>
+        <div class="form-group [grid-column:1/-1]">
+          <label class="label">{{ t('streamHistoryClaimId') }}</label>
+          <input class="input" v-model="claimid" />
+          <div class="mt-2 flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs opacity-85 hover:opacity-100 disabled:opacity-60"
+              :disabled="saving"
+              :title="saving ? t('commonSaving') || 'Saving…' : t('commonSave') || 'Save'"
+              @click="saveConfig">
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true">
+                <path
+                  d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round" />
+                <path
+                  d="M7 3v6h8V3"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round" />
+                <path
+                  d="M7 21v-7h10v7"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+              <span>{{ saving ? t('commonSaving') : t('commonSave') }}</span>
+            </button>
+
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs opacity-85 hover:opacity-100"
+              :title="t('commonRefresh') || 'Refresh'"
+              @click="refresh">
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true">
+                <path
+                  d="M21 12a9 9 0 1 1-2.64-6.36"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round" />
+                <path
+                  d="M21 3v6h-6"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+              <span>{{ t('commonRefresh') }}</span>
+            </button>
+
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs text-red-500 hover:opacity-100"
+              :title="t('streamHistoryClear') || 'Clear'"
+              @click="clearHistory">
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true">
+                <path d="M3 6h18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                <path
+                  d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round" />
+                <path
+                  d="M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+              <span>{{ t('streamHistoryClear') }}</span>
+            </button>
+
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs opacity-85 hover:opacity-100"
+              :title="t('streamHistoryExport') || 'Export'"
+              @click="downloadExport">
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true">
+                <path
+                  d="M12 3v12"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round" />
+                <path
+                  d="M8 11l4 4 4-4"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round" />
+                <path
+                  d="M4 21h16"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round" />
+              </svg>
+              <span>{{ t('streamHistoryExport') }}</span>
+            </button>
+
+            <label
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs opacity-85 hover:opacity-100 cursor-pointer"
+              :title="t('streamHistoryImport') || 'Import'">
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true">
+                <path
+                  d="M12 21V9"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round" />
+                <path
+                  d="M16 13l-4-4-4 4"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round" />
+                <path
+                  d="M4 21h16"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round" />
+              </svg>
+              <span>{{ t('streamHistoryImport') }}</span>
+              <input type="file" accept="application/json" @change="onImport" class="hidden" />
+            </label>
+          </div>
+
+          <div class="mt-3 flex flex-col gap-1">
+            <label class="label flex items-center gap-2">
+              <span>{{ t('streamHistoryDailyGoalLabel') }}</span>
+              <span class="text-[0.7rem] font-normal opacity-70">{{
+                t('streamHistoryDailyGoalHint')
+              }}</span>
+            </label>
+            <input class="input w-28" type="number" min="0" step="0.5" v-model.number="goalHours" />
+          </div>
+
+          <div class="status-row mt-3 pt-3 border-t border-[var(--card-border)]">
+            <span class="badge" :class="status.connected ? 'ok' : 'err'">
+              {{ status.connected ? t('connected') : t('disconnected') }}
+            </span>
+            <span class="badge" :class="status.live ? 'live' : 'idle'" v-if="status.connected">
+              {{ status.live ? t('liveNow') : t('notLive') }}
+            </span>
+            <span
+              class="badge samples"
+              :title="
+                t('streamHistoryDataPointsHint') +
+                '\n' +
+                t('streamHistoryDataPointsCurrent') +
+                ': ' +
+                sampleCount
+              ">
+              {{ t('streamHistoryDataPoints') }}: {{ sampleCount }}
+              <span class="hist-points-info" aria-hidden="true">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round">
+                  <rect x="3" y="10" width="3" height="11" rx="0.5" />
+                  <rect x="9" y="6" width="3" height="15" rx="0.5" />
+                  <rect x="15" y="13" width="3" height="8" rx="0.5" />
+                  <path d="M3 21h18" />
+                </svg>
+              </span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav-bar-layout">
+      <div class="Layout">
+        <button class="tw-interactable" aria-label="Previous period" @click="shiftPeriod(-1)">
+          <div class="Layout">
+            <div class="Layout">
+              <svg width="24" height="24" viewBox="0 0 24 24">
+                <path
+                  fill-rule="evenodd"
+                  d="m8 12.207 5.207 5.207L14.621 16l-3.793-3.793 3.793-3.793L13.207 7 8 12.207Z"
+                  clip-rule="evenodd"
+                  fill="currentColor"></path>
+              </svg>
+            </div>
+          </div>
+        </button>
+      </div>
+
+      <div class="Layout relative">
+        <button
+          class="tw-interactable"
+          id="date-picker-toggle"
+          @click="toggleCalendar"
+          ref="calendarTriggerRef">
+          <div class="Layout nav-bar-header" aria-live="polite">
+            <p class="nav-bar-header__text" id="date-range">{{ rangeLabel }}</p>
+            <p class="nav-bar-header__text" id="days-count">{{ rangeDurationLabel }}</p>
+          </div>
+        </button>
+
+        <div
+          v-if="calendarOpen"
+          ref="calendarPopoverRef"
+          class="range-popover"
+          role="dialog"
+          style="top: 100%; left: 50%; transform: translateX(-50%); margin-top: 10px"
+          :aria-label="t('streamHistoryRangePlaceholder')">
+          <div class="range-popover-body split">
+            <div class="calendar-pane">
+              <label>
+                <span>{{ t('streamHistoryRangeStart') }}</span>
+                <input
+                  type="date"
+                  v-model="rangeDraft.start"
+                  :min="minCalendarDate"
+                  :max="todayIso" />
+              </label>
+            </div>
+            <div class="calendar-pane">
+              <label>
+                <span>{{ t('streamHistoryRangeEnd') }}</span>
+                <input
+                  type="date"
+                  v-model="rangeDraft.end"
+                  :min="rangeDraft.start || minCalendarDate"
+                  :max="todayIso" />
+              </label>
+            </div>
+          </div>
+          <p v-if="rangeError" class="range-error mt-2">{{ rangeError }}</p>
+          <div class="range-popover-footer">
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs font-medium hover:opacity-100 disabled:opacity-60"
+              :disabled="!customRangeActive && !hasDraft"
+              @click="onClearRangeClick">
+              {{ t('streamHistoryRangeClear') }}
+            </button>
+            <div class="range-actions">
+              <button
+                type="button"
+                class="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-transparent bg-transparent text-xs font-medium text-[var(--text-secondary,#475569)] hover:underline"
+                @click="closeCalendar">
+                {{ t('commonCancel') }}
+              </button>
+              <button
+                type="button"
+                class="inline-flex items-center gap-1 px-3 py-1 rounded-md border border-transparent bg-[#2563eb] text-xs font-semibold disabled:opacity-60 disabled:cursor-not-allowed range-apply-btn"
+                :disabled="applyDisabled"
+                @click="applyCalendarRange">
+                {{ t('streamHistoryRangeApply') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="Layout">
+        <button class="tw-interactable" aria-label="Next period" @click="shiftPeriod(1)">
+          <div class="Layout">
+            <div class="Layout">
+              <svg width="24" height="24" viewBox="0 0 24 24">
+                <path
+                  fill-rule="evenodd"
+                  d="m15.621 12.207-5.207 5.207L9 16l3.793-3.793L9 8.414 10.414 7l5.207 5.207Z"
+                  clip-rule="evenodd"
+                  fill="currentColor"></path>
+              </svg>
+            </div>
+          </div>
+        </button>
       </div>
     </div>
 
@@ -572,46 +778,58 @@
           </button>
         </div>
       </div>
-      <div class="chart-wrap">
-        <div ref="chartEl" class="chart-canvas"></div>
+      <div
+        class="mb-4 text-xs opacity-70 italic"
+        v-if="!isBlocked && activeMetric === 'follows' && !followersPerf.total">
+        Note: Follows history requires Channel Analytics configuration.
       </div>
-      <div class="text-xs mt-1 flex flex-wrap items-center gap-2">
-        <span>{{ t('streamHistoryHint') }}</span>
-        <button
-          type="button"
-          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs"
-          :aria-pressed="showViewers ? 'true' : 'false'"
-          :class="showViewers ? 'ring-1 ring-[#ee2264]' : ''"
-          @click="toggleShowViewers"
-          :title="
-            showViewers
-              ? t('chartHideViewers') || 'Hide viewers'
-              : t('chartShowViewers') || 'Show viewers'
-          ">
-          <span
-            class="inline-block w-2.5 h-2.5 rounded-full bg-[var(--viewers-line-color,#22d3ee)]"></span>
-          <span>{{ showViewers ? t('chartViewersOn') : t('chartViewersOff') }}</span>
-        </button>
-        <button
-          type="button"
-          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs"
-          :aria-pressed="mode === 'candle' ? 'true' : 'false'"
-          :class="mode === 'candle' ? 'ring-1 ring-[#ee2264]' : ''"
-          @click="mode = 'candle'">
-          {{ t('chartCandle') }}
-        </button>
-        <button
-          type="button"
-          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs"
-          :aria-pressed="mode === 'line' ? 'true' : 'false'"
-          :class="mode === 'line' ? 'ring-1 ring-[#ee2264]' : ''"
-          @click="mode = 'line'">
-          {{ t('chartLine') }}
-        </button>
-        <span v-if="peakSessionSummary" class="peak-session-summary ml-auto">
-          <span class="peak-session-label">{{ t('chartTopSessionBadgeTitle') }}</span>
-          <span class="peak-session-value">{{ peakSessionSummary }}</span>
-        </span>
+
+      <div
+        class="chart-wrap mb-4"
+        :class="status.live ? 'ring-1 ring-offset-2 ring-red-500/20' : ''">
+        <div v-if="!isBlocked" class="w-full h-full chart-canvas z-10" ref="chartEl"></div>
+        <BlockedState
+          v-if="isBlocked"
+          :module-name="t('streamHistoryTitle')"
+          :details="blockDetails"
+          class="absolute inset-0 z-20 bg-[var(--card-bg)]/95" />
+        <div
+          v-if="!isBlocked"
+          class="text-xs mt-3 flex flex-wrap items-center gap-2 px-2 py-1 bg-[var(--bg-chat)] rounded border border-[var(--card-border)]">
+          <span class="opacity-70"> {{ rangeDurationLabel }} • {{ rangeLabel }} </span>
+          <div class="ml-auto flex items-center gap-2">
+            <span class="peak-session-summary" v-if="activeMetric === 'avg-viewers'">
+              <span class="peak-session-label">{{ t('kpiPeakViewers') }}:</span>
+              <span class="peak-session-value">{{ perf.range.peakViewers }}</span>
+            </span>
+            <div class="h-4 w-px bg-[var(--card-border)] mx-1"></div>
+            <div
+              class="flex bg-[var(--bg-chat)] rounded-[6px] border border-[var(--card-border)] p-0.5">
+              <button
+                type="button"
+                class="px-2 py-0.5 rounded-[4px] text-[0.7rem] font-medium transition-colors"
+                :class="
+                  mode === 'candle'
+                    ? 'bg-[var(--card-bg)] shadow-sm text-[#8757f6]'
+                    : 'hover:bg-[var(--card-bg)]/50 opacity-70'
+                "
+                @click="mode = 'candle'">
+                Candles
+              </button>
+              <button
+                type="button"
+                class="px-2 py-0.5 rounded-[4px] text-[0.7rem] font-medium transition-colors"
+                :class="
+                  mode === 'line'
+                    ? 'bg-[var(--card-bg)] shadow-sm text-[#8757f6]'
+                    : 'hover:bg-[var(--card-bg)]/50 opacity-70'
+                "
+                @click="mode = 'line'">
+                Line
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
       <div v-if="sparklineAvailable" class="viewers-trend mt-2">
         <div class="viewers-trend-header">
@@ -810,17 +1028,87 @@
         @click.self="!clearBusy && (showClaimChangeModal = false)"
         role="dialog"
         aria-modal="true">
-        <div class="modal-card">
-          <div class="modal-title">{{ t('streamHistoryClaimId') }}</div>
-          <div class="modal-body">
-            <p class="mb-2">{{ t('streamHistoryClaimChangeClearConfirm') }}</p>
-            <p class="text-xs opacity-80">{{ t('streamHistoryHint') }}</p>
+        <div class="modal-card !p-0 overflow-hidden">
+          <div class="p-5">
+            <div class="flex items-start gap-4 mb-4">
+              <div
+                class="w-10 h-10 rounded-full bg-yellow-100 dark:bg-yellow-900/40 flex items-center justify-center shrink-0">
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="text-yellow-600 dark:text-yellow-400">
+                  <path
+                    d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                  <line x1="12" y1="9" x2="12" y2="13"></line>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+              </div>
+              <div class="flex-1">
+                <h3 class="text-lg font-bold leading-6 mb-2">
+                  {{ t('streamHistoryClaimIdChanged') }}
+                </h3>
+                <div class="text-sm opacity-90 leading-relaxed">
+                  {{ t('streamHistoryClaimChangeClearConfirm') }}
+                </div>
+              </div>
+            </div>
+
+            <div class="pl-14">
+              <div
+                class="flex gap-3 p-3 rounded bg-[var(--bg-chat)] border border-[var(--card-border)] text-xs opacity-90">
+                <div class="shrink-0 text-blue-500 dark:text-blue-400 pt-0.5">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                  </svg>
+                </div>
+                <div>
+                  <span class="font-bold opacity-100 mr-1">Info</span>
+                  {{ t('streamHistoryHint') }}
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="modal-actions">
-            <button class="btn" :disabled="clearBusy" @click="showClaimChangeModal = false">
+
+          <div
+            class="bg-[var(--bg-chat)] p-4 flex justify-end gap-3 border-t border-[var(--card-border)]">
+            <button
+              class="btn border border-[var(--card-border)] hover:bg-[var(--card-bg)]"
+              :disabled="clearBusy"
+              @click="showClaimChangeModal = false">
               {{ t('commonClose') }}
             </button>
-            <button class="btn" :disabled="clearBusy" @click="downloadExport">
+            <button
+              class="btn bg-[var(--card-bg)] border border-[var(--card-border)] hover:bg-[var(--bg-chat)]"
+              :disabled="clearBusy"
+              @click="downloadExport">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                class="mr-1.5">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
               {{ t('streamHistoryExport') }}
             </button>
             <button
@@ -847,7 +1135,7 @@ const { t, locale } = useI18n();
 const EARLIEST_ANALYTICS_YEAR = 2020;
 const EARLIEST_ANALYTICS_DATE = new Date(EARLIEST_ANALYTICS_YEAR, 0, 1);
 const minCalendarDate = `${EARLIEST_ANALYTICS_YEAR}-01-01`;
-const QUICK_SPAN_VALUES = Object.freeze([7, 14, 30, 90]);
+const QUICK_SPAN_VALUES = Object.freeze([1, 7, 14, 30, 90]);
 const state = createStreamHistoryPanel(t);
 
 const {
@@ -882,13 +1170,10 @@ const {
   confirmClear,
   showClaimChangeModal,
   confirmClearAfterClaimChange,
-  showViewers,
-  toggleShowViewers,
   goalHours,
   samplingCaption,
   showViewerTrend,
   sparklineAvailable,
-  peakSessionSummary,
   customRange,
   customRangeActive,
   applyCustomRange,
@@ -1006,16 +1291,16 @@ const deltaClass = (delta) => {
   return 'neutral';
 };
 
+const calendarOpen = ref(false);
+const calendarSource = ref(null);
+const calendarTriggerRef = ref(null);
+const calendarPopoverRef = ref(null);
 const quickPeriodOpen = ref(false);
 const quickSpanOpen = ref(false);
 const quickPeriodTriggerRef = ref(null);
 const quickPeriodPopoverRef = ref(null);
 const quickSpanTriggerRef = ref(null);
 const quickSpanPopoverRef = ref(null);
-
-const calendarOpen = ref(false);
-const calendarTriggerRef = ref(null);
-const calendarPopoverRef = ref(null);
 const rangeDraft = reactive({ start: '', end: '' });
 
 const todayIso = computed(() => {
@@ -1127,12 +1412,75 @@ const quickSpanOptions = computed(() =>
 const quickSpanLabel = computed(() => {
   const current = Number(filterQuickSpan.value);
   const option = quickSpanOptions.value.find((item) => item.value === current);
-  return option ? option.label : `${filterQuickSpan.value || 30}d`;
+  return option ? option.label : `${current || 30}d`;
 });
 
-const toggleCalendar = () => {
-  calendarOpen.value = !calendarOpen.value;
-  if (calendarOpen.value) {
+const rangeDurationLabel = computed(() => {
+  let start, end;
+  if (customRangeActive.value && customRange.value && customRange.value.startDate) {
+    start = parseInputDate(customRange.value.startDate);
+    end = parseInputDate(customRange.value.endDate);
+  } else {
+    const span = Number(filterQuickSpan.value) || 30;
+    return `${span} ${t('days') || 'days'}`;
+  }
+
+  if (start && end) {
+    const diff = Math.abs(end.getTime() - start.getTime());
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1;
+    return `${days} ${t('days') || 'days'}`;
+  }
+  return '';
+});
+
+const shiftPeriod = (dir) => {
+  let start, end;
+
+  if (customRangeActive.value && customRange.value && customRange.value.startDate) {
+    start = parseInputDate(customRange.value.startDate);
+    end = parseInputDate(customRange.value.endDate);
+  } else {
+    end = new Date(todayIso.value);
+    const span = Number(filterQuickSpan.value) || 30;
+    start = new Date(end);
+    start.setDate(end.getDate() - span + 1);
+  }
+
+  if (!start || !end) return;
+
+  const diff = end.getTime() - start.getTime();
+
+  if (dir === -1) {
+    end = new Date(start.getTime());
+    end.setDate(end.getDate() - 1);
+    start = new Date(end.getTime() - diff);
+  } else {
+    start = new Date(end.getTime());
+    start.setDate(start.getDate() + 1);
+    end = new Date(start.getTime() + diff);
+
+    const today = new Date(todayIso.value);
+    if (end > today) {
+      end = today;
+      start = new Date(end.getTime() - diff);
+    }
+  }
+
+  if (start && end) {
+    if (calendarOpen.value) {
+      quickPeriodOpen.value = false;
+      quickSpanOpen.value = false;
+    }
+    applyCustomRange([start, end]);
+  }
+};
+
+const toggleCalendar = (source = 'bottom') => {
+  if (calendarOpen.value && calendarSource.value === source) {
+    calendarOpen.value = false;
+  } else {
+    calendarSource.value = source;
+    calendarOpen.value = true;
     quickPeriodOpen.value = false;
     quickSpanOpen.value = false;
   }
@@ -1159,40 +1507,30 @@ const onClearRangeClick = () => {
   rangeDraft.end = '';
 };
 
-const toggleQuickPeriod = () => {
-  quickPeriodOpen.value = !quickPeriodOpen.value;
-  if (quickPeriodOpen.value) {
-    calendarOpen.value = false;
-    quickSpanOpen.value = false;
-  }
-};
-
-const toggleQuickSpan = () => {
-  quickSpanOpen.value = !quickSpanOpen.value;
-  if (quickSpanOpen.value) {
-    calendarOpen.value = false;
-    quickPeriodOpen.value = false;
-  }
-};
-
-const selectQuickPeriod = (value) => {
-  quickPeriodOpen.value = false;
-  if (filterQuick.value === value) return;
-  filterQuick.value = value;
-  onQuickFilterChange();
-};
-
-const selectQuickSpan = (value) => {
-  quickSpanOpen.value = false;
-  if (Number(filterQuickSpan.value) === value) return;
-  filterQuickSpan.value = value;
-  onQuickRangeChange();
-};
-
 watch(calendarOpen, (open) => {
   if (open) {
     syncDraftFromRange();
   }
+});
+
+watch(quickPeriodOpen, (open) => {
+  if (open) {
+    quickSpanOpen.value = false;
+  }
+});
+
+watch(quickSpanOpen, (open) => {
+  if (open) {
+    quickPeriodOpen.value = false;
+  }
+});
+
+watch(filterQuick, () => {
+  quickPeriodOpen.value = false;
+});
+
+watch(filterQuickSpan, () => {
+  quickSpanOpen.value = false;
 });
 
 watch(customRangeActive, (active) => {
@@ -1215,26 +1553,6 @@ watch(
     }
   }
 );
-
-watch(quickPeriodOpen, (open) => {
-  if (open) {
-    quickSpanOpen.value = false;
-  }
-});
-
-watch(quickSpanOpen, (open) => {
-  if (open) {
-    quickPeriodOpen.value = false;
-  }
-});
-
-watch(filterQuick, () => {
-  quickPeriodOpen.value = false;
-});
-
-watch(filterQuickSpan, () => {
-  quickSpanOpen.value = false;
-});
 
 const handlePointerDown = (event) => {
   if (!calendarOpen.value && !quickPeriodOpen.value && !quickSpanOpen.value) {
@@ -1282,7 +1600,6 @@ const handleKeydown = (event) => {
     }
   }
 };
-
 onMounted(() => {
   try {
     document.addEventListener('pointerdown', handlePointerDown, true);
@@ -1325,6 +1642,7 @@ const {
   acceptNewTimezone,
   keepPreviousTimezone,
   sampleCount,
+  activeMetric,
 } = state;
 </script>
 <style scoped src="./StreamHistoryPanel.css"></style>

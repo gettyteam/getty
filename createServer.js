@@ -2017,11 +2017,28 @@ if (!store || !store.redis)
             }
           } catch {}
 
+          let currentFollowers = 0;
+          try {
+            if (claim) {
+              const r = await axios.post(
+                'https://api.odysee.com/subscription/sub_count',
+                { claim_id: claim },
+                { timeout: 5000 }
+              );
+              const data = r.data && (r.data.data || r.data.result);
+              if (data) {
+                currentFollowers =
+                  Number(data.sub_count || data.subscriber_count || 0) || 0;
+              }
+            }
+          } catch {}
+
           hist.samples.push({
             ts: Date.now(),
             live: nowLive,
             viewers: viewerCount,
             chatters: currentChatters,
+            followers: currentFollowers,
           });
           const cutoff = Date.now() - 400 * 86400000;
           hist.samples = hist.samples.filter((s) => s.ts >= cutoff);
@@ -6051,6 +6068,8 @@ app.get('/api/modules', async (req, res) => {
         store.isConfigBlocked(ns, 'events-settings.json'),
         store.isConfigBlocked(ns, 'tip-notification-config.json'),
         store.isConfigBlocked(ns, 'user-profile-config.json'),
+        store.isConfigBlocked(ns, 'channel-analytics-config.json'),
+        store.isConfigBlocked(ns, 'stream-history-config.json'),
       ];
       const results = await Promise.all(checks);
       blockedStatus.lastTip = !!results[0];
@@ -6065,6 +6084,8 @@ app.get('/api/modules', async (req, res) => {
       blockedStatus.events = !!results[9];
       blockedStatus.tipWidget = !!results[10];
       blockedStatus.userProfile = !!results[11];
+      blockedStatus.channelAnalytics = !!results[12];
+      blockedStatus.streamHistory = !!results[13];
     } catch {}
   }
 
@@ -6807,6 +6828,60 @@ app.get('/api/modules', async (req, res) => {
         return { active: configured, configured, eventCount, animation, blocked: blockedStatus.events };
       } catch {
         return { active: false, configured: false, eventCount: 6, animation: 'fadeIn', blocked: blockedStatus.events };
+      }
+    })(),
+    channelAnalytics: (async () => {
+      try {
+        let configured = false;
+        if (ns) {
+          try {
+            const { loadTenantConfig } = require('./lib/tenant-config');
+            const reqLike = { ns: { admin: ns } };
+            const loaded = await loadTenantConfig(
+              reqLike,
+              store,
+              path.join(process.cwd(), 'config', 'channel-analytics-config.json'),
+              'channel-analytics-config.json'
+            );
+            if (loaded && loaded.data && loaded.data.authToken) {
+              configured = true;
+            }
+          } catch {}
+        }
+        return {
+          configured,
+          active: configured,
+          blocked: blockedStatus.channelAnalytics,
+        };
+      } catch {
+        return { configured: false, active: false, blocked: blockedStatus.channelAnalytics };
+      }
+    })(),
+    streamHistory: (async () => {
+      try {
+        let configured = false;
+        if (ns) {
+          try {
+            const { loadTenantConfig } = require('./lib/tenant-config');
+            const reqLike = { ns: { admin: ns } };
+            const loaded = await loadTenantConfig(
+              reqLike,
+              store,
+              path.join(process.cwd(), 'config', 'stream-history-config.json'),
+              'stream-history-config.json'
+            );
+            if (loaded && loaded.data && loaded.data.claimid) {
+              configured = true;
+            }
+          } catch {}
+        }
+        return {
+          configured,
+          active: configured,
+          blocked: blockedStatus.streamHistory,
+        };
+      } catch {
+        return { configured: false, active: false, blocked: blockedStatus.streamHistory };
       }
     })(),
     userProfile: (async () => {

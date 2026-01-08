@@ -14,7 +14,7 @@ import {
   fetchChannelAnalyticsConfig,
 } from '../../services/channelAnalytics';
 
-const QUICK_SPAN_VALUES = Object.freeze([7, 14, 30, 90]);
+const QUICK_SPAN_VALUES = Object.freeze([1, 7, 14, 30, 90]);
 const MAX_CALENDAR_RANGE_DAYS = 360;
 
 export function createStreamHistoryPanel(t) {
@@ -23,6 +23,7 @@ export function createStreamHistoryPanel(t) {
   const period = ref('day');
   const span = ref(30);
   const mode = ref('candle');
+  const activeMetric = ref('time-streamed');
   const filterQuick = ref('day');
   const filterQuickSpan = ref(30);
   const claimid = ref('');
@@ -289,7 +290,10 @@ export function createStreamHistoryPanel(t) {
   function clearCustomRange(autoRefresh = true) {
     if (!customRangeActive.value) return;
     customRange.value = { startDate: null, endDate: null };
-    if (filterQuick.value === 'custom') filterQuick.value = period.value;
+    period.value = 'day';
+    span.value = 30;
+    filterQuick.value = 'day';
+    filterQuickSpan.value = 30;
     if (autoRefresh) scheduleRefresh(true);
   }
 
@@ -300,8 +304,6 @@ export function createStreamHistoryPanel(t) {
   let pollTimer = null;
   let nowTimer = null;
   const REFRESH_DEBOUNCE_MS = 150;
-
-  // setScrollLock disabled due to scroll locking issues reported by users
 
   function onKeydown(e) {
     try {
@@ -424,8 +426,12 @@ export function createStreamHistoryPanel(t) {
           analyticsRange = period.value;
         }
 
-        const config = await fetchChannelAnalyticsConfig();
-        if (config && config.hasAuthToken) {
+        let config = null;
+        try {
+           config = await fetchChannelAnalyticsConfig(); 
+        } catch {}
+
+        if (config && config.hasAuthToken && config.claimId) {
           const envelope = await fetchChannelAnalyticsEnvelope(analyticsRange);
           if (envelope && envelope.data) {
             const totals = envelope.data.totals;
@@ -503,8 +509,11 @@ export function createStreamHistoryPanel(t) {
     }, REFRESH_DEBOUNCE_MS);
   }
 
-  function onQuickFilterChange() {
+  function onQuickFilterChange(val) {
     try {
+      if (val !== undefined) {
+        filterQuick.value = val;
+      }
       if (filterQuick.value === 'custom') {
         return;
       }
@@ -515,12 +524,19 @@ export function createStreamHistoryPanel(t) {
       }
     } catch {}
   }
-  function onQuickRangeChange() {
+  function onQuickRangeChange(val) {
     try {
+      if (val !== undefined) {
+        filterQuickSpan.value = val;
+      }
       const v = Number(filterQuickSpan.value || 30);
       if (QUICK_SPAN_VALUES.includes(v)) {
         if (customRangeActive.value) customRange.value = { startDate: null, endDate: null };
         span.value = v;
+        if (v === 1 && period.value !== 'day') {
+          period.value = 'day';
+          if (filterQuick.value !== 'custom') filterQuick.value = 'day';
+        }
         scheduleRefresh();
       }
     } catch {}
@@ -669,6 +685,13 @@ export function createStreamHistoryPanel(t) {
       renderCharts(lastSummaryData.value || []);
     } catch {}
   });
+
+  watch(activeMetric, () => {
+    try {
+      renderCharts(lastSummaryData.value || []);
+    } catch {}
+  });
+
   watch(goalHours, (val) => {
     let safe = Number(val);
     if (!Number.isFinite(safe) || safe < 0) safe = 0;
@@ -701,6 +724,9 @@ export function createStreamHistoryPanel(t) {
         showViewers: !!showViewers.value,
         smoothWindow: 5,
         goalHours: Number(goalHours.value || 0),
+        activeMetric: activeMetric.value,
+        followers: followersPerf.value,
+        translate: t,
       });
       peakFromChart = result && result.peak ? result.peak : null;
     } catch {
@@ -742,13 +768,17 @@ function queueChartReflow() {
     clearTimeout(resizeTimer);
     resizeTimer = null;
   }
-  resizeRaf = raf(() => {
-    resizeRaf = null;
-    try {
-      chartEl.value?.classList.remove('reflowing');
-      setTimeout(() => renderCharts(lastSummaryData.value || []), 200);
-    } catch {}
-  });
+  chartEl.value?.classList.add('reflowing');
+  resizeTimer = setTimeout(() => {
+    resizeTimer = null;
+    resizeRaf = raf(() => {
+      resizeRaf = null;
+      try {
+         chartEl.value?.classList.remove('reflowing');
+         renderCharts(lastSummaryData.value || []);
+      } catch {}
+    });
+  }, 200);
 }  const handleLayoutResize = () => {
     queueChartReflow();
   };
@@ -949,6 +979,7 @@ function queueChartReflow() {
     arUsd,
     earningsHidden,
     lastSummaryData,
+    activeMetric,
     recentStreams,
     lastStream,
     previousStream,
