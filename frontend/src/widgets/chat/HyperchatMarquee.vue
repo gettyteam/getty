@@ -162,7 +162,6 @@ function showPromo() {
   currentPromoKey.value = key;
   currentPromoMessage.value = t(key);
 
-  // Ensure state update triggers re-render
   nextTick(() => {
     mode.value = 'promo';
   });

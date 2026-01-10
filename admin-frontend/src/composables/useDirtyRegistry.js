@@ -57,6 +57,5 @@ export function useDirty(fn, label) {
       unregisterDirty(fn);
     });
   } catch {
-    // ignore if called outside component setup
   }
 }

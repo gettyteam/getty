@@ -1105,7 +1105,6 @@ watch(
       return;
     }
     if (!pendingLibraryItem.value && !fileRef.value) {
-      // keep current summary derived from props
       return;
     }
     if (pendingLibraryItem.value) {

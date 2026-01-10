@@ -660,7 +660,6 @@ function handleCopyCSS() {
   setTimeout(() => (copiedCss.value = false), 1500);
 }
 
-// Custom Dropdown Logic
 const themeDropdownOpen = ref(false);
 const themeDropdownTrigger = ref(null);
 const themeDropdownPopover = ref(null);

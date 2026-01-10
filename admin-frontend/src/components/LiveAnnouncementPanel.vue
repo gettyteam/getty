@@ -637,7 +637,7 @@ async function resolveFromClaimId() {
     if (ok && url) {
       form.value.channelUrl = url;
       pushToast({ type: 'success', message: t('liveClaimIdResolveOk') });
-      // Optionally refresh preview silently
+
       try {
         await genPreview();
       } catch {}

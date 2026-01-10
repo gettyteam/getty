@@ -409,7 +409,6 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
         const parsed = schema.safeParse(req.body);
         if (!parsed.success)
           return res.status(400).json({ success: false, error: parsed.error.issues[0].message });
-        // const ns = await resolveNsFromReq(req); // Removed redeclaration
 
         let imagePayload = null;
         let libraryItem = null;
@@ -931,7 +930,6 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
               patch.imageFingerprint = incomingMeta.fingerprint;
               patch.imageOriginalName = incomingMeta.originalName;
               
-              // Also save to library since it's new
               const newEntry = normalizeLibraryEntry({
                 id: incomingMeta.libraryId,
                 url: incomingMeta.url,

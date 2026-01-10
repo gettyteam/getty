@@ -1235,7 +1235,6 @@ onMounted(async () => {
   align-items: center;
 }
 
-/* Form Elements */
 .form-input {
   background: var(--bg-chat);
   border: 1px solid var(--border-color);

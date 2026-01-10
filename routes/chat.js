@@ -368,7 +368,7 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
       }
       if (fs.existsSync(CHAT_CUSTOM_THEMES_FILE)) {
         try {
-          const hybrid = readHybridConfig(CHAT_CUSTOM_THEMES_FILE); // tolerant of legacy flat array
+          const hybrid = readHybridConfig(CHAT_CUSTOM_THEMES_FILE);
           const rawData = hybrid && Array.isArray(hybrid.data) ? hybrid.data : hybrid.data || [];
           return sanitizeThemesArray(rawData);
         } catch {

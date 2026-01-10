@@ -231,7 +231,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let reconnectInterval;
     let reconnectAttempts = 0;
     const maxReconnectAttempts = 10;
-    const reconnectDelay = 5000; // 5 seconds
+    const reconnectDelay = 5000;
 
     let ttsEnabled = true;
     let ttsAllChat = false;
@@ -260,7 +260,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function connectWebSocket() {
         if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-            return; // Already connected or connecting
+            return;
         }
 
         const wsUrl = buildWsUrl();

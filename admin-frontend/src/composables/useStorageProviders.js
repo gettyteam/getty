@@ -114,7 +114,6 @@ function setSelectedProvider(id) {
     selectedProvider.value = '';
     return;
   }
-  // Allow selecting searchOnly providers (like Wuzzy) so UI can react to them
   selectedProvider.value = normalized;
 }
 

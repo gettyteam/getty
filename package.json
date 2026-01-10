@@ -149,6 +149,11 @@
     }
   },
   "pnpm": {
+    "auditConfig": {
+      "ignoreCves": [
+        "CVE-2025-14505"
+      ]
+    },
     "overrides": {
       "body-parser": ">=2.2.1",
       "qs": "6.14.1",

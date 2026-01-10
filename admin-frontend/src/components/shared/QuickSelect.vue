@@ -67,7 +67,6 @@ const props = defineProps({
   options: {
     type: Array,
     default: () => [],
-    // Expected format: { label: string, value: any }
   },
   placeholder: {
     type: String,
@@ -173,7 +172,9 @@ onUnmounted(() => {
   border: 1px solid var(--border-color, #e2e8f0);
   background: var(--card-bg, #ffffff);
   color: var(--text-primary, #0f172a);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  box-shadow:
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
   padding: 4px;
   display: flex;
   flex-direction: column;

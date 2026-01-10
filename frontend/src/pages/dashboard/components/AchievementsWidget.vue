@@ -120,9 +120,7 @@ async function playSound() {
     const audio = new Audio(url);
     audio.volume = Math.pow(config.value.sound.volume ?? 0.5, 2);
     await audio.play();
-  } catch {
-    // console.warn('Audio play failed');
-  }
+  } catch {}
 }
 
 watch(

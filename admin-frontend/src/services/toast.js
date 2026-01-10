@@ -4,10 +4,6 @@ import i18n from '../i18n';
 export const toasts = reactive([]);
 let id = 0;
 
-// Flexible pushToast:
-// 1) pushToast('Message text', 'success', 4000)
-// 2) pushToast({ message:'Message text', type:'success', timeout:4000 })
-// 3) pushToast({ i18nKey:'urlCopied', type:'success', params:{}, timeout:3000 })
 export function pushToast(arg, type = 'info', timeout = 3000) {
   let message = '';
   let finalType = type;

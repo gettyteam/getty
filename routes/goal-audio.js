@@ -707,9 +707,7 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
             return res.status(500).json({ error: 'audio_library_lookup_failed' });
           }
         } else if (audioSource === 'remote') {
-          // Non-destructive toggle: selecting "remote" should NOT delete or clear any previously
-          // saved custom audio. Deletion is handled explicitly via the DELETE endpoint.
-          // Ensure we don't claim custom audio if there is no stored URL.
+
           if (!currentData.audioFileUrl) {
             settings.hasCustomAudio = false;
             settings.audioFileName = null;

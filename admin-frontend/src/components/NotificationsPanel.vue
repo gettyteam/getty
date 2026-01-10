@@ -1603,7 +1603,7 @@ watch(
   () => audioCfg.volume,
   (newVol, oldVol) => {
     if (Math.abs(newVol - oldVol) > 0.01 && sessionActive.value) {
-      persistAudioCfg(true); // silent save
+      persistAudioCfg(true);
     }
   }
 );

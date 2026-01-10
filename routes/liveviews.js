@@ -71,7 +71,6 @@ function registerLiveviewsRoutes(app, strictLimiter, options = {}) {
     }
   }
 
-  // Use memory storage for multer - files will be uploaded to Supabase
   const liveviewsUpload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 1024 * 1024 },

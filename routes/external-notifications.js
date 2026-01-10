@@ -78,7 +78,7 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
   async function loadExternalConfig(reqLike, explicitNs) {
     const ns = explicitNs || reqLike?.ns?.admin || reqLike?.ns?.pub || null;
     const snapshot = snapshotGlobalExternalConfig();
-    // Always try to load from storage/file first, as it is the source of truth
+
     try {
       const loaded = await loadTenantConfig(
         reqLike,
@@ -1614,7 +1614,6 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       const multer = require('multer');
       const { imageSize } = require('image-size');
 
-      // Use memory storage for multer - files will be uploaded to Supabase
       const upload = multer({
         storage: multer.memoryStorage(),
         limits: { fileSize: 2 * 1024 * 1024, files: 1 },
@@ -1629,14 +1628,12 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         if (!req.file) return res.status(400).json({ success: false, error: 'no_file' });
 
         try {
-          // Validate image dimensions from buffer
           const dim = imageSize(req.file.buffer);
           if (!dim || !dim.width || !dim.height) throw new Error('invalid_image');
           if (dim.width > 1920 || dim.height > 1080) {
             return res.status(400).json({ success: false, error: 'too_large_dimensions' });
           }
 
-          // Upload to Supabase Storage
           const storage = getStorage();
           if (!storage) {
             return res
