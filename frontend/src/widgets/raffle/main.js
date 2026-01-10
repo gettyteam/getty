@@ -232,7 +232,7 @@ const renderWidget = (props) => {
                     <div class="raffle-widget-subtitle">${getI18nText('raffleSubtitle', 'Win amazing prizes!')}</div>
                 </div>
             </div>
-            <div class="live-badge" style="display: ${active && !paused ? 'block' : 'none'}">
+            <div class="live-badge${active && !paused ? '' : ' hidden'}">
                 <i class="pi pi-circle-fill"></i> LIVE
             </div>
         </div>
@@ -261,7 +261,7 @@ const renderWidget = (props) => {
                 </div>
             </div>
             
-            <div class="entry-section" style="display: ${currentMode === 'active' ? 'block' : 'none'}">
+            <div class="entry-section${currentMode === 'active' ? '' : ' hidden'}">
                 <div class="command-hint">${getI18nText('raffleCommandHint', 'Type this command in chat to enter:')}</div>
                 <div class="command-box">
                     <span class="command-prefix">!</span>
@@ -278,7 +278,7 @@ const renderWidget = (props) => {
                 </div>
             </div>
             
-            <div class="recent-winners" style="display: ${currentMode === 'winner' ? 'block' : 'none'}">
+            <div class="recent-winners${currentMode === 'winner' ? '' : ' hidden'}">
                 <div class="winners-title">${getI18nText('raffleRecentWinners', 'Recent Winners')}</div>
                 <div class="winner-list">
                     <!-- Specific winner list content injected below -->
@@ -305,12 +305,22 @@ const renderWidget = (props) => {
     const entrySection = contentRoot.querySelector('.entry-section');
     const recentWinnersSection = contentRoot.querySelector('.recent-winners');
     
-    if (entrySection) entrySection.style.display = currentMode === 'active' ? 'block' : 'none';
-    if (recentWinnersSection) recentWinnersSection.style.display = currentMode === 'winner' ? 'block' : 'none';
+    if (entrySection) {
+        if (currentMode === 'active') entrySection.classList.remove('hidden');
+        else entrySection.classList.add('hidden');
+    }
+    
+    if (recentWinnersSection) {
+        if (currentMode === 'winner') recentWinnersSection.classList.remove('hidden');
+        else recentWinnersSection.classList.add('hidden');
+    }
   }
 
   const liveBadge = contentRoot.querySelector('.live-badge');
-  if (liveBadge) liveBadge.style.display = (active && !paused) ? 'block' : 'none';
+  if (liveBadge) {
+      if (active && !paused) liveBadge.classList.remove('hidden');
+      else liveBadge.classList.add('hidden');
+  }
 
   const prizeName = contentRoot.querySelector('.prize-name');
   if (prizeName && prizeName.textContent !== (prize || getI18nText('raffleLoading', 'Loading...'))) {

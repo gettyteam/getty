@@ -252,7 +252,8 @@ body.widget-mode {
 }
 
 .command-prefix {
-  color: var(--text-muted);
+  color: var(--text-light);
+  font-weight: 600;
 }
 
 .command {
