@@ -429,7 +429,8 @@ onMounted(() => {
 }
 
 .command-prefix {
-  color: #6b7280;
+  color: var(--text-light);
+  font-weight: 600;
 }
 
 .command {

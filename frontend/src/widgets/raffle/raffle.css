@@ -11,6 +11,10 @@ body.widget-mode {
   --text-muted: #9ca3af;
 }
 
+.hidden {
+  display: none !important;
+}
+
 body.widget-mode {
   background-color: transparent;
   display: flex;
@@ -252,7 +256,8 @@ body.widget-mode {
 }
 
 .command-prefix {
-  color: var(--text-muted);
+  color: var(--text-light);
+  font-weight: 600;
 }
 
 .command {
