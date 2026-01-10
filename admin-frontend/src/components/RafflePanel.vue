@@ -1,5 +1,5 @@
 <template>
-  <section class="admin-tab active relative" role="form">
+  <section class="admin-tab active relative text-[var(--text-primary)] raffle-root" role="form">
     <BlockedState v-if="isBlocked" :module-name="t('raffleModule')" :details="blockDetails" />
 
     <div v-else>
@@ -7,263 +7,325 @@
         v-if="masked"
         class="absolute inset-0 z-10 flex items-center justify-center backdrop-blur bg-black/35">
         <div
-          class="p-5 rounded-os bg-[var(--bg-card)] border border-[var(--card-border)] shadow-lg max-w-md text-center">
+          class="p-5 rounded-md bg-[var(--bg-card)] border border-[var(--border-color)] shadow-lg max-w-md text-center">
           <div class="mb-2 text-lg font-semibold">{{ t('raffleSessionRequiredTitle') }}</div>
           <p class="mb-4 text-sm">{{ t('raffleSessionRequiredBody') }}</p>
           <a href="/" class="btn" aria-label="wallet-login-redirect">{{ t('createSession') }}</a>
         </div>
       </div>
-      <div v-if="warning" class="os-subtle mt-3 p-4 rounded-os" role="status" aria-live="polite">
-        <div class="flex items-center gap-2">
-          <svg width="24" height="24" fill="none" class="shrink-0">
-            <circle cx="12" cy="12" r="12" fill="#ffe066" />
-            <path d="M12 8v4m0 4h.01" stroke="#b58900" stroke-width="2" stroke-linecap="round" />
-          </svg>
-          <div>
-            <strong class="mr-1">{{ t('raffleWarningTitle') }}</strong>
-            <span>{{ t('raffleWarningChat') }}</span>
-          </div>
+
+      <div
+        v-if="warning"
+        class="bg-[var(--bg-card)] border-l-4 border-amber-500 p-4 mb-6 rounded-md flex items-center gap-3">
+        <i class="pi pi-exclamation-triangle text-xl"></i>
+        <div class="flex items-center gap-3">
+          <strong class="font-semibold whitespace-nowrap">{{ t('raffleWarningTitle') }}</strong>
+          <div class="text-sm">{{ t('raffleWarningChat') }}</div>
         </div>
       </div>
-      <OsCard
-        class="mt-3"
-        aria-describedby="raffle-settings-desc"
-        :title="t('raffleSettings') || 'Raffle settings'">
-        <p id="raffle-settings-desc" class="sr-only">
-          Configure raffle command, prize, image, max winners and actions.
-        </p>
-        <div class="form-group">
-          <label class="label" for="raffle-command">{{ t('raffleCommandLabel') }}</label>
-          <input
-            class="input"
-            id="raffle-command"
-            v-model="form.command"
-            type="text"
-            :placeholder="t('raffleCommandPlaceholder')"
-            aria-describedby="raffle-command-hint" />
-          <small id="raffle-command-hint" class="small">{{ t('raffleCommandHint') }}</small>
-        </div>
-        <div class="form-group">
-          <label class="label" for="raffle-prize">{{ t('rafflePrizeLabel') }}</label>
-          <input
-            class="input"
-            id="raffle-prize"
-            v-model="form.prize"
-            type="text"
-            maxlength="15"
-            :placeholder="t('rafflePrizePlaceholder')" />
-          <div class="flex gap-2 small mt-1 justify-between">
-            <small :class="{ 'text-red-500': form.prize.length >= 15 }">
-              {{ form.prize.length >= 15 ? t('valMaxChars') : '\u00A0' }}
-            </small>
-            <small aria-live="polite" aria-atomic="true">{{
-              t('charsUsed', { used: form.prize.length, max: 15 })
-            }}</small>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="raffle-group-box">
+          <div class="raffle-group-head">
+            <HeaderIcon>
+              <i class="pi pi-gift"></i>
+            </HeaderIcon>
+            <h3 class="raffle-group-title">{{ t('raffleSettings') }}</h3>
           </div>
-        </div>
-        <div class="form-group">
-          <label class="label" for="raffle-image">{{ t('rafflePrizeImageLabel') }}</label>
-          <p
-            v-if="providerStatus && !providerStatus.available"
-            class="small text-amber-500 mb-2"
-            role="status">
-            {{ providerStatus.label }} {{ t('storageProviderUnavailable') }}
-          </p>
-          <div class="flex items-center gap-2 flex-wrap">
-            <input
-              ref="imageInput"
-              id="raffle-image"
-              type="file"
-              accept="image/png,image/jpeg,image/gif"
-              class="sr-only"
-              @change="onImageFileChange" />
-            <button
-              v-if="selectedStorageProvider !== 'wuzzy'"
-              type="button"
-              class="upload-btn"
-              @click="openImageDialog">
-              <i class="pi pi-upload mr-2" aria-hidden="true"></i>
-              {{ t('imageChoose') || t('rafflePrizeImageLabel') }}
-            </button>
-            <button
-              v-if="selectedStorageProvider !== 'wuzzy'"
-              type="button"
-              class="btn-secondary btn-compact-secondary"
-              @click="openImageLibraryDrawer"
-              :aria-label="t('imageLibraryOpenBtn')">
-              <i class="pi pi-images" aria-hidden="true"></i>
-              {{ t('imageLibraryOpenBtn') }}
-            </button>
-            <button
-              v-if="selectedStorageProvider === 'wuzzy'"
-              type="button"
-              class="btn-secondary btn-compact-secondary"
-              @click="openWuzzyDrawer"
-              :aria-label="t('wuzzyOpenDrawerBtn')">
-              <i class="pi pi-search-plus" aria-hidden="true"></i>
-              {{ t('wuzzyOpenDrawerBtn') }}
-            </button>
-            <div
-              v-if="storageOptions.length"
-              class="flex items-center gap-2"
-              role="group"
-              aria-label="Storage provider selection">
-              <label class="label mb-0" for="raffle-storage-provider">
-                {{ t('storageProviderLabel') }}
-              </label>
-              <QuickSelect
-                v-model="selectedStorageProvider"
-                :disabled="storageLoading || !storageOptions.length"
-                :options="
-                  storageOptions.map((opt) => ({
-                    label: opt.label,
-                    value: opt.id,
-                    disabled: !opt.available && opt.id !== selectedStorageProvider,
-                  }))
-                "
-                :aria-label="t('storageProviderLabel')" />
+
+          <div class="raffle-setting-item">
+            <div class="raffle-setting-text">
+              <div class="raffle-setting-title">{{ t('raffleCommandLabel') }}</div>
+              <div class="raffle-setting-desc">{{ t('raffleCommandHint') }}</div>
+            </div>
+            <div class="raffle-setting-control">
+              <input
+                v-model="form.command"
+                type="text"
+                class="form-input"
+                :placeholder="t('raffleCommandPlaceholder')" />
             </div>
           </div>
-          <div v-if="imageLibrary.error" class="small mt-1 text-red-500">
-            {{ imageLibrary.error }}
+
+          <div class="raffle-setting-item">
+            <div class="raffle-setting-text">
+              <div class="raffle-setting-title">{{ t('rafflePrizeLabel') }}</div>
+              <div class="raffle-setting-desc flex items-center gap-2">
+                <span>{{ t('rafflePrizeDesc') }}</span>
+                <span
+                  class="text-xs"
+                  :class="form.prize.length >= 15 ? 'text-red-500' : 'text-[var(--text-muted)]'">
+                  {{ form.prize.length }}/15
+                </span>
+              </div>
+            </div>
+            <div class="raffle-setting-control">
+              <input
+                v-model="form.prize"
+                type="text"
+                maxlength="15"
+                class="form-input"
+                :placeholder="t('rafflePrizePlaceholder')" />
+            </div>
           </div>
-          <div v-if="displayImageUrl" class="mt-2">
-            <img
-              :src="displayImageUrl"
-              alt="raffle"
-              class="object-contain rounded"
-              style="max-height: 9rem" />
-            <div class="flex items-center gap-2 mt-1">
-              <span
-                v-if="selectedPrizeFilename"
-                class="file-name-label"
-                :title="selectedPrizeFilename">
-                <i class="pi pi-image mr-1"></i>
-                {{
-                  selectedPrizeFilename.length > 18
-                    ? selectedPrizeFilename.substring(0, 18) + '...'
-                    : selectedPrizeFilename
-                }}
-              </span>
-              <span
-                v-else-if="form.imageOriginalName"
-                class="file-name-label"
-                :title="form.imageOriginalName">
-                <i class="pi pi-image mr-1"></i>
-                {{
-                  form.imageOriginalName.length > 18
-                    ? form.imageOriginalName.substring(0, 18) + '...'
-                    : form.imageOriginalName
-                }}
-              </span>
+
+          <div class="raffle-setting-item">
+            <div class="raffle-setting-text">
+              <div class="raffle-setting-title flex items-center gap-2">
+                <span>{{ t('storageProviderLabel') }}</span>
+                <button
+                  type="button"
+                  class="custom-tooltip-btn inline-flex items-center justify-center w-5 h-5 rounded cursor-help text-emerald-400"
+                  :data-tooltip="t('storageProviderArweaveTooltip')"
+                  :aria-label="t('storageProviderArweaveTooltip')"
+                  tabindex="0">
+                  <i class="pi pi-info-circle os-help-icon" aria-hidden="true"></i>
+                </button>
+              </div>
+              <div class="raffle-setting-desc">{{ t('storageProviderDesc') }}</div>
+              <p
+                v-if="providerStatus && !providerStatus.available"
+                class="text-xs text-amber-500 mt-1">
+                {{ providerStatus.label }} {{ t('storageProviderUnavailable') }}
+              </p>
+            </div>
+            <div class="raffle-setting-control">
+              <QuickSelect
+                v-model="selectedStorageProvider"
+                :options="quickSelectStorageOptions"
+                :placeholder="t('storageProviderSelect')"
+                :aria-label="t('storageProviderSelect')"
+                class="min-w-[160px]" />
+            </div>
+          </div>
+
+          <div class="raffle-setting-item is-vertical">
+            <div class="raffle-setting-text mb-2">
+              <div class="raffle-setting-title">{{ t('rafflePrizeImageLabel') }}</div>
+              <div class="raffle-setting-desc">
+                {{ t('rafflePrizeImageHint') }}
+              </div>
+            </div>
+
+            <input
+              ref="imageInput"
+              type="file"
+              accept="image/png,image/jpeg,image/gif"
+              class="hidden"
+              @change="onImageFileChange" />
+
+            <div class="img-preview-box" :class="{ 'is-empty': !displayImageUrl }">
+              <div class="img-media" v-if="displayImageUrl">
+                <img :src="displayImageUrl" :alt="form.imageOriginalName" />
+              </div>
+              <div class="img-media placeholder" v-else>
+                <span class="placeholder-text">{{ t('imageNoSelected') }}</span>
+              </div>
+
+              <div v-if="displayImageUrl" class="px-4 text-sm font-medium truncate flex-1">
+                {{ selectedPrizeFilename || form.imageOriginalName }}
+              </div>
+            </div>
+
+            <div class="raffle-actions-row mt-3">
               <button
+                v-if="selectedStorageProvider && selectedStorageProvider !== 'wuzzy'"
+                class="btn-secondary btn-compact-secondary"
                 type="button"
-                class="icon-btn"
-                :aria-label="t('remove')"
-                :title="t('remove')"
+                @click="openImageDialog">
+                <i class="pi pi-image"></i>
+                {{ t('imageChoose') }}
+              </button>
+              <button
+                v-if="selectedStorageProvider === 'wuzzy'"
+                class="btn-secondary btn-compact-secondary"
+                type="button"
+                @click="openWuzzyDrawer">
+                <i class="pi pi-search"></i>
+                {{ t('imageSearchWuzzy') }}
+              </button>
+              <button
+                class="btn-secondary btn-compact-secondary"
+                type="button"
+                @click="openImageLibraryDrawer"
+                :disabled="imageLibrary.loading">
+                <i class="pi pi-images"></i>
+                {{ t('imageLibraryOpenBtn') }}
+              </button>
+              <button
+                v-if="displayImageUrl"
+                class="btn-danger btn-icon"
+                type="button"
+                :title="t('commonRemoveImage')"
                 @click="clearPrizeImage">
                 <i class="pi pi-trash"></i>
+              </button>
+
+              <button
+                class="btn-secondary btn-compact-secondary btn-save-style ml-auto"
+                type="button"
+                :disabled="savingSettings || masked"
+                @click="saveSettings">
+                {{ savingSettings ? t('commonSaving') : t('saveSettings') }}
+              </button>
+            </div>
+
+            <div v-if="imageLibrary.error" class="text-xs mt-1 text-red-500">
+              {{ imageLibrary.error }}
+            </div>
+          </div>
+
+          <div class="raffle-setting-item is-vertical">
+            <div class="flex items-center justify-between mb-2 w-full">
+              <div class="raffle-setting-title">{{ t('raffleControlsTitle') }}</div>
+              <div
+                class="status-badge px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1.5"
+                :class="
+                  state.active && !state.paused
+                    ? 'bg-green-600 text-[var(--text-primary)]'
+                    : state.paused
+                      ? 'bg-amber-500 text-[var(--text-primary)]'
+                      : 'bg-[var(--bg-chat)] text-[var(--text-secondary)] border border-[var(--border-color)]'
+                ">
+                <i
+                  class="pi pi-circle-fill text-[8px]"
+                  :class="{
+                    'text-[var(--text-primary)]': state.active || state.paused,
+                    'text-gray-400': !state.active && !state.paused,
+                  }"></i>
+                {{
+                  state.active && !state.paused
+                    ? t('raffleStatusActive')
+                    : state.paused
+                      ? t('raffleStatusPaused')
+                      : t('raffleInactive')
+                }}
+                <span v-if="state.active">({{ participants.length }})</span>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap gap-2 w-full">
+              <button
+                @click="start"
+                :disabled="(state.active && !state.paused) || savingAction"
+                class="btn-custom btn-success flex-1 justify-center">
+                <i class="pi pi-play text-xs"></i> {{ t('raffleStart') }}
+              </button>
+              <button
+                @click="pause"
+                :disabled="!state.active || state.paused || savingAction"
+                class="btn-custom btn-warning flex-1 justify-center">
+                <i class="pi pi-pause text-xs"></i> {{ t('rafflePause') }}
+              </button>
+              <button
+                @click="resume"
+                :disabled="!state.active || !state.paused || savingAction"
+                class="btn-custom btn-secondary flex-1 justify-center">
+                <i class="pi pi-replay text-xs"></i> {{ t('raffleResume') }}
+              </button>
+              <button
+                @click="stop"
+                :disabled="!state.active || savingAction"
+                class="btn-custom btn-danger flex-1 justify-center">
+                <i class="pi pi-stop text-xs"></i> {{ t('raffleStop') }}
+              </button>
+              <button
+                @click="draw"
+                :disabled="!participants.length || savingAction"
+                class="btn-custom btn-primary flex-1 justify-center min-w-[120px]">
+                <i class="pi pi-crown text-xs"></i> {{ t('raffleBtnWinner') }}
+              </button>
+            </div>
+          </div>
+
+          <div class="raffle-setting-item">
+            <div class="raffle-setting-text">
+              <div class="raffle-setting-title">{{ t('raffleCleanTitle') }}</div>
+              <div class="raffle-setting-desc">{{ t('raffleCleanDesc') }}</div>
+            </div>
+            <div class="raffle-setting-control">
+              <button
+                @click="cleanEverything"
+                :disabled="savingAction"
+                class="btn-custom btn-danger text-xs px-3 py-1">
+                <i class="pi pi-trash text-sm mr-1"></i> {{ t('raffleCleanBtn') }}
               </button>
             </div>
           </div>
         </div>
-        <div class="flex flex-wrap gap-2 form-group mt-4" role="group" aria-label="Raffle actions">
-          <button
-            class="btn"
-            @click="start"
-            :disabled="(state.active && !state.paused) || savingAction"
-            :aria-busy="savingAction && action === 'start' ? 'true' : 'false'">
-            {{ savingAction && action === 'start' ? t('commonSaving') : t('raffleStart') }}
-          </button>
-          <button
-            class="btn"
-            @click="pause"
-            :disabled="!state.active || state.paused || savingAction"
-            :aria-busy="savingAction && action === 'pause' ? 'true' : 'false'">
-            {{ savingAction && action === 'pause' ? t('commonSaving') : t('rafflePause') }}
-          </button>
-          <button
-            class="btn"
-            @click="resume"
-            :disabled="!state.active || !state.paused || savingAction"
-            :aria-busy="savingAction && action === 'resume' ? 'true' : 'false'">
-            {{ savingAction && action === 'resume' ? t('commonSaving') : t('raffleResume') }}
-          </button>
-          <button
-            class="btn"
-            @click="stop"
-            :disabled="!state.active || savingAction"
-            :aria-busy="savingAction && action === 'stop' ? 'true' : 'false'">
-            {{ savingAction && action === 'stop' ? t('commonSaving') : t('raffleStop') }}
-          </button>
-          <button
-            class="btn"
-            @click="draw"
-            :disabled="!participants.length || savingAction"
-            :aria-busy="savingAction && action === 'draw' ? 'true' : 'false'">
-            {{ savingAction && action === 'draw' ? t('commonSaving') : t('raffleDrawWinner') }}
-          </button>
-          <button
-            class="btn danger"
-            @click="reset"
-            :disabled="savingAction"
-            :aria-busy="savingAction && action === 'reset' ? 'true' : 'false'">
-            {{ savingAction && action === 'reset' ? t('commonSaving') : t('raffleResetWinners') }}
-          </button>
-        </div>
-        <div class="form-group">
-          <label class="label" for="raffle-max-winners">{{ t('raffleMaxWinnersLabel') }}</label>
-          <input
-            class="input"
-            id="raffle-max-winners"
-            v-model.number="form.maxWinners"
-            type="number"
-            min="1" />
-          <div class="flex items-center gap-2 mt-2">
-            <button
-              type="button"
-              class="switch"
-              :aria-pressed="String(form.enabled)"
-              :aria-label="t('raffleEnabled')"
-              @click="form.enabled = !form.enabled">
-              <span class="knob"></span>
-            </button>
-            <span class="text-sm font-medium">{{ t('raffleEnabled') }}</span>
+
+        <div class="flex flex-col gap-4">
+          <div class="raffle-group-box">
+            <div class="raffle-group-head">
+              <HeaderIcon>
+                <i class="pi pi-sliders-h"></i>
+              </HeaderIcon>
+              <h3 class="raffle-group-title">{{ t('advancedSettings') }}</h3>
+            </div>
+
+            <div class="raffle-setting-item">
+              <div class="raffle-setting-text">
+                <div class="raffle-setting-title">{{ t('raffleMaxWinnersLabel') }}</div>
+                <div class="raffle-setting-desc">{{ t('raffleMaxWinnersDesc') }}</div>
+              </div>
+              <div class="raffle-setting-control">
+                <div
+                  class="counter flex items-center border border-[var(--border-color)] rounded-lg overflow-hidden h-[36px]">
+                  <button
+                    @click="handleDecrement"
+                    class="w-8 h-full flex items-center justify-center bg-white/5 hover:bg-white/10 transition-colors">
+                    -
+                  </button>
+                  <input
+                    type="number"
+                    v-model.number="form.maxWinners"
+                    readonly
+                    class="w-10 h-full text-center bg-transparent border-x border-[var(--border-color)] focus:outline-none appearance-none m-0 text-sm" />
+                  <button
+                    @click="handleIncrement"
+                    class="w-8 h-full flex items-center justify-center bg-white/5 hover:bg-white/10 transition-colors">
+                    +
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="raffle-setting-item">
+              <div class="raffle-setting-text">
+                <div class="raffle-setting-title">{{ t('raffleEnabled') }}</div>
+                <div class="raffle-setting-desc">{{ t('raffleEnabledDesc') }}</div>
+              </div>
+              <div class="raffle-setting-control">
+                <label class="toggle-switch relative inline-block w-[44px] h-[24px]">
+                  <input
+                    type="checkbox"
+                    v-model="form.enabled"
+                    @change="saveSettings"
+                    class="sr-only peer" />
+                  <span
+                    class="absolute cursor-pointer top-0 left-0 right-0 bottom-0 bg-[var(--border-color)] transition-all duration-300 rounded-full peer-checked:bg-indigo-500 before:absolute before:content-[''] before:h-[18px] before:w-[18px] before:left-[3px] before:bottom-[3px] before:bg-white before:transition-all before:duration-300 before:rounded-full peer-checked:before:translate-x-[20px]"></span>
+                </label>
+              </div>
+            </div>
           </div>
-          <button class="btn mt-3" @click="saveSettings" :disabled="savingSettings">
-            {{ savingSettings ? t('commonSaving') : t('saveSettings') }}
-          </button>
-        </div>
-      </OsCard>
-      <OsCard class="mt-3">
-        <template #header>
-          <div class="flex items-center gap-2">
-            <HeaderIcon>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round">
-                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                <line x1="8" y1="21" x2="16" y2="21"></line>
-                <line x1="12" y1="17" x2="12" y2="21"></line>
-              </svg>
-            </HeaderIcon>
-            <h3 class="font-semibold text-[15px]">{{ t('obsIntegration') }}</h3>
-          </div>
-        </template>
-        <div class="form-group">
-          <div class="flex flex-wrap items-center gap-3">
-            <span class="label mb-0">{{ t('raffleAdminSectionWidgetLink') }}</span>
-            <CopyField :value="widgetUrl" :aria-label="t('raffleAdminSectionWidgetLink')" secret />
+
+          <div class="raffle-group-box">
+            <div class="raffle-group-head">
+              <HeaderIcon>
+                <i class="pi pi-desktop"></i>
+              </HeaderIcon>
+              <h3 class="raffle-group-title">{{ t('obsIntegration') }}</h3>
+            </div>
+
+            <p class="mb-4 text-sm text-[var(--text-secondary)] opacity-80">
+              {{ t('raffleWidgetHelp') }}
+            </p>
+
+            <CopyField :value="widgetUrl" :aria-label="t('raffleWidgetUrl')" secret />
           </div>
         </div>
-      </OsCard>
+      </div>
+
       <ImageLibraryDrawer
         :open="imageLibrary.open"
         :items="imageLibrary.items"
@@ -299,8 +361,6 @@ import api from '../services/api';
 import { useI18n } from 'vue-i18n';
 import { pushToast } from '../services/toast';
 import { confirmDialog } from '../services/confirm';
-import CopyField from './shared/CopyField.vue';
-import QuickSelect from './shared/QuickSelect.vue';
 import ImageLibraryDrawer from './shared/ImageLibraryDrawer.vue';
 import WuzzyImageDrawer from './Wuzzy/WuzzyImageDrawer.vue';
 import {
@@ -313,14 +373,15 @@ import {
   AlertDialogCancel,
 } from './ui/alert-dialog';
 import { MAX_RAFFLE_IMAGE } from '../utils/validation';
-import OsCard from './os/OsCard.vue';
 import { useWalletSession } from '../composables/useWalletSession';
 import { usePublicToken } from '../composables/usePublicToken';
 import { useStorageProviders } from '../composables/useStorageProviders';
 import HeaderIcon from './shared/HeaderIcon.vue';
 import BlockedState from './shared/BlockedState.vue';
+import CopyField from './shared/CopyField.vue';
+import QuickSelect from './shared/QuickSelect.vue';
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const masked = ref(false);
 const isBlocked = ref(false);
 const blockDetails = ref({});
@@ -347,10 +408,10 @@ const state = reactive({
 const participants = ref([]);
 const winner = ref(null);
 
-const warning = ref({
-  title: 'Reminder',
-  body: 'The chat command must match the configured command.',
-});
+const warning = computed(() => ({
+  title: t('commonReminder'),
+  body: t('raffleWarningCommandMatch'),
+}));
 
 let ws;
 
@@ -365,7 +426,12 @@ const locallyClearedImage = ref(false);
 
 const wallet = useWalletSession();
 const { withToken, refresh } = usePublicToken();
-const widgetUrl = computed(() => withToken(`${location.origin}/widgets/giveaway`));
+const widgetUrl = computed(() => {
+  const base = `${location.origin}/widgets/giveaway`;
+  const l = locale.value;
+  const urlWithLang = l && l !== 'en' ? `${base}?lang=${l}` : base;
+  return withToken(urlWithLang);
+});
 
 const storage = useStorageProviders();
 const providerStatus = computed(() => {
@@ -373,7 +439,13 @@ const providerStatus = computed(() => {
   return storage.providerOptions.value.find((opt) => opt.id === selected) || null;
 });
 const storageOptions = computed(() => storage.providerOptions.value);
-const storageLoading = computed(() => storage.loading.value);
+const quickSelectStorageOptions = computed(() => {
+  return storageOptions.value.map((provider) => ({
+    label: `${provider.label}${!provider.available ? ` (${t('storageProviderUnavailable')})` : ''}`,
+    value: provider.id,
+    disabled: !provider.available,
+  }));
+});
 const selectedStorageProvider = computed({
   get: () => storage.selectedProvider.value,
   set: (val) => storage.setSelectedProvider(val),
@@ -401,6 +473,23 @@ const uploadErrorDialog = reactive({
   title: '',
   message: '',
 });
+
+async function cleanEverything() {
+  await reset();
+  await clearPrizeImage();
+  form.prize = '';
+
+  await saveSettings();
+  pushToast({ type: 'success', message: t('raffleCleanSuccess') });
+}
+
+function handleIncrement() {
+  if (form.maxWinners < 100) form.maxWinners++;
+}
+
+function handleDecrement() {
+  if (form.maxWinners > 1) form.maxWinners--;
+}
 
 function showUploadErrorDialog(title, message) {
   uploadErrorDialog.title = title;
@@ -484,12 +573,20 @@ function closeImageLibraryDrawer() {
   imageLibrary.open = false;
 }
 
-function openWuzzyDrawer() {
-  wuzzyDrawerOpen.value = true;
+async function onLibraryImageSelect(item) {
+  if (!item) return;
+  const applied = await applyLibraryImage(item, { notifyError: true });
+  if (applied) {
+    closeImageLibraryDrawer();
+  }
 }
 
 function closeWuzzyDrawer() {
   wuzzyDrawerOpen.value = false;
+}
+
+function openWuzzyDrawer() {
+  wuzzyDrawerOpen.value = true;
 }
 
 async function handleWuzzySelect(item) {
@@ -498,6 +595,7 @@ async function handleWuzzySelect(item) {
     id: item.id,
     url: item.url,
     provider: 'wuzzy',
+    path: item.path || '',
     size: item.size,
     originalName: item.displayName || item.originalName || item.id,
     sha256: '',
@@ -602,7 +700,9 @@ function applySettings(cfg = {}) {
       ? cfg.imageOriginalName
       : form.imageOriginalName || '';
   if (Number.isFinite(cfg.maxWinners)) form.maxWinners = cfg.maxWinners;
-  if (typeof cfg.enabled === 'boolean') form.enabled = cfg.enabled;
+  if (cfg.enabled !== undefined) {
+    form.enabled = String(cfg.enabled) !== 'false' && !!cfg.enabled;
+  }
   if (cfg.mode !== undefined) form.mode = cfg.mode;
   if (cfg.duration !== undefined) form.duration = cfg.duration;
   if (cfg.interval !== undefined) form.interval = cfg.interval;
@@ -722,12 +822,72 @@ async function applyLibraryImage(entry, opts = {}) {
   }
 }
 
-async function onLibraryImageSelect(entry) {
+async function onImageFileChange(e) {
+  const file = e?.target?.files?.[0];
+  if (!file) return;
+  if (file.size && file.size > MAX_RAFFLE_IMAGE) {
+    pushToast({ type: 'error', message: t('raffleImageTooLarge') });
+    if (imageInput.value) imageInput.value.value = '';
+    return;
+  }
+  if (masked.value) {
+    pushToast({ type: 'info', message: t('raffleSessionRequiredToast') });
+    if (imageInput.value) imageInput.value.value = '';
+    return;
+  }
   try {
-    const applied = await applyLibraryImage(entry, { notifyError: true });
-    if (applied) {
-      imageLibrary.open = false;
+    const reused = await maybeHandleDuplicate(file);
+    if (reused) {
+      return;
     }
+
+    const fd = new FormData();
+    fd.append('image', file);
+    if (selectedStorageProvider.value) {
+      fd.append('storageProvider', selectedStorageProvider.value);
+    }
+    const res = await api.post('/api/raffle/upload-image', fd);
+    const data = res?.data || {};
+    if (!data.success || !data.imageUrl) {
+      const errorMsg = data.error;
+      if (errorMsg?.includes('File too large') || errorMsg?.includes('Insufficient balance')) {
+        throw new Error(errorMsg);
+      } else {
+        pushToast({ type: 'error', message: t('raffleImageUploadFailed') });
+        return;
+      }
+    }
+    form.imageUrl = data.imageUrl;
+    form.imageLibraryId = data.imageLibraryId || '';
+    form.imageStorageProvider = data.imageStorageProvider || selectedStorageProvider.value || '';
+    form.imageStoragePath = data.imageStoragePath || '';
+    form.imageSha256 = data.imageSha256 || '';
+    form.imageFingerprint = data.imageFingerprint || '';
+    form.imageOriginalName = data.imageOriginalName || file.name || '';
+    displayImageUrl.value = form.imageUrl;
+    locallyClearedImage.value = false;
+    selectedPrizeFilename.value = form.imageOriginalName;
+    resolveStorageSelection(form.imageStorageProvider);
+    if (data.libraryItem) {
+      upsertLibraryItem(data.libraryItem);
+    } else {
+      upsertLibraryItem({
+        id: form.imageLibraryId,
+        url: form.imageUrl,
+        provider: form.imageStorageProvider,
+        path: form.imageStoragePath,
+        size: file.size,
+        originalName: form.imageOriginalName,
+        sha256: form.imageSha256,
+        fingerprint: form.imageFingerprint,
+      });
+    }
+    if (form.prize && form.prize.trim().length > 0) {
+      await saveSettings();
+    }
+    pushToast({ type: 'success', message: t('raffleImageUploaded') });
+    fileUploadKey.value++;
+    if (imageInput.value) imageInput.value.value = '';
   } catch (error) {
     const errorMsg = error?.response?.data?.error || error.message;
     if (errorMsg?.includes('File too large') || errorMsg?.includes('Insufficient balance')) {
@@ -735,6 +895,13 @@ async function onLibraryImageSelect(entry) {
     } else {
       pushToast({ type: 'error', message: t('raffleImageUploadFailed') });
     }
+  }
+}
+
+function openImageDialog() {
+  if (imageInput.value) {
+    imageInput.value.value = '';
+    imageInput.value.click();
   }
 }
 
@@ -800,6 +967,7 @@ async function maybeHandleDuplicate(file) {
   }
   return false;
 }
+
 async function load(forceLibrary = false) {
   isBlocked.value = false;
   try {
@@ -973,89 +1141,6 @@ async function doAction(endpoint, successKey, after) {
   }
 }
 
-async function onImageFileChange(e) {
-  const file = e?.target?.files?.[0];
-  if (!file) return;
-  if (file.size && file.size > MAX_RAFFLE_IMAGE) {
-    pushToast({ type: 'error', message: t('raffleImageTooLarge') || 'Image too large' });
-    if (imageInput.value) imageInput.value.value = '';
-    return;
-  }
-  if (masked.value) {
-    pushToast({ type: 'info', message: t('raffleSessionRequiredToast') });
-    if (imageInput.value) imageInput.value.value = '';
-    return;
-  }
-  try {
-    const reused = await maybeHandleDuplicate(file);
-    if (reused) {
-      return;
-    }
-
-    const fd = new FormData();
-    fd.append('image', file);
-    if (selectedStorageProvider.value) {
-      fd.append('storageProvider', selectedStorageProvider.value);
-    }
-    const res = await api.post('/api/raffle/upload-image', fd);
-    const data = res?.data || {};
-    if (!data.success || !data.imageUrl) {
-      const errorMsg = data.error;
-      if (errorMsg?.includes('File too large') || errorMsg?.includes('Insufficient balance')) {
-        throw new Error(errorMsg);
-      } else {
-        pushToast({ type: 'error', message: t('raffleImageUploadFailed') });
-        return;
-      }
-    }
-    form.imageUrl = data.imageUrl;
-    form.imageLibraryId = data.imageLibraryId || '';
-    form.imageStorageProvider = data.imageStorageProvider || selectedStorageProvider.value || '';
-    form.imageStoragePath = data.imageStoragePath || '';
-    form.imageSha256 = data.imageSha256 || '';
-    form.imageFingerprint = data.imageFingerprint || '';
-    form.imageOriginalName = data.imageOriginalName || file.name || '';
-    displayImageUrl.value = form.imageUrl;
-    locallyClearedImage.value = false;
-    selectedPrizeFilename.value = form.imageOriginalName;
-    resolveStorageSelection(form.imageStorageProvider);
-    if (data.libraryItem) {
-      upsertLibraryItem(data.libraryItem);
-    } else {
-      upsertLibraryItem({
-        id: form.imageLibraryId,
-        url: form.imageUrl,
-        provider: form.imageStorageProvider,
-        path: form.imageStoragePath,
-        size: file.size,
-        originalName: form.imageOriginalName,
-        sha256: form.imageSha256,
-        fingerprint: form.imageFingerprint,
-      });
-    }
-    if (form.prize && form.prize.trim().length > 0) {
-      await saveSettings();
-    }
-    pushToast({ type: 'success', message: t('raffleImageUploaded') });
-    fileUploadKey.value++;
-    if (imageInput.value) imageInput.value.value = '';
-  } catch (error) {
-    const errorMsg = error?.response?.data?.error || error.message;
-    if (errorMsg?.includes('File too large') || errorMsg?.includes('Insufficient balance')) {
-      showUploadErrorDialog(t('uploadErrorTitle'), errorMsg);
-    } else {
-      pushToast({ type: 'error', message: t('raffleImageUploadFailed') });
-    }
-  }
-}
-
-function openImageDialog() {
-  if (imageInput.value) {
-    imageInput.value.value = '';
-    imageInput.value.click();
-  }
-}
-
 onMounted(async () => {
   try {
     await wallet.refresh();
@@ -1070,77 +1155,345 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.upload-btn {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.5rem 0.6rem;
-  border: 1px solid var(--card-border);
-  background: transparent;
-  border-radius: 0.5rem;
-  line-height: 1;
-  box-shadow: none;
-  cursor: pointer;
+.raffle-root {
+  --raffle-border-radius: 16px;
+  --raffle-spacing: 20px;
 }
-.icon-btn {
-  display: inline-flex;
+
+.raffle-group-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--raffle-border-radius);
+  padding: 20px 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+.raffle-group-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 10px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.raffle-group-title {
+  font-weight: 600;
+  font-size: 16px;
+  margin: 0;
+}
+
+.raffle-setting-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.raffle-setting-item:last-child {
+  border-bottom: none;
+}
+
+.raffle-setting-item.is-vertical {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.raffle-setting-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.raffle-setting-title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.raffle-setting-desc {
+  font-size: 12px;
+  opacity: 0.7;
+  line-height: 1.4;
+}
+
+.raffle-setting-control {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.raffle-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  align-items: center;
+}
+
+/* Form Elements */
+.form-input {
+  background: var(--bg-chat);
+  border: 1px solid var(--border-color);
+  color: inherit;
+  font-size: 0.9rem;
+  padding: 6px 10px;
+  border-radius: 6px;
+  width: 100%;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.img-preview-box {
+  width: 100%;
+  height: 80px;
+  border-radius: 8px;
+  background: var(--bg-chat);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  position: relative;
+  margin-top: 8px;
+}
+
+.img-preview-box.is-empty {
+  height: auto;
+  padding: 10px;
+  justify-content: center;
+  border-style: dashed;
+}
+
+.img-media {
+  width: 80px;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.2);
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  color: #ff0149;
-  background: transparent;
-  border-radius: 2px;
-}
-.icon-btn:hover {
-  background: rgba(100, 116, 139, 0.08);
-}
-.icon-btn .pi {
-  font-size: 0.9rem;
 }
 
-.switch {
-  width: 38px;
-  height: 22px;
-  background: var(--bg-chat, #f3f3f3);
-  border: 1px solid var(--border, var(--border-color, #d0d0d0));
-  border-radius: 9999px;
-  position: relative;
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease;
+.img-media img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: cover;
+}
+
+.img-media.placeholder {
+  width: 100%;
+  height: auto;
+  background: transparent;
+}
+
+.placeholder-text {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.btn-compact-secondary {
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-chat) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+  transition: background-color 0.15s ease;
+  transform: none !important;
+}
+
+.btn-compact-secondary:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  transform: none !important;
+}
+
+.btn-save-style {
+  background-color: #553fee !important;
+  color: #fff !important;
+  border: none !important;
+  font-weight: 600;
+  box-shadow: none !important;
+}
+
+.btn-save-style:hover {
+  background-color: #4834d4 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.btn-save-style:disabled {
+  background-color: #553fee !important;
+  opacity: 0.6;
+  box-shadow: none;
+}
+
+.status-badge {
   display: inline-flex;
   align-items: center;
-  cursor: pointer;
-}
-.switch .knob {
-  position: absolute;
-  left: 2px;
-  top: 1px;
-  width: 18px;
-  height: 18px;
-  background: #fff;
-  border-radius: 9999px;
-  transition: transform 0.2s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
-}
-.switch[aria-pressed='true'] {
-  background: var(--switch-color, #553fee);
-  border-color: var(--switch-color, #553fee);
-}
-.switch[aria-pressed='true'] .knob {
-  transform: translateX(16px);
-}
-.switch:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--switch-color, #553fee) 35%, transparent);
 }
 
-.file-name-label {
-  font-size: 0.85rem;
-  color: #64748b;
-  max-width: 240px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.toggle-switch input:checked ~ span {
+  background-color: #553fee;
+}
+
+.btn-custom {
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.875rem;
   white-space: nowrap;
+}
+
+.btn-primary {
+  background-color: #6366f1;
+  color: white;
+}
+.btn-primary:hover:not(:disabled) {
+  background-color: #4f46e5;
+  transform: translateY(-2px);
+}
+
+.btn-secondary {
+  background-color: #64748b;
+  color: white;
+}
+.btn-secondary:hover:not(:disabled) {
+  background-color: #475569;
+  transform: translateY(-2px);
+}
+
+.btn-danger {
+  background-color: #ef4444;
+  color: white;
+}
+.btn-danger:hover:not(:disabled) {
+  background-color: #dc2626;
+  transform: translateY(-2px);
+}
+
+.btn-success {
+  background-color: #553fee;
+  color: white !important;
+}
+.btn-success:hover:not(:disabled) {
+  background-color: #6366f1;
+  transform: translateY(-2px);
+}
+
+.btn-warning {
+  background-color: #f59e0b;
+  color: white;
+}
+.btn-warning:hover:not(:disabled) {
+  background-color: #d97706;
+  transform: translateY(-2px);
+}
+
+.btn-custom:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+:deep(.quick-select-trigger) {
+  width: 100%;
+}
+
+.custom-tooltip-btn {
+  position: relative;
+}
+
+.custom-tooltip-btn::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  translate: -50% 0;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  background: var(--card-bg, #111827);
+  color: var(--text-primary, #e5e7eb);
+  border: 1px solid var(--border-color);
+  font-size: 0.75rem;
+  line-height: 1.25;
+  border-radius: 0.5rem;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 50;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.18);
+  width: 200px;
+  white-space: normal;
+  text-align: center;
+  font-weight: 500;
+  transform: translateY(6px);
+  transition:
+    opacity 160ms ease-out,
+    transform 180ms ease-out,
+    visibility 0ms linear 180ms;
+}
+
+.custom-tooltip-btn::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  translate: -50% 0;
+  margin-bottom: 3px;
+  width: 9px;
+  height: 9px;
+  background: var(--card-bg, #111827);
+  border-left: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  transform: rotate(45deg) translateY(6px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 50;
+  transition:
+    opacity 160ms ease-out,
+    transform 180ms ease-out,
+    visibility 0ms linear 180ms;
+}
+
+.custom-tooltip-btn:hover::after,
+.custom-tooltip-btn:hover::before,
+.custom-tooltip-btn:focus::after,
+.custom-tooltip-btn:focus::before {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  transition:
+    opacity 160ms ease-out,
+    transform 180ms ease-out,
+    visibility 0ms;
 }
 </style>

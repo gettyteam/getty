@@ -385,6 +385,7 @@ function formatAmount(chat) {
 }
 
 .channel-thumbnail {
+  background-color: rgba(75, 60, 160);
   width: 24px;
   height: 24px;
   border-radius: 50%;

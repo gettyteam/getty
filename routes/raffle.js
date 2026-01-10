@@ -291,7 +291,10 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
         maxWinners: z.coerce.number().int().positive().default(1),
         enabled: z
           .union([z.boolean(), z.string(), z.number()])
-          .transform((v) => v === true || v === 'true' || v === 1 || v === '1')
+          .transform((v) => {
+            if (v === false || v === 'false' || v === 0 || v === '0') return false;
+            return !!v;
+          })
           .optional(),
         mode: z.enum(['manual', 'auto']).default('manual').optional(),
         interval: z.coerce.number().int().positive().default(5),
