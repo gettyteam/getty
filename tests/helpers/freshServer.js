@@ -8,6 +8,7 @@ function freshServer(envOverrides = {}) {
   const originalEnv = { ...process.env };
 
   try { delete require.cache[require.resolve('../../server')]; } catch {}
+  try { delete require.cache[require.resolve('../../createServer')]; } catch {}
   try { delete require.cache[require.resolve('../../lib/test-open-mode')]; } catch {}
 
   const envPath = path.join(process.cwd(), '.env');

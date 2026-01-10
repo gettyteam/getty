@@ -875,8 +875,10 @@ function initRedisClientFromEnv() {
     };
     const __silenceRedis =
       process.env.NODE_ENV === 'test' && process.env.GETTY_SILENCE_REDIS_TEST === '1';
+
+    if (__silenceRedis) return false;
+
     try {
-      if (!__silenceRedis)
         console.warn('[redis] initializing client', {
           tls: !!redisOpts.tls,
           lazy: !!redisOpts.lazyConnect,
@@ -886,7 +888,6 @@ function initRedisClientFromEnv() {
 
     try {
       redisClient.on('error', (err) => {
-        if (__silenceRedis) return;
         try {
           console.warn('[redis] error:', err?.message || String(err));
         } catch {}
@@ -4967,24 +4968,23 @@ app.get('/api/channel/avatar', async (req, res) => {
   }
 });
 
-app.get('/widgets/giveaway', (req, res, next) => {
+app.get('/widgets/giveaway', async (req, res, next) => {
   try {
-    const filePath = path.join(__dirname, 'public', 'widgets', 'giveaway.html');
-    const nonce = res.locals?.cspNonce || '';
-    let html = fs.readFileSync(filePath, 'utf8');
-    if (nonce && !/property=["']csp-nonce["']/.test(html)) {
-      const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
-      const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
-      html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
-    }
+    const html = await loadFrontendHtmlTemplate('widgets/raffle.html', req);
+    if (!html) return next();
+    
+    const finalHtml = finalizeHtmlResponse(html, res);
+    
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    try {
-      if (nonce) res.setHeader('X-CSP-Nonce', nonce);
-    } catch {}
-    return res.send(html);
-  } catch {
-    return next();
+    if (res.locals?.cspNonce) {
+      try {
+        res.setHeader('X-CSP-Nonce', res.locals.cspNonce);
+      } catch {}
+    }
+    return res.send(finalHtml);
+  } catch (err) {
+    return next(err);
   }
 });
 

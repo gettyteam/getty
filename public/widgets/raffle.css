@@ -1,133 +1,428 @@
-@import url('/css/output.css');
+:root {
+  --dark-bg: #1f2937;
+  --panel-bg: #111827;
+  --border-color: #374151;
+  --primary-color: #e03554;
+  --secondary-color: #db2777;
+  --danger: #ef4444;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --text-light: #f9fafb;
+  --text-muted: #9ca3af;
+}
 
-.raffle-container {
-  width: 100%;
-  height: 100vh;
+body.widget-mode {
+  background-color: transparent;
   display: flex;
-  flex-direction: column;
-  padding: 1rem;
-  box-sizing: inherit;
-  background: #080c10;
-  color: white;
-}
-.raffle-header {
-  display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  margin-bottom: 0.5rem;
-}
-.raffle-title {
-  font-size: 1.25rem;
-  font-weight: 600;
+  min-height: 100vh;
+  padding: 20px;
   margin: 0;
+  font-family: Inter, system-ui, sans-serif;
 }
-.raffle-prize {
-  display: flex;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-.prize-image {
-  width: 40px;
-  height: 40px;
-  object-fit: cover;
-  border-radius: 0.25rem;
-  margin-right: 0.5rem;
-}
-.participants-list {
-  flex-grow: 1;
-  overflow-y: auto;
-  margin: 0.5rem 0;
-  max-height: 220px;
-  scrollbar-width: thin;
-  scrollbar-color: #4ade80 #222;
-}
-.participant {
-  padding: 0.25rem 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-.stats {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 0.5rem;
-  font-size: 0.875rem;
-  color: #a0aec0;
-}
-.winner-display {
+
+.giveaway-widget {
+  min-width: 380px;
+  width: 380px;
+  background: var(--dark-bg);
+  border-radius: 12px;
+  overflow: hidden;
+  animation: fadeIn 0.5s ease;
+  min-height: 520px;
   display: flex;
   flex-direction: column;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.widget-header {
+  background: linear-gradient(90deg, rgba(83, 66, 179), rgba(16, 16, 16));
+  color: #fff;
+  padding: 6px 8px;
+  position: relative;
+  text-align: center;
+}
+
+.header-content {
+  display: flex;
   align-items: center;
   justify-content: center;
-  flex-grow: 1;
-  text-align: center;
-  padding: 1rem;
+  gap: 10px;
 }
-.winner-name {
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: #00ff7f;
-  margin: 0.5rem 0;
+
+.header-icon {
+  font-size: 20px;
+  background: rgba(255, 255, 255, 0.2);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.winner-name-fade {
-  display: inline-block;
-  min-width: 6ch;
-  transition: opacity 0.4s ease;
-  animation: winnerPulse 4s ease-in-out infinite;
+
+.header-icon i {
+  font-size: 20px;
 }
-.opacity-0 {
-  opacity: 0 !important;
+
+.widget-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: white;
+  line-height: 1.2;
 }
-@keyframes winnerPulse {
-  0%,
-  100% {
-    filter: drop-shadow(0 0 0px #00ff7f);
+
+.widget-subtitle {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 3px;
+}
+
+.live-badge {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  background: var(--danger);
+  color: white;
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  .live-badge i {
+    font-size: 8px;
+  }
+
+  gap: 4px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.8;
   }
   50% {
-    filter: drop-shadow(0 0 6px #00ff7f);
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.8;
   }
 }
-.winner-prize {
-  font-size: 1.2rem;
-  color: #facb15;
-  font-weight: 600;
+
+.widget-body {
+  padding: 12px;
+  flex: 1;
 }
-.winner-icon {
-  font-size: 3rem;
+
+.prize-section {
+  text-align: center;
+  margin-bottom: 20px;
 }
-.winner-icon-sm {
-  font-size: 2rem;
+
+.prize-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
-.winner-title {
-  font-weight: 600;
+
+.prize-name {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text-light);
+  margin-bottom: 15px;
+  min-height: 28px;
 }
-.winner-meta {
+
+.prize-image {
+  width: 100%;
+  height: 150px;
+  background: linear-gradient(135deg, #2d2f36, #23252a);
+  border-radius: 10px;
+  margin-bottom: 15px;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  position: relative;
+}
+
+.prize-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.prize-image.hidden {
+  display: none;
+}
+
+.image-placeholder {
+  color: var(--text-muted);
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.image-placeholder i {
+  font-size: 32px;
+  margin-bottom: 8px;
+  color: var(--secondary-color);
+}
+
+.participants-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  background: var(--panel-bg);
+  padding: 12px 15px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+}
+
+.participants-count {
+  display: flex;
+  flex-direction: column;
+}
+
+.count-label {
+  font-size: 13px;
+  color: var(--text-light);
+  margin-bottom: 4px;
+}
+
+.count-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-light);
+}
+
+.winners-count {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.winners-label {
+  font-size: 13px;
+  color: var(--text-light);
+  margin-bottom: 4px;
+}
+
+.winners-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--success);
+}
+
+.entry-section {
+  text-align: center;
+}
+
+.command-hint {
+  font-size: 16px;
+  color: var(--text-light);
+  margin-bottom: 12px;
+}
+
+.command-box {
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.command-prefix {
+  color: var(--text-muted);
+}
+
+.command {
+  font-family: monospace;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-light);
+  background: rgba(85, 63, 238, 0.1);
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.enter-info {
+  width: 100%;
+  padding: 14px 0px;
+  background: var(--panel-bg);
+  color: var(--text-light);
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid var(--border-color);
+  cursor: default;
+  opacity: 0.9;
+}
+
+.widget-footer {
+  background: var(--panel-bg);
+  padding: 12px;
+  text-align: center;
+  border-top: 1px solid var(--border-color);
+}
+
+.status-message {
+  font-size: 14px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.status-message.active {
+  color: var(--success);
+}
+
+.status-message.paused {
+  color: var(--warning);
+}
+
+.status-message.ended {
+  color: var(--danger);
+}
+
+.recent-winners {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid var(--border-color);
+}
+
+.winners-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-light);
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.winner-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.winner-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: rgba(80, 64, 172, 0.3);
+  border-radius: 8px;
+}
+
+.winner-avatar-img {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  background-color: rgba(75, 60, 160);
+  flex-shrink: 0;
+}
+
+.winner-name {
+  color: var(--text-light);
+  font-weight: 700;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.winner-time {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-light);
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.pi {
+  font-family: 'primeicons';
+  speak: none;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+  display: inline-block;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (max-width: 480px) {
+  .giveaway-widget {
+    width: 100%;
+    max-width: 380px;
+  }
+}
+
+.participants-list-container {
+  margin-top: 16px;
+  width: 100%;
+}
+.participants-list-title {
+  font-size: 14px;
+  color: var(--text-light);
+  margin-bottom: 8px;
+  text-align: center;
+}
+.participants-list {
+  display: flex;
   flex-wrap: wrap;
   justify-content: center;
+  gap: 6px;
+  max-height: 100px;
+  overflow-y: hidden;
 }
-.hidden {
-  display: none !important;
+.participant-pill {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--text-light);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
 }
-.winner-command {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #eee;
-  margin-top: 0.5rem;
+.participant-pill i {
+  font-size: 10px;
+  color: var(--secondary-color);
 }
-.winner-timestamp {
-  color: #eee;
-  font-size: 0.7rem;
-  font-weight: 600;
-}
-.participants-list::-webkit-scrollbar {
-  width: 8px;
-}
-.participants-list::-webkit-scrollbar-thumb {
-  background: #00ff7f;
-  border-radius: 4px;
-}
-.participants-list::-webkit-scrollbar-track {
-  background: #222;
-  border-radius: 4px;
+
+.participant-avatar {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  object-fit: cover;
+  background-color: var(--dark-bg);
 }

@@ -1,4 +1,5 @@
 const path = require('path');
+const crypto = require('crypto');
 const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
 
 const CONFIG_FILE = path.join(process.cwd(), 'config', 'raffle-config.json');
@@ -32,7 +33,7 @@ class RaffleModule {
   }
 
   async __loadConfigFor(ns) {
-    const reqShim = { ns: { admin: ns } };
+    const reqShim = { ns: { admin: ns }, walletSession: { walletHash: ns } };
     let loaded;
     try {
       loaded = await loadTenantConfig(reqShim, this.store, CONFIG_FILE, 'raffle-config.json');
@@ -60,6 +61,39 @@ class RaffleModule {
     return { raw: unwrapped || {}, meta };
   }
 
+  async __saveToDisk(ns) {
+    const s = await this.getOrCreate(ns);
+    const toPersist = {
+      command: s.command,
+      prize: s.prize,
+      imageUrl: s.imageUrl,
+      imageLibraryId: s.imageLibraryId,
+      imageStorageProvider: s.imageStorageProvider,
+      imageStoragePath: s.imageStoragePath,
+      imageSha256: s.imageSha256,
+      imageFingerprint: s.imageFingerprint,
+      imageOriginalName: s.imageOriginalName,
+      maxWinners: s.maxWinners,
+      mode: s.mode,
+      enabled: s.enabled,
+      duration: s.duration,
+      interval: s.interval,
+      winnerHistory: s.winnerHistory || [],
+      previousWinners: Array.from(s.previousWinners || new Set()),
+    };
+    try {
+      await saveTenantConfig(
+        { ns: { admin: ns }, walletSession: { walletHash: ns } },
+        this.store,
+        CONFIG_FILE,
+        'raffle-config.json',
+        toPersist
+      );
+    } catch (err) {
+      console.error('[raffle] __saveToDisk failed', err);
+    }
+  }
+
   async getOrCreate(ns) {
     const key = nsKey(ns);
     if (!this.sessions.has(key)) {
@@ -74,7 +108,10 @@ class RaffleModule {
         active: false,
         paused: false,
         participants: new Map(),
-        previousWinners: new Set(),
+        previousWinners: new Set(
+          Array.isArray(persisted.previousWinners) ? persisted.previousWinners : []
+        ),
+        winnerHistory: Array.isArray(persisted.winnerHistory) ? persisted.winnerHistory : [],
         command: typeof persisted.command === 'string' ? persisted.command : this.DEFAULTS.command,
         prize: typeof persisted.prize === 'string' ? persisted.prize : this.DEFAULTS.prize,
         imageUrl:
@@ -111,7 +148,16 @@ class RaffleModule {
           persisted.mode === 'auto' || persisted.mode === 'manual'
             ? persisted.mode
             : this.DEFAULTS.mode,
-        enabled: typeof persisted.enabled === 'boolean' ? persisted.enabled : this.DEFAULTS.enabled,
+        enabled:
+          persisted.enabled !== undefined &&
+          String(persisted.enabled) !== 'false' &&
+          String(persisted.enabled) !== '0'
+            ? !!persisted.enabled
+            : persisted.enabled === false ||
+              String(persisted.enabled) === 'false' ||
+              String(persisted.enabled) === '0'
+            ? false
+            : this.DEFAULTS.enabled,
         duration:
           Number.isInteger(persisted.duration) && persisted.duration > 0
             ? persisted.duration
@@ -127,8 +173,12 @@ class RaffleModule {
 
   async saveSettings(ns, settings) {
     const s = await this.getOrCreate(ns);
-    s.command = settings.command || s.command;
-    s.prize = settings.prize || s.prize;
+    if (typeof settings.command === 'string') {
+      s.command = settings.command.slice(0, 64);
+    }
+    if (typeof settings.prize === 'string') {
+      s.prize = settings.prize.slice(0, 255);
+    }
     s.maxWinners =
       typeof settings.maxWinners === 'number' && !isNaN(settings.maxWinners)
         ? settings.maxWinners
@@ -169,7 +219,15 @@ class RaffleModule {
           ? settings.imageOriginalName
           : this.DEFAULTS.imageOriginalName;
     }
-    if (settings.enabled !== undefined) s.enabled = !!settings.enabled;
+    if (settings.enabled !== undefined) {
+      const e = settings.enabled;
+      s.enabled =
+        e === true || String(e) === 'true' || String(e) === '1'
+          ? true
+          : e === false || String(e) === 'false' || String(e) === '0'
+          ? false
+          : !!e;
+    }
     if (settings.active !== undefined) s.active = !!settings.active;
     if (settings.paused !== undefined) s.paused = !!settings.paused;
     if (settings.duration !== undefined) {
@@ -179,36 +237,9 @@ class RaffleModule {
     if (settings.interval !== undefined) {
       const it = Number(settings.interval);
       if (Number.isFinite(it) && it > 0) s.interval = Math.trunc(it);
-    }
+    } 
 
-    s.participants.clear();
-    s.previousWinners.clear();
-
-    const toPersist = {
-      command: s.command,
-      prize: s.prize,
-      imageUrl: s.imageUrl,
-      imageLibraryId: s.imageLibraryId,
-      imageStorageProvider: s.imageStorageProvider,
-      imageStoragePath: s.imageStoragePath,
-      imageSha256: s.imageSha256,
-      imageFingerprint: s.imageFingerprint,
-      imageOriginalName: s.imageOriginalName,
-      maxWinners: s.maxWinners,
-      mode: s.mode,
-      enabled: s.enabled,
-      duration: s.duration,
-      interval: s.interval,
-    };
-    try {
-      await saveTenantConfig(
-        { ns: { admin: ns } },
-        this.store,
-        CONFIG_FILE,
-        'raffle-config.json',
-        toPersist
-      );
-    } catch {}
+    await this.__saveToDisk(ns);
   }
 
   async setImage(ns, payload) {
@@ -231,31 +262,7 @@ class RaffleModule {
       s.imageFingerprint = '';
       s.imageOriginalName = '';
     }
-    const toPersist = {
-      command: s.command,
-      prize: s.prize,
-      imageUrl: s.imageUrl,
-      imageLibraryId: s.imageLibraryId,
-      imageStorageProvider: s.imageStorageProvider,
-      imageStoragePath: s.imageStoragePath,
-      imageSha256: s.imageSha256,
-      imageFingerprint: s.imageFingerprint,
-      imageOriginalName: s.imageOriginalName,
-      maxWinners: s.maxWinners,
-      mode: s.mode,
-      enabled: s.enabled,
-      duration: s.duration,
-      interval: s.interval,
-    };
-    try {
-      await saveTenantConfig(
-        { ns: { admin: ns } },
-        this.store,
-        CONFIG_FILE,
-        'raffle-config.json',
-        toPersist
-      );
-    } catch {}
+    await this.__saveToDisk(ns);
   }
 
   async getSettings(ns) {
@@ -279,6 +286,7 @@ class RaffleModule {
       interval: s.interval,
       participants: Array.from(s.participants.entries()),
       previousWinners: Array.from(s.previousWinners),
+      winnerHistory: s.winnerHistory || [],
     };
   }
 
@@ -310,6 +318,7 @@ class RaffleModule {
       enabled: s.enabled,
       participants: Array.from(s.participants.values()).map((p) => p.username),
       totalWinners: s.previousWinners.size,
+      winner: s.winnerHistory && s.winnerHistory.length ? s.winnerHistory[s.winnerHistory.length - 1] : null,
       updatedAt: s.updatedAt || 0,
     };
   }
@@ -381,9 +390,19 @@ class RaffleModule {
         error: 'All participants have already won. Reset winners to continue.',
       };
     }
-    const [winnerId, winner] = eligible[Math.floor(Math.random() * eligible.length)];
+    const randomIndex = crypto.randomInt(0, eligible.length);
+    const [winnerId, winner] = eligible[randomIndex];
     s.previousWinners.add(winnerId);
     s.participants.delete(winnerId);
+
+    if (!Array.isArray(s.winnerHistory)) s.winnerHistory = [];
+    s.winnerHistory.push({
+      id: winnerId,
+      username: winner.username || winner,
+      prize: s.prize,
+      timestamp: Date.now(),
+    });
+
     const result = {
       success: true,
       winner: winner.username || winner,
@@ -393,6 +412,8 @@ class RaffleModule {
     };
     s.active = false;
     s.paused = false;
+
+    await this.__saveToDisk(ns);
     return result;
   }
 
@@ -400,8 +421,11 @@ class RaffleModule {
     const s = await this.getOrCreate(ns);
     s.previousWinners.clear();
     s.participants.clear();
+    s.winnerHistory = [];
     s.active = false;
     s.paused = false;
+
+    await this.__saveToDisk(ns);
     return { success: true };
   }
 }

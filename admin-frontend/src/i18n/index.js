@@ -171,11 +171,9 @@ const adminExtra = {
     externalSaved: 'External notifications saved',
     externalSaveFailed: 'Failed to save external notifications',
     externalValidationError: 'Either Discord webhook or Telegram credentials are required',
-    integrationsIntro:
-      'Integrate Discord or Telegram in your experience. Handle webhooks to send notifications when your channel is live, you upload new content or receive tips.',
+    integrationsIntro: 'Integrate Discord or Telegram in your experience. Handle webhooks to send notifications when your channel is live, you upload new content or receive tips.',
     channelUploadTitle: 'Channel upload notifications',
-    channelUploadDescription:
-      'Configure a Discord webhook + ClaimID to announce new videos or posts once per upload.',
+    channelUploadDescription: 'Configure a Discord webhook + ClaimID to announce new videos or posts once per upload.',
     channelUploadDiscordLabel: 'Discord Webhook URL',
     channelUploadClaimLabel: 'Channel Claim ID',
     channelUploadClaimHint: 'Channel claim_id appears inside your channel "About" tab.',
@@ -362,25 +360,21 @@ const adminExtra = {
     walletClearHint: 'Leave empty to clear your wallet address',
     statusMaskedTooltip: 'Statuses are hidden for viewers without a session',
     raffleSessionRequiredTitle: 'Session required',
-    raffleSessionRequiredBody:
-      'Create a session to configure and use Raffle. This protects your settings.',
+    raffleSessionRequiredBody: 'Create a session to configure and use Raffle. This protects your settings.',
     createSession: 'Create session',
     raffleSessionRequiredToast: 'Start a session to use Raffle actions',
     externalSessionRequiredTitle: 'Session required',
-    externalSessionRequiredBody:
-      'Create a session to configure External notifications. This protects your tokens and URLs.',
+    externalSessionRequiredBody: 'Create a session to configure External notifications. This protects your tokens and URLs.',
     externalSessionRequiredToast: 'Start a session to update External notifications',
     sessionRequiredToast: 'Start a session to perform this action',
     exportPublicToken: 'Export public token',
     tokenNudgeTitle: 'Create your session token',
-    tokenNudgeBody:
-      'This token isolates your widgets and data in hosted mode so live updates and WebSocket events are routed only to your session.',
+    tokenNudgeBody: 'This token isolates your widgets and data in hosted mode so live updates and WebSocket events are routed only to your session.',
     createTokenNow: 'Create token',
     whyNeedToken: 'Why do I need this?',
     maybeLater: 'Maybe later',
     tokenModalTitle: 'Why create a token?',
-    tokenModalBody:
-      'In hosted mode, a token separates your data from other users, enables secure real-time updates for widgets, and lets you share a public token for overlays without exposing your admin token.',
+    tokenModalBody: 'In hosted mode, a token separates your data from other users, enables secure real-time updates for widgets, and lets you share a public token for overlays without exposing your admin token.',
     tokenNudgeDismissed: 'Reminder dismissed. You can create the token later in Session tools.',
     streamHistoryTitle: 'Stream History',
     streamHistoryClaimId: 'Channel ClaimID',
@@ -451,8 +445,7 @@ const adminExtra = {
     userProfileShareModalTitle: 'Share your public profile',
     userProfileShareModalDescription: 'Copy and share this link with your audience.',
     userProfileShareModalClose: 'Close',
-    userProfileShareToggleHint:
-      'Turning off sharing disables the current link. Turning it on again will generate a new URL.',
+    userProfileShareToggleHint: 'Turning off sharing disables the current link. Turning it on again will generate a new URL.',
     userProfileChartEmpty: 'No stream history yet',
     channelAnalyticsSidebarTitle: 'Analytics',
     channelAnalyticsNav: 'My channel',
@@ -502,14 +495,12 @@ const adminExtra = {
     channelClaimPlaceholder: '40-character claim_id',
     channelAuthTokenLabel: 'Odysee auth token',
     channelAuthTokenPlaceholder: 'Paste your auth token',
-    channelAuthTokenHint:
-      'Paste the auth token from your {link} session. Saving replaces the previous secret.',
+    channelAuthTokenHint: 'Paste the auth token from your {link} session. Saving replaces the previous secret.',
     channelAuthTokenLinkLabel: 'logged-in Odysee',
     channelAuthTokenStoredHint: 'A token is already stored. Enter a new value to replace it. Do not share it with anyone, never!',
     channelClearTokenLabel: 'Clear saved auth token',
     channelClearTokenHint: 'Enable this option and save to remove the stored token.',
-    channelEnvOverrideNotice:
-      'To configure your metrics, add your channel handle and ClaimID. Find the claim ID inside your channel description in the "About" tab.',
+    channelEnvOverrideNotice: 'To configure your metrics, add your channel handle and ClaimID. Find the claim ID inside your channel description in the "About" tab.',
     channelClaimRequired: 'Channel claim_id is required.',
     channelSaveConfig: 'Save configuration',
     channelConfigUpdatedAt: 'Updated {date}',
@@ -553,8 +544,7 @@ const adminExtra = {
     streamHistoryImported: 'Imported history',
     streamHistoryImportFailed: 'Import failed',
     streamHistoryClaimIdChanged: 'ClaimID changed',
-    streamHistoryClaimChangeClearConfirm:
-      'Clear the existing chart history to start fresh? You can Export first to keep a backup.',
+    streamHistoryClaimChangeClearConfirm: 'Clear the existing chart history to start fresh? You can Export first to keep a backup.',
     activity: 'Live analytics',
     tipNotificationsTitle: 'Tip notifications',
     liveNotificationsTitle: 'Live notifications',
@@ -719,13 +709,10 @@ const adminExtra = {
     audioSectionDesc: 'Configure custom audio for notifications.',
     storageProviderLabel: 'Storage Provider',
     storageProviderDesc: 'Choose where uploads are saved.',
-    storageProviderArweaveTooltip:
-      'Arweave (via Turbo) saves your files permanently with decentralized storage and prepaid costs.',
-    storageProviderUnavailable:
-      'Currently unavailable in this environment. Existing files remain accessible.',
+    storageProviderArweaveTooltip: 'Arweave (via Turbo) saves your files permanently with decentralized storage and prepaid costs.',
+    storageProviderUnavailable: 'Currently unavailable in this environment. Existing files remain accessible.',
     duplicateUploadTitle: 'File already stored',
-    duplicateUploadBody:
-      'You already uploaded "{fileName}". Uploading it again will replace the saved copy. What do you want to do?',
+    duplicateUploadBody: 'You already uploaded "{fileName}". Uploading it again will replace the saved copy. What do you want to do?',
     duplicateUploadReplace: 'Replace file',
     duplicateUploadUseExisting: 'Use existing file',
     duplicateUploadFallbackName: 'this file',
@@ -950,11 +937,9 @@ const adminExtra = {
     externalSaved: 'Notificaciones externas guardadas',
     externalSaveFailed: 'Error al guardar notificaciones externas',
     externalValidationError: 'Se requiere el webhook de Discord o las credenciales de Telegram',
-    integrationsIntro:
-      'Integra Discord o Telegram a tu experiencia. Gestiona webhooks para enviar notificaciones cuando tu canal esté en directo, subes nuevo contenido o recibes propinas.',
+    integrationsIntro: 'Integra Discord o Telegram a tu experiencia. Gestiona webhooks para enviar notificaciones cuando tu canal esté en directo, subes nuevo contenido o recibes propinas.',
     channelUploadTitle: 'Notificaciones de contenido nuevo',
-    channelUploadDescription:
-      'Configura un webhook de Discord y el ClaimID del canal para anunciar cada video o publicación una sola vez.',
+    channelUploadDescription: 'Configura un webhook de Discord y el ClaimID del canal para anunciar cada video o publicación una sola vez.',
     channelUploadDiscordLabel: 'URL del webhook de Discord',
     channelUploadClaimLabel: 'Claim ID del canal',
     channelUploadClaimHint: 'Busca el claim_id dentro de la pestaña "Acerca de" de tu canal.',
@@ -1141,25 +1126,21 @@ const adminExtra = {
     walletClearHint: 'Deja vacío para borrar tu dirección de billetera',
     statusMaskedTooltip: 'Los estados están ocultos para espectadores sin sesión',
     raffleSessionRequiredTitle: 'Sesión requerida',
-    raffleSessionRequiredBody:
-      'Crea una sesión para configurar y usar Sorteos. Esto protege tu configuración.',
+    raffleSessionRequiredBody: 'Crea una sesión para configurar y usar Sorteos. Esto protege tu configuración.',
     createSession: 'Crear sesión',
     raffleSessionRequiredToast: 'Inicia sesión para usar acciones de Sorteo',
     externalSessionRequiredTitle: 'Sesión requerida',
-    externalSessionRequiredBody:
-      'Crea una sesión para configurar notificaciones externas. Esto protege tus tokens y URLs.',
+    externalSessionRequiredBody: 'Crea una sesión para configurar notificaciones externas. Esto protege tus tokens y URLs.',
     externalSessionRequiredToast: 'Inicia sesión para actualizar notificaciones externas',
     sessionRequiredToast: 'Inicia sesión para realizar esta acción',
     exportPublicToken: 'Exportar token público',
     tokenNudgeTitle: 'Crea tu token de sesión',
-    tokenNudgeBody:
-      'Este token aísla tus widgets y datos en modo alojado para que las actualizaciones en vivo y eventos WebSocket se enruten solo a tu sesión.',
+    tokenNudgeBody: 'Este token aísla tus widgets y datos en modo alojado para que las actualizaciones en vivo y eventos WebSocket se enruten solo a tu sesión.',
     createTokenNow: 'Crear token',
     whyNeedToken: '¿Por qué necesito esto?',
     maybeLater: 'Quizás luego',
     tokenModalTitle: '¿Por qué crear un token?',
-    tokenModalBody:
-      'En modo alojado, un token separa tus datos de otros usuarios, habilita actualizaciones seguras en tiempo real para widgets, y te permite compartir un token público para superposiciones sin exponer tu token de administrador.',
+    tokenModalBody: 'En modo alojado, un token separa tus datos de otros usuarios, habilita actualizaciones seguras en tiempo real para widgets, y te permite compartir un token público para superposiciones sin exponer tu token de administrador.',
     tokenNudgeDismissed: 'Recordatorio descartado. Puedes crear el token más tarde en Herramientas de sesión.',
     streamHistoryTitle: 'Historial de transmisión',
     streamHistoryClaimId: 'ClaimID del canal',
@@ -1230,8 +1211,7 @@ const adminExtra = {
     userProfileShareModalTitle: 'Compartir tu perfil público',
     userProfileShareModalDescription: 'Copia y comparte este enlace con tu audiencia.',
     userProfileShareModalClose: 'Cerrar',
-    userProfileShareToggleHint:
-      'Desactivar compartir deshabilita el enlace actual. Activarlo de nuevo generará una nueva URL.',
+    userProfileShareToggleHint: 'Desactivar compartir deshabilita el enlace actual. Activarlo de nuevo generará una nueva URL.',
     userProfileChartEmpty: 'Sin historial de transmisión aún',
     channelAnalyticsSidebarTitle: 'Analíticas',
     channelAnalyticsNav: 'Mi canal',
@@ -1281,14 +1261,12 @@ const adminExtra = {
     channelClaimPlaceholder: 'claim_id de 40 caracteres',
     channelAuthTokenLabel: 'Token de autenticación de Odysee',
     channelAuthTokenPlaceholder: 'Pega tu token de autenticación',
-    channelAuthTokenHint:
-      'Pega el token de autenticación de tu sesión de {link}. Guardar reemplaza el secreto anterior.',
+    channelAuthTokenHint: 'Pega el token de autenticación de tu sesión de {link}. Guardar reemplaza el secreto anterior.',
     channelAuthTokenLinkLabel: 'Odysee conectado',
     channelAuthTokenStoredHint: 'Ya hay un token almacenado. Ingresa un nuevo valor para reemplazarlo. ¡No lo compartas con nadie, nunca!',
     channelClearTokenLabel: 'Borrar token de autenticación guardado',
     channelClearTokenHint: 'Habilita esta opción y guarda para eliminar el token almacenado.',
-    channelEnvOverrideNotice:
-      'Para configurar tus métricas, agrega tu handle de canal y ClaimID. Encuentra el claim ID dentro de la descripción de tu canal en la pestaña "Acerca de".',
+    channelEnvOverrideNotice: 'Para configurar tus métricas, agrega tu handle de canal y ClaimID. Encuentra el claim ID dentro de la descripción de tu canal en la pestaña "Acerca de".',
     channelClaimRequired: 'El claim_id del canal es requerido.',
     channelSaveConfig: 'Guardar configuración',
     channelConfigUpdatedAt: 'Actualizado {date}',
@@ -1332,8 +1310,7 @@ const adminExtra = {
     streamHistoryImported: 'Historial importado',
     streamHistoryImportFailed: 'Error al importar',
     streamHistoryClaimIdChanged: 'El ClaimID cambió',
-    streamHistoryClaimChangeClearConfirm:
-      '¿Borrar el historial del gráfico existente para empezar de nuevo? Puedes Exportar primero para mantener una copia de seguridad.',
+    streamHistoryClaimChangeClearConfirm: '¿Borrar el historial del gráfico existente para empezar de nuevo? Puedes Exportar primero para mantener una copia de seguridad.',
     activity: 'Analíticas en vivo',
     tipNotificationsTitle: 'Notificaciones de propinas',
     liveNotificationsTitle: 'Notificaciones en vivo',
@@ -1398,15 +1375,13 @@ const adminExtra = {
     suggestion_announcement_message: 'Crea widgets de anuncios horizontales.',
     suggestion_announcement_cta: 'Ir a configuración',
     suggestion_integrations_title: 'Notificar tus lives',
-    suggestion_integrations_message:
-      'Notifica a tu audiencia cuando estés en vivo en Discord o Telegram.',
+    suggestion_integrations_message: 'Notifica a tu audiencia cuando estés en vivo en Discord o Telegram.',
     suggestion_integrations_cta: 'Ir a configuración',
     suggestion_status_page_title: 'Revisar tus streams',
     suggestion_status_page_message: 'Revisa historial y rendimiento: ganancias y vistas.',
     suggestion_status_page_cta: 'Ir a estadísticas',
     suggestion_odysee_channel_title: 'Tu canal en Odysee',
-    suggestion_odysee_channel_message:
-      'Subir a Odysee es la forma más confiable de compartir contenido.',
+    suggestion_odysee_channel_message: 'Subir a Odysee es la forma más confiable de compartir contenido.',
     suggestion_odysee_channel_cta: 'Crear un canal',
     suggestion_odysee_docs_title: 'Centro de Ayuda',
     suggestion_odysee_docs_message: 'Documentación con todo lo que necesitas para usar Odysee.',
@@ -1418,24 +1393,20 @@ const adminExtra = {
     gifSectionDesc: 'Configura la posición y subida de GIF animado para notificaciones.',
     notificationGifLibraryBtn: 'Elegir de la galería',
     gifLibraryTitle: 'Biblioteca de GIFs',
-    gifLibrarySubtitle:
-      'Reutiliza GIFs que ya están subidos para evitar duplicados cuando te desconectas.',
+    gifLibrarySubtitle: 'Reutiliza GIFs que ya están subidos para evitar duplicados cuando te desconectas.',
     gifLibraryEmpty: 'No hay GIFs guardados aún.',
     gifLibraryEmptyHint: 'Sube un GIF o guarda uno en el widget para construir tu biblioteca.',
     gifLibraryUseGif: 'Usar este GIF',
     gifLibraryUnknown: 'GIF sin título',
     gifLibraryLoadFailed: 'No se pudo cargar la biblioteca de GIFs.',
     gifLibraryDeleteConfirmTitle: 'Eliminar GIF',
-    gifLibraryDeleteConfirmBody:
-      '¿Eliminar "{fileName}" de tu biblioteca de GIFs? La copia en Supabase también será eliminada.',
+    gifLibraryDeleteConfirmBody: '¿Eliminar "{fileName}" de tu biblioteca de GIFs? La copia en Supabase también será eliminada.',
     gifLibraryDeleteToastSuccess: 'GIF eliminado de la biblioteca.',
     gifLibraryDeleteToastSuccessCleared: 'GIF eliminado y el GIF de notificación activo fue borrado.',
     gifLibraryDeleteToastError: 'No se pudo eliminar el GIF.',
-    gifLibraryDeleteToastUnsupported:
-      'Este GIF está almacenado externamente y debe ser eliminado donde fue subido.',
+    gifLibraryDeleteToastUnsupported: 'Este GIF está almacenado externamente y debe ser eliminado donde fue subido.',
     gifUploadMissingTitle: 'Selecciona un GIF antes de guardar',
-    gifUploadMissingBody:
-      'Elige o sube un GIF para almacenar en {provider}. Sube un nuevo archivo, elige uno de tu biblioteca, o cambia a la búsqueda Wuzzy.',
+    gifUploadMissingBody: 'Elige o sube un GIF para almacenar en {provider}. Sube un nuevo archivo, elige uno de tu biblioteca, o cambia a la búsqueda Wuzzy.',
     wuzzySearchPlaceholder: 'Buscar por palabras clave',
     wuzzySearchButton: 'Buscar',
     wuzzySearchLoading: 'Buscando...',
@@ -1498,13 +1469,10 @@ const adminExtra = {
     audioSectionDesc: 'Configura un audio personalizado para las notificaciones.',
     storageProviderLabel: 'Proveedor de almacenamiento',
     storageProviderDesc: 'Elige dónde se guardan las subidas.',
-    storageProviderArweaveTooltip:
-      'Arweave (a través de Turbo) guarda tus archivos de forma permanente con almacenamiento descentralizado y costos prepagados.',
-    storageProviderUnavailable:
-      'Actualmente no disponible en este entorno. Los archivos existentes siguen accesibles.',
+    storageProviderArweaveTooltip: 'Arweave (a través de Turbo) guarda tus archivos de forma permanente con almacenamiento descentralizado y costos prepagados.',
+    storageProviderUnavailable: 'Actualmente no disponible en este entorno. Los archivos existentes siguen accesibles.',
     duplicateUploadTitle: 'Archivo ya almacenado',
-    duplicateUploadBody:
-      'Ya subiste "{fileName}". Si lo cargas de nuevo, reemplazará la copia guardada. ¿Qué deseas hacer?',
+    duplicateUploadBody: 'Ya subiste "{fileName}". Si lo cargas de nuevo, reemplazará la copia guardada. ¿Qué deseas hacer?',
     duplicateUploadReplace: 'Reemplazar archivo',
     duplicateUploadUseExisting: 'Usar archivo existente',
     duplicateUploadFallbackName: 'este archivo',
@@ -1568,15 +1536,13 @@ const adminExtra = {
 adminExtra.en.streamHistoryTzNote = 'Times are shown in your local timezone';
 adminExtra.en.streamHistoryTzOffset = 'UTC{offset}';
 adminExtra.en.streamHistoryTzChangedTitle = 'Timezone change detected';
-adminExtra.en.streamHistoryTzChangedBody =
-  'Previously {prev}, now {current}. Which one should charts use for day/week/month boundaries?';
+adminExtra.en.streamHistoryTzChangedBody = 'Previously {prev}, now {current}. Which one should charts use for day/week/month boundaries?';
 adminExtra.en.streamHistoryUseNewTz = 'Use new timezone';
 adminExtra.en.streamHistoryKeepPrevTz = 'Keep previous';
 adminExtra.es.streamHistoryTzNote = 'Tiempos mostrados en tu zona horaria local';
 adminExtra.es.streamHistoryTzOffset = 'UTC{offset}';
 adminExtra.es.streamHistoryTzChangedTitle = 'Cambio de zona horaria detectado';
-adminExtra.es.streamHistoryTzChangedBody =
-  'Antes {prev}, ahora {current}. ¿Cuál debe usarse para los límites de día/semana/mes?';
+adminExtra.es.streamHistoryTzChangedBody = 'Antes {prev}, ahora {current}. ¿Cuál debe usarse para los límites de día/semana/mes?';
 adminExtra.es.streamHistoryUseNewTz = 'Usar nueva zona';
 adminExtra.es.streamHistoryKeepPrevTz = 'Mantener anterior';
 adminExtra.en.saveAudioButton = 'Save audio';

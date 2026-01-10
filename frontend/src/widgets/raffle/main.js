@@ -1,3 +1,4 @@
+import 'primeicons/primeicons.css';
 import './raffle.css';
 import enTranslations from 'shared-i18n/en.json';
 import esTranslations from 'shared-i18n/es.json';
@@ -8,6 +9,13 @@ const FALLBACK_TRANSLATIONS = {
 };
 
 let currentLanguage = 'en';
+try {
+  const p = new URLSearchParams(window.location.search);
+  const l = p.get('lang');
+  if (l && (l === 'es' || l === 'en')) {
+    currentLanguage = l;
+  }
+} catch {}
 
 const STORAGE_KEY = 'raffle-winner-data';
 const ACTIVE_STATE_KEY = 'raffle-active-state';
@@ -80,7 +88,6 @@ let attemptedDevFallback = false;
 
 let container = null;
 let contentRoot = null;
-let rotateInterval = null;
 let ws = null;
 let reconnectAttempts = 0;
 const maxReconnectAttempts = 8;
@@ -147,6 +154,8 @@ const parseTimestamp = (input) => {
   }
 };
 
+const SPACEMAN_AVATAR = 'https://thumbnails.odycdn.com/optimize/s:0:0/quality:85/plain/https://player.odycdn.com/speech/spaceman-png:2.png';
+
 const formatTimestamp = (value) => {
   const date = parseTimestamp(value);
   if (!date) return '';
@@ -164,318 +173,296 @@ const truncateName = (name) => {
   return name.length > 12 ? `${name.slice(0, 12)}…` : name;
 };
 
-const sanitizeParticipantName = (entry) => {
-  if (!entry) return 'Spaceman';
-  if (typeof entry === 'string') {
-    return entry.length > 24 ? `${entry.slice(0, 21)}…` : entry;
-  }
-  if (typeof entry === 'object') {
-    const candidate = entry.username || entry.name || entry.displayName;
-    if (typeof candidate === 'string' && candidate.trim()) {
-      return truncateName(candidate.trim());
-    }
-  }
-  return 'Spaceman';
+const escapeHtml = (unsafe) => {
+  return String(unsafe || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 };
 
-const clearWinnerRotation = () => {
-  if (rotateInterval) {
-    clearInterval(rotateInterval);
-    rotateInterval = null;
-  }
-};
+const getParticipantInfo = (entry) => {
+  let name = 'Spaceman';
+  let avatar = SPACEMAN_AVATAR;
 
-const setContent = (node) => {
-  clearWinnerRotation();
-  if (!contentRoot) return;
-  contentRoot.replaceChildren(node);
-  try {
-    if (window.languageManager && typeof window.languageManager.updatePageLanguage === 'function') {
-      window.languageManager.updatePageLanguage();
-    }
-  } catch {}
-};
-
-const renderInactive = () => {
-  const wrapper = document.createElement('div');
-  wrapper.className = 'raffle-active-state';
-
-  const header = document.createElement('div');
-  header.className = 'raffle-header';
-
-  const badge = document.createElement('div');
-  badge.className = 'raffle-status-badge inactive';
-  const badgeDot = document.createElement('span');
-  badgeDot.className = 'dot';
-  badgeDot.setAttribute('aria-hidden', 'true');
-  badge.appendChild(badgeDot);
-  const badgeText = document.createElement('span');
-  badgeText.textContent = getI18nText('raffleInactive', 'Raffle inactive');
-  badge.appendChild(badgeText);
-
-  const count = document.createElement('div');
-  count.className = 'raffle-participant-count';
-  const countValue = document.createElement('strong');
-  countValue.textContent = '0';
-  count.appendChild(countValue);
-  const countLabel = document.createElement('span');
-  countLabel.textContent = getI18nText('raffleParticipants', 'participants');
-  count.appendChild(countLabel);
-
-  header.appendChild(badge);
-  header.appendChild(count);
-
-  const participantsList = document.createElement('div');
-  participantsList.className = 'participants-list';
-  const empty = document.createElement('div');
-  empty.className = 'participants-empty';
-  empty.textContent = getI18nText('raffleNotConfigured', 'No raffle configured yet');
-  participantsList.appendChild(empty);
-
-  wrapper.appendChild(header);
-  wrapper.appendChild(participantsList);
-  setContent(wrapper);
-};
-
-const renderWinner = () => {
-  const winnerNames = Array.isArray(raffleData.winner)
-    ? raffleData.winner.filter(Boolean)
-    : raffleData.winner
-      ? [raffleData.winner]
-      : [];
-
-  const root = document.createElement('div');
-  root.className = 'winner-display';
-
-  const trophy = document.createElement('div');
-  trophy.className = 'winner-icon';
-  trophy.textContent = '🏆';
-  root.appendChild(trophy);
-
-  const title = document.createElement('div');
-  title.className = 'winner-title';
-  title.textContent = getI18nText('raffleWinnerTitle', 'We have a winner!');
-  root.appendChild(title);
-
-  const nameWrapper = document.createElement('div');
-  nameWrapper.className = 'winner-name';
-
-  if (winnerNames.length > 2) {
-    const rotator = document.createElement('span');
-    rotator.className = 'winner-name-fade opacity-0';
-    nameWrapper.appendChild(rotator);
-    clearWinnerRotation();
-    let index = 0;
-    const showNext = () => {
-      if (!rotator.isConnected) {
-        clearWinnerRotation();
-        return;
+  if (entry) {
+    if (typeof entry === 'string') {
+      name = entry.length > 24 ? `${entry.slice(0, 21)}…` : entry;
+    } else if (typeof entry === 'object') {
+      const candidate = entry.username || entry.name || entry.displayName;
+      if (typeof candidate === 'string' && candidate.trim()) {
+        name = truncateName(candidate.trim());
       }
-      rotator.classList.add('opacity-0');
-      setTimeout(() => {
-        rotator.textContent = truncateName(winnerNames[index] || '');
-        rotator.classList.remove('opacity-0');
-        index = (index + 1) % winnerNames.length;
-      }, 400);
-    };
-    showNext();
-    rotateInterval = setInterval(showNext, 5000);
-  } else if (winnerNames.length) {
-    winnerNames.forEach((winner) => {
-      const span = document.createElement('span');
-      span.textContent = truncateName(winner);
-      nameWrapper.appendChild(span);
-    });
+      if (entry.avatar || entry.profilePicture) {
+        avatar = entry.avatar || entry.profilePicture;
+      }
+    }
   }
-  root.appendChild(nameWrapper);
-
-  const prizeLabel = document.createElement('div');
-  prizeLabel.className = 'prize-label';
-  prizeLabel.textContent = getI18nText('rafflePrizeLabel', 'Prize');
-  root.appendChild(prizeLabel);
-
-  const prizeValue = document.createElement('div');
-  prizeValue.className = 'winner-prize';
-  prizeValue.textContent = raffleData.prize || '—';
-  root.appendChild(prizeValue);
-
-  const meta = document.createElement('div');
-  meta.className = 'winner-meta';
-
-  const command = document.createElement('div');
-  command.className = 'winner-command';
-  const commandLabel = document.createElement('span');
-  commandLabel.textContent = `${getI18nText('raffleCommandLabel', 'Command:')}`;
-  const commandValue = document.createElement('span');
-  commandValue.className = 'winner-command-value';
-  commandValue.textContent = raffleData.command || window.lastRaffleCommand || '';
-  command.appendChild(commandLabel);
-  command.appendChild(commandValue);
-  meta.appendChild(command);
-
-  const confettiIcon = document.createElement('div');
-  confettiIcon.className = 'winner-icon-sm';
-  confettiIcon.textContent = '🎉';
-  meta.appendChild(confettiIcon);
-
-  const timestamp = formatTimestamp(raffleData.timestamp);
-  if (timestamp) {
-    const timeEl = document.createElement('div');
-    timeEl.className = 'winner-timestamp';
-    timeEl.textContent = `${getI18nText('raffleWinnerAnnounced', 'Winner announced on')} ${timestamp}`;
-    meta.appendChild(timeEl);
-  }
-
-  root.appendChild(meta);
-  setContent(root);
+  return { name, avatar };
 };
 
-const renderActive = () => {
-  const state = lastActiveState || {};
-  const participants = Array.isArray(state.participants) && state.participants.length
-    ? state.participants
-    : raffleData.participants;
-  const participantNames = Array.isArray(participants) ? participants.map(sanitizeParticipantName) : [];
+const renderWidget = (props) => {
+  const {
+    active,
+    paused,
+    prize,
+    command,
+    imageUrl,
+    participantsCount,
+    winnersCount,
+    recentWinners,
+    statusMessage,
+    statusClass,
+    participants
+  } = props;
 
-  const wrapper = document.createElement('div');
-  wrapper.className = 'raffle-active-state';
+  const isInitialRender = !contentRoot.querySelector('.giveaway-widget');
 
-  const timerEl = document.createElement('div');
-  timerEl.id = 'raffleTimer';
-  timerEl.className = 'raffle-timer hidden';
-  wrapper.appendChild(timerEl);
+  const currentMode = recentWinners && recentWinners.length > 0 ? 'winner' : 'active';
+  const needsFullRender = isInitialRender;
 
-  const header = document.createElement('div');
-  header.className = 'raffle-header';
+  if (needsFullRender) {
+    const html = `
+    <div class="giveaway-widget" data-mode="${currentMode}">
+        <div class="raffle-widget-header">
+            <div class="header-content">
+                <div>
+                    <div class="raffle-widget-title">${getI18nText('raffleTitle', 'GIVEAWAY')}</div>
+                    <div class="raffle-widget-subtitle">${getI18nText('raffleSubtitle', 'Win amazing prizes!')}</div>
+                </div>
+            </div>
+            <div class="live-badge" style="display: ${active && !paused ? 'block' : 'none'}">
+                <i class="pi pi-circle-fill"></i> LIVE
+            </div>
+        </div>
+        
+        <div class="raffle-widget-body">
+            <div class="prize-section">
+                <div class="prize-name">${prize || getI18nText('raffleLoading', 'Loading...')}</div>
+                
+                <div class="prize-image${imageUrl ? '' : ' hidden'}">
+                    ${imageUrl ? `<img src="${imageUrl}" alt="Prize" />` : `
+                    <div class="image-placeholder">
+                        <i class="pi pi-image"></i>
+                        <div>Prize Image</div>
+                    </div>`}
+                </div>
+            </div>
+            
+            <div class="participants-section">
+                <div class="participants-count">
+                    <div class="count-label">${getI18nText('raffleParticipants', 'Participants')}</div>
+                    <div class="count-value">${participantsCount.toLocaleString()}</div>
+                </div>
+                <div class="winners-count">
+                    <div class="winners-label">${getI18nText('raffleWinners', 'Winners')}</div>
+                    <div class="winners-value">${winnersCount}</div>
+                </div>
+            </div>
+            
+            <div class="entry-section" style="display: ${currentMode === 'active' ? 'block' : 'none'}">
+                <div class="command-hint">${getI18nText('raffleCommandHint', 'Type this command in chat to enter:')}</div>
+                <div class="command-box">
+                    <span class="command-prefix">!</span>
+                    <span class="command">${(command || '!giveaway').replace(/^!/, '')}</span>
+                </div>
+                <div class="enter-info">
+                    <i class="pi pi-ticket"></i>
+                    <span>${getI18nText('raffleEnterBtn', 'Enter Giveaway')}</span>
+                </div>
+                <!-- Participant List Container -->
+                <div class="participants-list-container">
+                   <div class="participants-list-title">${getI18nText('raffleEntries', 'Recent Participants')}</div>
+                   <div class="participants-list"></div>
+                </div>
+            </div>
+            
+            <div class="recent-winners" style="display: ${currentMode === 'winner' ? 'block' : 'none'}">
+                <div class="winners-title">${getI18nText('raffleRecentWinners', 'Recent Winners')}</div>
+                <div class="winner-list">
+                    <!-- Specific winner list content injected below -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="raffle-widget-footer">
+            <div class="status-message ${statusClass}">
+                <i class="status-icon pi ${statusClass === 'active' ? 'pi-check-circle' : statusClass === 'paused' ? 'pi-pause' : 'pi-times-circle'}"></i> 
+                <span class="status-text">${statusMessage}</span>
+            </div>
+        </div>
+    </div>
+    `;
 
-  const statusBadge = document.createElement('div');
-  const statusClass = state.paused ? 'paused' : 'active';
-  statusBadge.className = `raffle-status-badge ${statusClass}`;
-  statusBadge.setAttribute('role', 'status');
-  statusBadge.setAttribute('aria-live', 'polite');
-
-  const dot = document.createElement('span');
-  dot.className = 'dot';
-  dot.setAttribute('aria-hidden', 'true');
-  statusBadge.appendChild(dot);
-
-  const statusText = document.createElement('span');
-  const statusKey = state.paused ? 'rafflePaused' : 'raffleActive';
-  statusText.textContent = getI18nText(statusKey, state.paused ? 'Paused' : 'Active');
-  statusBadge.appendChild(statusText);
-
-  const count = document.createElement('div');
-  count.className = 'raffle-participant-count';
-  const countValue = document.createElement('strong');
-  countValue.textContent = String(participantNames.length);
-  const countLabel = document.createElement('span');
-  countLabel.textContent = getI18nText('raffleParticipants', 'participants');
-  count.appendChild(countValue);
-  count.appendChild(countLabel);
-
-  header.appendChild(statusBadge);
-  header.appendChild(count);
-
-  const prizeGroup = document.createElement('div');
-  prizeGroup.className = 'raffle-prize';
-
-  const prizeImage = document.createElement('img');
-  prizeImage.id = 'prizeImage';
-  prizeImage.className = `prize-image${state.imageUrl ? '' : ' hidden'}`;
-  if (state.imageUrl) {
-    prizeImage.src = state.imageUrl;
-    prizeImage.alt = 'Prize';
-  }
-
-  const prizeMeta = document.createElement('div');
-  prizeMeta.className = 'prize-meta';
-
-  const prizeLabel = document.createElement('div');
-  prizeLabel.className = 'prize-label';
-  prizeLabel.textContent = getI18nText('rafflePrizeLabel', 'Prize');
-
-  const prizeName = document.createElement('div');
-  prizeName.id = 'prizeName';
-  prizeName.className = 'prize-text';
-  prizeName.textContent = state.prize || getI18nText('raffleLoading', 'Loading…');
-
-  prizeMeta.appendChild(prizeLabel);
-  prizeMeta.appendChild(prizeName);
-
-  prizeGroup.appendChild(prizeImage);
-  prizeGroup.appendChild(prizeMeta);
-
-  const list = document.createElement('div');
-  list.className = 'participants-list';
-  list.id = 'participantsList';
-
-  if (participantNames.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'participants-empty';
-    empty.textContent = getI18nText('raffleNoParticipants', 'No participants yet');
-    list.appendChild(empty);
+    contentRoot.innerHTML = html;
   } else {
-    participantNames.forEach((name) => {
-      const item = document.createElement('div');
-      item.className = 'participant';
-      item.textContent = name;
-      list.appendChild(item);
-    });
+    const widget = contentRoot.querySelector('.giveaway-widget');
+    if (widget && widget.dataset.mode !== currentMode) {
+        widget.dataset.mode = currentMode;
+    }
+    
+    const entrySection = contentRoot.querySelector('.entry-section');
+    const recentWinnersSection = contentRoot.querySelector('.recent-winners');
+    
+    if (entrySection) entrySection.style.display = currentMode === 'active' ? 'block' : 'none';
+    if (recentWinnersSection) recentWinnersSection.style.display = currentMode === 'winner' ? 'block' : 'none';
   }
 
-  const stats = document.createElement('div');
-  stats.className = 'stats';
+  const liveBadge = contentRoot.querySelector('.live-badge');
+  if (liveBadge) liveBadge.style.display = (active && !paused) ? 'block' : 'none';
 
-  const command = document.createElement('div');
-  const commandLabel = document.createElement('span');
-  commandLabel.textContent = getI18nText('raffleCommand', 'Command:');
-  const commandValue = document.createElement('span');
-  commandValue.id = 'raffleCommand';
-  commandValue.className = 'value';
-  commandValue.textContent = state.command || '!giveaway';
-  command.appendChild(commandLabel);
-  command.appendChild(commandValue);
+  const prizeName = contentRoot.querySelector('.prize-name');
+  if (prizeName && prizeName.textContent !== (prize || getI18nText('raffleLoading', 'Loading...'))) {
+      prizeName.textContent = prize || getI18nText('raffleLoading', 'Loading...');
+  }
+  
+  const prizeImageContainer = contentRoot.querySelector('.prize-image');
+  if (prizeImageContainer) {
+      if (imageUrl) {
+          if (prizeImageContainer.classList.contains('hidden')) prizeImageContainer.classList.remove('hidden');
+          const img = prizeImageContainer.querySelector('img');
+          if (img) {
+             if (img.src !== imageUrl) img.src = imageUrl;
+          } else {
+             prizeImageContainer.innerHTML = `<img src="${imageUrl}" alt="Prize" />`;
+          }
+      } else {
+          if (!prizeImageContainer.classList.contains('hidden')) prizeImageContainer.classList.add('hidden');
+      }
+  }
 
-  const winners = document.createElement('div');
-  const winnersLabel = document.createElement('span');
-  winnersLabel.textContent = getI18nText('raffleWinners', 'Winners');
-  const winnersValue = document.createElement('span');
-  winnersValue.id = 'winnersCount';
-  winnersValue.className = 'value';
-  winnersValue.textContent = String(state.totalWinners || 0);
-  winners.appendChild(winnersLabel);
-  winners.appendChild(winnersValue);
+  const countValue = contentRoot.querySelector('.participants-section .count-value');
+  if (countValue) countValue.textContent = participantsCount.toLocaleString();
 
-  stats.appendChild(command);
-  stats.appendChild(winners);
+  const winnersValue = contentRoot.querySelector('.participants-section .winners-value');
+  if (winnersValue) winnersValue.textContent = winnersCount;
 
-  wrapper.appendChild(header);
-  wrapper.appendChild(prizeGroup);
-  wrapper.appendChild(list);
-  wrapper.appendChild(stats);
-  setContent(wrapper);
+  const commandEl = contentRoot.querySelector('.command');
+  if (commandEl) {
+      const cmdText = (command || '!giveaway').replace(/^!/, '');
+      if (commandEl.textContent !== cmdText) commandEl.textContent = cmdText;
+  }
+
+  if (currentMode === 'active') {
+      const listContainer = contentRoot.querySelector('.participants-list');
+      if (listContainer) {
+          const displayedText = listContainer.dataset.signature;
+          const newSignature = participants.length + '-' + (participants[0]?.username || '');
+          
+          if (displayedText !== newSignature) {
+              const recentParticipants = participants.slice(0, 10);
+              listContainer.innerHTML = recentParticipants.map(p => {
+                const info = getParticipantInfo(p);
+                return `
+                <div class="participant-pill">
+                   <img src="${info.avatar}" class="participant-avatar" alt="" onerror="this.src='${SPACEMAN_AVATAR}'" />
+                   <span class="participant-name">${escapeHtml(info.name)}</span>
+                </div>
+              `}).join('');
+              listContainer.dataset.signature = newSignature;
+          }
+      }
+  }
+
+  if (currentMode === 'winner') {
+      const winnerListV = contentRoot.querySelector('.winner-list');
+      if (winnerListV) {
+          const winnerHtml = recentWinners.map(w => {
+            const avatar = w.avatar || SPACEMAN_AVATAR;
+            
+            return `
+            <div class="winner-item">
+                <img src="${avatar}" class="winner-avatar-img" alt="" onerror="this.src='${SPACEMAN_AVATAR}'" />
+                <div class="winner-name">${escapeHtml(w.name)}</div>
+                <div class="winner-time">${escapeHtml(w.time || getI18nText('justNow', 'Just now'))}</div>
+            </div>
+          `}).join('');
+          if (winnerListV.innerHTML !== winnerHtml) {
+              winnerListV.innerHTML = winnerHtml;
+          }
+      }
+  }
+
+  const statusMsgEl = contentRoot.querySelector('.status-message');
+  if (statusMsgEl) {
+      statusMsgEl.className = `status-message ${statusClass}`;
+      const icon = statusMsgEl.querySelector('.status-icon');
+      if (icon) {
+          icon.className = `status-icon pi ${statusClass === 'active' ? 'pi-check-circle' : statusClass === 'paused' ? 'pi-pause' : 'pi-times-circle'}`;
+      }
+      const text = statusMsgEl.querySelector('.status-text');
+      if (text) text.textContent = statusMessage;
+  }
 };
 
 const renderRaffleContent = () => {
   if (!contentRoot) return;
 
+  const isActive = lastActiveState && lastActiveState.enabled && (lastActiveState.active || lastActiveState.paused);
   const hasWinner = raffleData.winner && (
     (Array.isArray(raffleData.winner) && raffleData.winner.length > 0) ||
-    (typeof raffleData.winner === 'string' && raffleData.winner.trim())
+    (typeof raffleData.winner === 'string' && raffleData.winner.trim()) ||
+    (typeof raffleData.winner === 'object' && (raffleData.winner.name || raffleData.winner.username))
   );
 
+  let props = {
+    active: false,
+    paused: false,
+    prize: '',
+    command: (window.lastRaffleCommand || '').replace(/^!/, ''),
+    imageUrl: '',
+    participantsCount: 0,
+    winnersCount: 0,
+    recentWinners: [],
+    statusMessage: getI18nText('raffleInactive', 'Giveaway is inactive'),
+    statusClass: 'ended',
+    participants: []
+  };
+
   if (hasWinner) {
-    renderWinner();
-    return;
+    const winnerNames = Array.isArray(raffleData.winner) ? raffleData.winner : [raffleData.winner];
+    props.active = false;
+    props.prize = raffleData.prize;
+    props.command = (raffleData.command || '').replace(/^!/, '');
+    props.imageUrl = raffleData.imageUrl;
+    props.recentWinners = winnerNames.map(entry => {
+      const info = getParticipantInfo(entry);
+      return {
+        name: info.name,
+        avatar: info.avatar,
+        time: formatTimestamp(raffleData.timestamp)
+      };
+    });
+
+    if (lastActiveState && typeof lastActiveState.totalWinners === 'number') {
+       props.winnersCount = lastActiveState.totalWinners + winnerNames.length;
+    } else {
+       props.winnersCount = winnerNames.length;
+    }
+
+    props.statusMessage = getI18nText('raffleEnded', 'Giveaway has ended');
+    props.statusClass = 'ended';
+  } else if (isActive) {
+    props.active = lastActiveState.active;
+    props.paused = lastActiveState.paused;
+    props.prize = lastActiveState.prize;
+    props.command = (lastActiveState.command || '').replace(/^!/, '');
+    props.imageUrl = lastActiveState.imageUrl;
+    props.participantsCount = (lastActiveState.participants || []).length;
+    props.participants = lastActiveState.participants || [];
+    props.winnersCount = lastActiveState.totalWinners || 0;
+
+    if (props.paused) {
+      props.statusMessage = getI18nText('rafflePaused', 'Giveaway is paused');
+      props.statusClass = 'paused';
+    } else {
+      props.statusMessage = getI18nText('raffleActive', 'Giveaway is active');
+      props.statusClass = 'active';
+    }
   }
 
-  const isActive = lastActiveState && lastActiveState.enabled && (lastActiveState.active || lastActiveState.paused);
-  if (isActive) {
-    renderActive();
-    return;
-  }
-
-  renderInactive();
+  renderWidget(props);
 };
 
 const loadSavedData = () => {
@@ -555,9 +542,17 @@ const handleWinner = (payload) => {
     prize = winner.prize || payload.prize || '';
     command = winner.command || payload.command || '';
     imageUrl = winner.imageUrl || payload.imageUrl || '';
+
+    const wObj = {
+      name: winner.winner || winner.username || winner.name || '',
+      avatar: winner.avatar || winner.profilePicture || ''
+    };
+    if (wObj.name) names = [wObj];
+    else names = [];
+    
   }
 
-  names = names.filter(Boolean);
+  names = names.filter(n => n && (typeof n === 'string' ? n : n.name));
   if (!names.length) return;
 
   saveWinnerData(names.length === 1 ? names[0] : names, prize, command, imageUrl);
